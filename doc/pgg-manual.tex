@@ -214,7 +214,7 @@ must be symbols, because they serve as stubs for variable names. The
 arguments corresponding to zero binding times serve as the static inputs.
 \begin{small}
 \begin{verbatim}
-> (specialize '($goal 1 0) '(ignored 0))
+> (specialize $goal '($goal 1 0) '(ignored 0))
 '($goal-1 ignored)
 > *residual-program*
 '((define ($goal-1 ignored-1) 1))
@@ -234,7 +234,7 @@ Here is a more interesting run, specializing \texttt{power} for
 \texttt{n=4}.
 \begin{small}
 \begin{verbatim}
-> (specialize '($goal 1 0) '(x 4))
+> (specialize $goal '($goal 1 0) '(x 4))
 '($goal-1 x)
 > (p *residual-program*)
 (define ($goal-1 x-1)
@@ -265,7 +265,7 @@ Now we can say
 >                       "examples/pure-arith.scm") '(power 1 0)))
 ...
 > (load-program genext)
-> (specialize '($goal 1 0) '(x 4))
+> (specialize $goal '($goal 1 0) '(x 4))
 \end{verbatim}
 \end{small}
 and PGG generates the expected code:
@@ -409,12 +409,12 @@ Load structure pgg-residual (y/n)? y
 cogen-ctors.scm ]
 Newly accessible in user: (define-data)
 > (load-program genext)
-> (specialize '($goal 0 0 1) '(5 () values))
+> (specialize $goal '($goal 0 0 1) '(5 () values))
 '($goal-1 values)
 > (p *residual-program*)
 ((define ($goal-1 values-1) 5))
 32
-> (specialize '($goal 0 0 1) '((+ x y) (x y) values))
+> (specialize $goal '($goal 0 0 1) '((+ x y) (x y) values))
 '($goal-1 values)
 > (p *residual-program*)
 ((define ($goal-1 values-1)
@@ -424,7 +424,7 @@ Newly accessible in user: (define-data)
           (mlet-5 (car mlet-2)))
      (+ mlet-3 mlet-5))))
 26
-> (specialize '($goal 0 0 1) '((lambda (x) (+ x y)) (y) values))
+> (specialize $goal '($goal 0 0 1) '((lambda (x) (+ x y)) (y) values))
 '($goal-1 values)
 > (p *residual-program*)
 ((define ($goal-1 values-1)
@@ -562,7 +562,7 @@ Load structure pgg-residual (y/n)? y
 cogen-ctors.scm ]
 Newly accessible in user: (define-data)
 > (load-program genext)
-> (specialize '($goal 1) '(x))
+> (specialize $goal '($goal 1) '(x))
 '($goal-1 x)
 > (p *residual-program*)
 ((define ($goal-1 x-1)
@@ -617,14 +617,14 @@ It contains the example programs \texttt{lazy1} and \texttt{lazy2}.
   Example calls of the specializer include
 \begin{small}
 \begin{verbatim}
-> (specialize '($goal 0 0 0 1) (list lazy1 'f '(42) 'DYN))
-> (specialize '($goal 0 0 0 1) (list lazy1 'f '((CV 1)) 'DYN))
-> (specialize '($goal 0 0 0 1) (list lazy2 'f '((CV 1) (CV 2) (CV 3)) 'DYN))
-> (specialize '($goal 0 0 0 1) (list lazy2 'f '((CV 1) (CV 2) 13) 'DYN))
-> (specialize '($goal 0 0 0 1) (list lazy2 'f '((CV 1) 7 11) 'DYN))
-> (specialize '($goal 0 0 0 1) (list lazy2 'f '(#t (CV 1) (CV 2)) 'DYN))
-> (specialize '($goal 0 0 0 1) (list lazy2 'f '(#f (CV 1) (CV 2)) 'DYN))
-> (specialize '($goal 0 0 0 1) (list lazy2 'f '(#f (CV 1) 17) 'DYN))
+> (specialize $goal '($goal 0 0 0 1) (list lazy1 'f '(42) 'DYN))
+> (specialize $goal '($goal 0 0 0 1) (list lazy1 'f '((CV 1)) 'DYN))
+> (specialize $goal '($goal 0 0 0 1) (list lazy2 'f '((CV 1) (CV 2) (CV 3)) 'DYN))
+> (specialize $goal '($goal 0 0 0 1) (list lazy2 'f '((CV 1) (CV 2) 13) 'DYN))
+> (specialize $goal '($goal 0 0 0 1) (list lazy2 'f '((CV 1) 7 11) 'DYN))
+> (specialize $goal '($goal 0 0 0 1) (list lazy2 'f '(#t (CV 1) (CV 2)) 'DYN))
+> (specialize $goal '($goal 0 0 0 1) (list lazy2 'f '(#f (CV 1) (CV 2)) 'DYN))
+> (specialize $goal '($goal 0 0 0 1) (list lazy2 'f '(#f (CV 1) 17) 'DYN))
 \end{verbatim}
 \end{small}
 \item \texttt{examples/app.scm} contains the append function for
@@ -637,7 +637,7 @@ It contains the example programs \texttt{lazy1} and \texttt{lazy2}.
 > (define genext (cogen-driver (list "examples/dotprod.scm")
 >                              '(dotprod 0 1 2 3)))
 > (load-program genext)
-> (specialize '($goal 0 1 2 3) '(2 v1 v2 v3))
+> (specialize $goal '($goal 0 1 2 3) '(2 v1 v2 v3))
 '(multi-memo 2 '$goal-1 $goal-1 '(0 1 2) (list v1 v2 v3))
 \end{verbatim}
   \end{small}
@@ -674,10 +674,10 @@ It contains the example programs \texttt{lazy1} and \texttt{lazy2}.
   \begin{small}
 \begin{verbatim}
 > (load-program *residual-program*)
-> (specialize '($goal-1 0 1 2) '((111 222) v2 v3))
+> (specialize $goal-1 '($goal-1 0 1 2) '((111 222) v2 v3))
 '(multi-memo 1 '$goal-1-1 $goal-1-1 '(0 1) (list v2 v3))
 > (load-program *residual-program*)
-> (specialize '($goal-1-1 0 1) '((333 444) v3))
+> (specialize $goal-1-1 '($goal-1-1 0 1) '((333 444) v3))
 '($goal-1-1-1 v3)
 > (p *residual-program*)
 ((define ($goal-1-1-1 v3-1)
@@ -698,7 +698,7 @@ It contains the example programs \texttt{lazy1} and \texttt{lazy2}.
 \begin{verbatim}
 > (define genext (cogen-driver (list "examples/object.scm") '(main)))
 > (load-program genext)
-> (specialize '($goal) '())
+> (specialize $goal '($goal) '())
 \end{verbatim}
 \end{small}
 \item \texttt{pm} Olivier Danvy's pattern matcher \cite{Danvy1991}
@@ -713,10 +713,10 @@ It contains the example programs \texttt{lazy1} and \texttt{lazy2}.
 \begin{verbatim}
 > (define genext (cogen-driver (list "examples/unify.scm") '(main 0 1)))
 > (load-program genext)
-> (specialize '($goal 0 1) (list  '(cst 555) 'YYY))
-> (specialize '($goal 0 1) (list  '(var 555) 'YYY))
-> (specialize '($goal 0 1) (list  '(bin (var 1) (var 1)) 'YYY))
-> (specialize '($goal 0 1) (list  '(bin (var 1) (bin (cst 4711) (var 1))) 'YYY))
+> (specialize $goal '($goal 0 1) (list  '(cst 555) 'YYY))
+> (specialize $goal '($goal 0 1) (list  '(var 555) 'YYY))
+> (specialize $goal '($goal 0 1) (list  '(bin (var 1) (var 1)) 'YYY))
+> (specialize $goal '($goal 0 1) (list  '(bin (var 1) (bin (cst 4711) (var 1))) 'YYY))
 \end{verbatim}
   \end{small}
 \end{itemize}
@@ -782,7 +782,7 @@ Load structure power1 (y/n)? y
 Finally, we can specialize in the same way as before.
 \begin{small}
 \begin{verbatim}
-> (specialize '($goal 1 0) '(x 0))
+> (specialize $goal '($goal 1 0) '(x 0))
 '($goal-1 x)
 > *residual-program*
 '((define ($goal-1 x-1) 1))
@@ -1201,7 +1201,7 @@ recognized.
 The function \texttt{specialize} is the human interface to running a generating
 extension. It has two forms.
 \begin{verbatim}
-(specialize BindingTimeSkeleton ARGS)
+(specialize GenextMain BindingTimeSkeleton ARGS)
 \end{verbatim}
 and
 \begin{verbatim}
@@ -1210,11 +1210,13 @@ and
 where
 \index{binding time!skeleton|textbf}
 \begin{itemize}
-\item \texttt{BindingTimeSkeleton}  is a list where the first element is a
-  symbol denoting the main function of the generating extension and the remaining 
-  elements are binding times its parameters. The list of binding times must be
-  identical to the one given to \texttt{cogen-driver} when creating this
-  generating extension.
+\item \texttt{GenextMain} is the main function of the generating extension,
+\item \texttt{BindingTimeSkeleton} is a list where the first element
+  is a symbol denoting the \emph{name} of main function of the
+  generating extension, and the remaining elements are binding times
+  its parameters. The list of binding times must be identical to the
+  one given to \texttt{cogen-driver} when creating this generating
+  extension.
 \item \texttt{ARGS} is the list of arguments to the generating extension. Its
   length must be equal to the number of binding times supplied in the
   \texttt{Binding\-Time\-Skeleton}. The 
