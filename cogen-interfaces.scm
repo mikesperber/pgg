@@ -561,6 +561,10 @@
   (open scheme signals)
   (files cogen-labset-bylist))
 
+(define-structure cogen-labset-bylist cogen-labset-interface
+  (open scheme signals)
+  (files cogen-labset-bylist))
+
 (define-structure pgg pgg-interface
   (open scheme auxiliary
 	cogen-scheme

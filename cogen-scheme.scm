@@ -506,31 +506,38 @@
 ;;; before second step:
 ;;; wrap mutable variables into explicit boxes
 
-(define (scheme-wrap-template template e)
-  (if (pair? template)
-      (scheme-wrap-mutables (cdr template) e)
-      e))
+(define (scheme-wrap-mutables new->old body)
+  (let loop ((new->old new->old))
+    (if (null? new->old)
+	body
+	`(LET ((,(caar new->old) (MAKE-CELL ,(cdar new->old))))
+	   ,(loop (cdr new->old))))))
 
-(define (scheme-wrap-mutables formals e)
-  (letrec
-      ((wrap
-	(lambda (formals)
-	  (if (null? formals)
-	      e
-	      (let ((formal (car formals)))
-		(if (member formal *scheme->abssyn-mutable-variables*)
-		    `(LET ((,formal (MAKE-CELL ,formal)))
-		       ,(wrap (cdr formals)))
-		    (wrap (cdr formals))))))))
-    (wrap formals)))
+(define (scheme-wrap-binding bound-vars body build)
+  (let loop ((old-vars bound-vars) (new-vars '()) (new->old '()))
+    (if (null? old-vars)
+	(build (reverse new-vars)
+	       (scheme-wrap-mutables new->old body))
+	(let ((old-var (car old-vars))
+	      (old-vars (cdr old-vars)))
+	  (if (member old-var *scheme->abssyn-mutable-variables*)
+	      (let ((new-var (gensym old-var)))
+		(loop old-vars
+		      (cons new-var new-vars)
+		      (cons (cons new-var old-var) new->old)))
+	      (loop old-vars (cons old-var new-vars) new->old))))))
 
 (define (scheme-wrap-one-d d)
   (let ((definer (car d))
-	(template (cadr d)))
-  `(,definer ,template
-     ,(scheme-wrap-template
-       template
-       (scheme-wrap-e (caddr d))))))
+	(template (cadr d))
+	(wrapped-body (scheme-wrap-e (caddr d))))
+    (if (pair? template)
+	(scheme-wrap-binding (cdr template)
+			     wrapped-body
+			     (lambda (new-vars body)
+			       `(,definer (,(car template) ,@new-vars)
+					  ,body)))
+	`(,definer ,template ,wrapped-body))))
 
 (define (scheme-wrap-e e)
   (if (not (pair? e))
@@ -554,12 +561,13 @@
 	  (let* ((header (caar args))
 		 (body (cadr args))
 		 (bound-var (car header))
-		 (bound-body (cadr header)))
+		 (bound-body (cadr header))
+		 (wrapper (if (member bound-var *scheme->abssyn-mutable-variables*)
+			      (lambda (body) `(MAKE-CELL ,body))
+			      (lambda (body) body))))
 	    `(LET ((,bound-var
-		    ,(scheme-wrap-e bound-body)))
-	       ,(scheme-wrap-mutables
-		 (list bound-var)
-		 (scheme-wrap-e body)))))
+		    ,(wrapper (scheme-wrap-e bound-body))))
+	       ,(scheme-wrap-e body))))
 	 ;;
 	 ((equal? tag 'LETREC)
 	  (let* ((headers (car args))
@@ -572,9 +580,11 @@
 	 ;;
 	 ((equal? tag 'LAMBDA)
 	  (let* ((bound-vars (car args))
-		 (body (cadr args)))
-	    `(LAMBDA ,bound-vars
-	       ,(scheme-wrap-mutables bound-vars (scheme-wrap-e body)))))
+		 (wrapped-body (scheme-wrap-e (cadr args))))
+	    (scheme-wrap-binding bound-vars
+				 wrapped-body
+				 (lambda (new-vars body)
+				   `(LAMBDA (,@new-vars) ,body)))))
 	 (else
 	  (cons tag (map scheme-wrap-e args)))))))
 
