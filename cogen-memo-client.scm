@@ -75,9 +75,31 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; distributed stuff
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(define (spec-client-initialize!)
+
+;; This assumes all clients are running on different Kalis!
+
+(define client-server-aspace)
+
+(define (I-am-unemployed)
+  (remote-run! client-server-aspace
+	       client-is-unemployed
+	       (local-aspace)))
+
+(define (I-register-memo-point! program-point local-name)
+  (remote-run! client-server-aspace
+	       client-registers-memo-point!
+	       (local-aspace) program point local-name))
+
+(define (can-I-work-on? local-name)
+  (remote-run! client-server-aspace
+	       can-client-work-on? (local-aspace) local-name))
+
+(define (client-initialize! aspace)
+  (set! client-server-aspace aspace)
   (local-cache-initialize!)
-  (local-resid-initialize!))
+  (local-resid-initialize!)
+  (I-am-unemployed))
+
 
 (define (spec-client-process master-pending-lookup client-id entry)
   (let loop ((entry entry))		;assume master-cache knows about this specialization
@@ -165,12 +187,21 @@
 
 ;;; the pending list
 (define *master-pending* 'undefined)
+(define *master-pending-placeholders*)
 (define (master-pending-initialize!)
-  (set! *master-pending* (cons '***HEAD*** '())))
+  (set! *master-pending* (cons '***HEAD*** '()))
+  (set! *master-pending-placeholders* '()))
 (define (master-pending-empty?)
   (null? (cdr *master-pending*))))
 (define (master-pending-add! key entry)
-  (set-cdr! *master-pending* (cons (cons key entry) (cdr *master-pending*))))
+  (if (null? *master-pending-placeholders*)
+      (set-cdr! *master-pending*
+		(cons (cons key entry) (cdr *master-pending*)))
+      (begin
+	(let ((placeholder (car *master-pending-placeholders*)))
+	  (set! *master-pending-placeholders*
+		(cdr *master-pending-placeholders*))
+	  (placeholder-set! placeholder entry)))))
 (define (master-pending-lookup! key)
   (let loop ((previous *master-pending*)
 	     (current (cdr *master-pending*)))
@@ -195,12 +226,57 @@
 (define (master-cache-lookup key)
   (cond ((assoc key *master-cache*) => cdr)
 	(else #f)))
+(define master-cache-lock (make-lock))
+(define master-pending-lock (make-lock))
+
+(define (start-specialization client-aspaces
+			      level fname fct bts args)
+    (master-cache-initialize!)
+    (master-pending-initialize!)
+    
+    (for-each (lambda (id aspace)
+		(remote-run! aspace client-initialize! aspace))
+	      client-aspaces)))
+
+(define (client-registers-memo-point! client-aspace
+				      program-point local-name)
+  (let ((static-skeleton (top-project-static program-point)))
+    (cond
+     ((master-cache-lookup static-skeleton)
+      => (lambda (entry)
+	   (master-entry->add-local-name! entry local-name client-id)))
+     (else
+      (let ((entry
+	     (make-master-entry program-point 			; key
+				local-name			; global name
+				(list (list local-name aspace))	; an alist 
+				#f 				; processed?
+				)))
+	(with-lock
+	 master-cache-lock
+	 (lambda () (master-cache-add! static-skeleton entry)))
+	(with-lock
+	 master-pending-lock
+	 (lambda () (master-pending-add! static-skeleton entry))))))))
+
+(define (client-is-unemployed client-aspace)
+  (obtain-lock master-pending-lock)
+  (let ((entry (master-pending-advance!)))
+    (if entry
+	(remote-apply client-aspace
+		      client-do-some-work!
+		      entry)
+	(let ((entry-placeholder (make-placeholder)))
+	  (pending-sign-up! entry-placeholder)
+	  (release-lock master-pending-lock)
+	  (remote-apply client-aspace
+			client-do-some-work!
+			(placeholder-value entry-placeholder))))))
+
 (define (spec-master spec-clients
 		     level fname fct bts args)
   
   (let ((client-ids (map (lambda (aspace) (genint)) spec-clients))
-	(master-cache-lock (make-lock))
-	(master-pending-lock (make-lock))) ;obtain-lock release-lock
     ;; the following proc should only run on the master server
     (define master-cache-register
       (encap
@@ -238,8 +314,9 @@
     (master-pending-initialize!)
     
     ;; initialize specialization clients
-    (for-each (lambda (aspace)
-		(remote-run aspace spec-client-initialize!)) spec-clients)
+    (for-each (lambda (id aspace)
+		(remote-run! aspace client-initialize! aspace))
+	      spec-clients)
     ;; all of them must have terminated before the first spec-client-process starts
     ;; maybe condvars help?
 
@@ -256,9 +333,9 @@
 		   (let loop ()
 		     (let ((entry (with-lock master-pending-lock master-pending-advance!)))
 		       (if entry
-			   (remote-apply! aspace
-					  spec-client-process master-pending-lookup! client-id
-					  (make-entry))))
+			   (remote-apply aspace
+					 spec-client-process master-pending-lookup! client-id
+					 (make-entry))))
 		     (loop)))))
 	      spec-clients client-ids)))
 
