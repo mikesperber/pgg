@@ -208,13 +208,6 @@
   (open scheme signals escapes)
   (files shift-reset))
 
-(define-structure cogen-library cogen-library-interface
-  (open scheme signals auxiliary shift-reset threads
-	cogen-completers cogen-specialize
-	cogen-gensym cogen-residual
-	cogen-boxops)
-  (files cogen-library))
-
 (define-structure cogen-residual cogen-residual-interface
   (open scheme cogen-gensym cogen-specialize)
   (files cogen-residual))
@@ -228,6 +221,24 @@
 	    _complete-serious-apply-no-result
 	    _complete-maybe) :syntax)))
 
+(define-module (make-cogen-completers residual)
+  (structure cogen-completers-interface
+    (open scheme shift-reset residual cogen-gensym)
+    (files cogen-completer)))
+
+(def cogen-completers (make-cogen-completers cogen-residual))
+
+(define-module (make-cogen-library residual completers)
+  (structure cogen-library-interface
+    (open scheme signals auxiliary shift-reset threads
+	  completers cogen-specialize
+	  cogen-gensym residual
+	  cogen-boxops)
+    (files cogen-library)))
+
+(def cogen-library (make-cogen-library cogen-residual 
+				       cogen-completers))
+
 (define-interface cogen-record-interface
   (export ((define-record) :syntax)))
 
@@ -235,38 +246,45 @@
   (open scheme signals)
   (files cogen-record))
 
-(define-structure cogen-memo-standard cogen-memo-interface
-  (open scheme auxiliary signals shift-reset threads
-	cogen-specialize cogen-globals cogen-record cogen-gensym
-	cogen-library cogen-completers cogen-residual)
-  (files cogen-memo-standard))
+(define-module (make-cogen-memo-standard library completers residual)
+  (structure cogen-memo-interface
+    (open scheme auxiliary signals shift-reset threads
+	  cogen-specialize cogen-globals cogen-record cogen-gensym
+	  library completers residual)
+    (files cogen-memo-standard)))
 
-(define-module (make-pgg-library residual)
+(def cogen-memo-standard (make-cogen-memo-standard cogen-library
+						   cogen-completers
+						   cogen-residual))
+
+(define-module (make-pgg-library residual library completers memo)
   (structure cogen-direct-anf-interface
     (open scheme escapes signals auxiliary threads placeholders
-	  cogen-gensym cogen-boxops cogen-globals cogen-library
-	  shift-reset cogen-completers cogen-memo-standard residual)
+	  cogen-gensym cogen-boxops cogen-globals library
+	  shift-reset completers memo residual)
     (files cogen-direct-anf)))
 
-(def pgg-library (make-pgg-library cogen-residual))
+(def pgg-library (make-pgg-library cogen-residual
+				   cogen-library
+				   cogen-completers
+				   cogen-memo-standard))
 
-(define-structure pgg-residual
-  (export ((start-memo define-data) :syntax)
-	  specialize
-	  make-cell cell-ref cell-set!)
-  (open scheme escapes
-	define-data
-	cogen-boxops cogen-memo-standard))
+(define-module (make-pgg-residual memo)
+  (structure (export ((start-memo define-data) :syntax)
+		     specialize
+		     make-cell cell-ref cell-set!)
+    (open scheme escapes
+	  define-data
+	  cogen-boxops memo)))
 
-(define-structure cogen-completers
-  cogen-completers-interface
-  (open scheme shift-reset cogen-residual cogen-gensym)
-  (files cogen-completer))
+(def pgg-residual (make-pgg-residual cogen-memo-standard))
 
-(define-structure pgg-specialize
-  (export specialize
-	  *residual-program*
-	  *support-code*)
-  (open cogen-memo-standard
-	cogen-specialize))
+(define-module (make-pgg-specialize memo)
+  (structure (export specialize
+		     *residual-program*
+		     *support-code*)
+    (open memo
+	  cogen-specialize)))
+
+(def pgg-specialize (make-pgg-specialize cogen-memo-standard))
 
