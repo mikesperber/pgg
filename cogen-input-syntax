@@ -17,7 +17,7 @@ D ::=	D0 |
 	(define P D0* E*) |			% not allowed for goal proc
 	(define-data TC (C Ci*)+) |
 	(define-type (P B*) B) |
-	(define-primitive O T [dynamic|error|opaque]) |
+	(define-primitive O T [dynamic|error|opaque|pure|apply]) |
 	(define-memo M <number>)
 T ::= (all TV T) | (rec TV T) | (TC T*) | TV
 TV    type variable (must be bound by rec or all)

@@ -1,7 +1,8 @@
 - implement coarity raising
-- extend the top-level such that arbitrary scheme programs (including
-  non-functional definitions) are allowed; use the proposed macro
-  mechanism of R4RS to implement non-primitive forms
+- extend the top-level such that arbitrary Scheme programs (including
+  non-functional definitions) are allowed
+- implement BACKQUOTE, UNQUOTE, UNQUOTE-SPLICING
++ use the proposed macro mechanism of R4RS to implement non-primitive forms
 - automatically insert representation coercions for (partially) static
   top-level arguments (from the standard representation to the memoized one)
 - revise symbol handling to pairs of (symbol, version number)
@@ -17,8 +18,8 @@
 + inspect the lambda lifter (dependency analysis?)
 - insert LET only if the variable appears more than once in the body
 + reconsider LET insertion strategy (constructor arguments!)
-- how many memoization points are really necessary? you may want to
-  read Malmkjaer's PEPM'93 paper
+- how many memoization points are really necessary?
+  you may want to read Malmkjaer's PEPM'93 paper
 + support for EVAL
 + complete the above (preprocessor, bta, skeleton)
 + check whether it still performs continuation-based reduction :-)

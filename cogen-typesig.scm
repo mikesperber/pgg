@@ -69,7 +69,7 @@
 
 ;;; process (define-primitive ...)
 ;;; accepts the following syntax for definitions of primitive operators
-;;; D  ::= (define-primitive O T [dynamic|error|opaque])
+;;; D  ::= (define-primitive O T [dynamic|error|opaque|apply|pure])
 (define (one-defop dt)
   (let* ((op-name (cadr dt))
 	 (op-type (caddr dt))
@@ -78,7 +78,7 @@
 	 (op-apair (assoc op-option wft-property-table)) ;defined in cogen-eq-flow
 	 (st-entry (list op-name
 			 (annMakeOp1
-			  (not (equal? op-option 'opaque))   ;opacity
+			  (eq? op-option 'pure) ;opacity
 			  (and op-apair (cdr op-apair))          ;property (a function)
 			  #f
 			  (parse-type op-type))	          ;type

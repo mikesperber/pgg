@@ -20,6 +20,8 @@
   `(_IF ,l ,lb ,c ,t ,e))
 (define (make-ge-op l o args)
   `(_OP ,l ,o ,@args))
+(define (make-ge-op-pure l o args)
+  `(_OP_PURE ,l ,o ,@args))
 (define (make-ge-call f bts args)
   `(,f ,@args))
 (define (make-ge-let hl unf? bl v e body)
@@ -218,6 +220,17 @@
     ((_op 1 op arg ...)
      (_complete `(op ,arg ...)))
     ((_op lv op arg ...)
+     (_complete `(_OP ,(pred lv) op ,arg ...)))))
+
+(define-syntax _op_pure
+  (syntax-rules (cons)
+    ((_op_pure 0 op arg ...)
+     (op arg ...))
+    ((_op_pure 1 cons e1 e2)
+     (make-residual-cons e1 e2))
+    ((_op_pure 1 op arg ...)
+     `(op ,arg ...))
+    ((_op_pure lv op arg ...)
      (_complete `(_OP ,(pred lv) op ,arg ...)))))
 
 (define-syntax _freevar

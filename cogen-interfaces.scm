@@ -36,7 +36,7 @@
 	  annFetchCondElse
 	  INTERNAL-IDENTITY
 	  annMakeOp
-	  annMakeOpaqueOp
+	  annMakePureOp
 	  annMakeFullOp
 	  annMakeOp1
 	  annIsOp?
@@ -147,6 +147,7 @@
 	  make-ge-const
 	  make-ge-cond
 	  make-ge-op
+	  make-ge-op-pure
 	  make-ge-call
 	  make-ge-let
 	  make-ge-begin
@@ -247,6 +248,7 @@
 	    _s_t_memo
 	    _if
 	    _op
+	    _op_pure
 	    _freevar
 	    _lift0
 	    _lift

@@ -360,11 +360,11 @@
 	    (scheme-rename-variables
 	     (cons (list-last symtab*) symtab*)
 	     (or ((syntax-rules-transformer '()
-					    '(((name ((v e) ...) body ...)
+					    '(((let name ((v e) ...) body ...)
 					       (letrec ((name (lambda (v ...) body ...)))
 						 (name e ...))))
 					    (lambda () #f))
-		  (syntax-make-pop-mark args)
+		  (syntax-make-pop-mark (cons tag args))
 		  symtab*)
 		 (error "syntax error in named let" e)))))
 	 ;; !!! need to strip off SCHEME-POP-MARK

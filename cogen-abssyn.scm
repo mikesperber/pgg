@@ -98,9 +98,9 @@
 ;;; primitive operations
 (define INTERNAL-IDENTITY (list '???lift))
 (define (annMakeOp op args)
-  (annMakeExpr 'OP (vector op args #t #f #f #f)))
-(define (annMakeOpaqueOp op args)
   (annMakeExpr 'OP (vector op args #f #f #f #f)))
+(define (annMakePureOp op args)
+  (annMakeExpr 'OP (vector op args #t #f #f #f)))
 (define (annMakeFullOp op opaque property pp type args)
   (annMakeExpr 'OP (vector op args opaque property pp type)))
 (define (annMakeOp1 opaque property pp type)

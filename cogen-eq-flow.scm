@@ -699,7 +699,7 @@
 
 (define wft-apply-property
   (lambda (type type*)
-    (display "wft-apply-property") (newline)
+    (bta-debug-level 3 (display "wft-apply-property") (newline))
     (wft-depend-property type type*)
     (let ((type-fun (car type*))
 	  (type-args (cdr type*)))
@@ -709,12 +709,14 @@
 
 (define wft-dynamic-property
   (lambda (type type*)
+    (bta-debug-level 3 (display "wft-dynamic-property") (newline))
     (for-each (lambda (type)
 		(bta-note-dynamic! (type-fetch-btann type)))
 	      (cons type type*))))
 
 (define wft-error-property
   (lambda (type type*)
+    (bta-debug-level 3 (display "wft-error-property") (newline))
     (bta-note-dynamic! (type-fetch-btann type))))
 
 (define wft-define-data-property
@@ -732,7 +734,7 @@
 (define wft-property-table
   `((apply   . ,wft-apply-property)
     (dynamic . ,wft-dynamic-property)
-    (error   . ,wft-error-property)
+    (error   . ,wft-dynamic-property)
     (opaque  . ,wft-dynamic-property)))
 
 ;;; propagate binding-time constraints

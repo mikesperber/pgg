@@ -60,10 +60,13 @@
      ((annIsOp? e)
       (let ((op-name (annFetchOpName e))
 	    (op-args (annFetchOpArgs e)))
-	(if (eq? op-name INTERNAL-IDENTITY)
-	    (loop (car op-args))
-	    (make-ge-op (annExprFetchLevel e)
-			op-name (map loop op-args)))))
+	(cond
+	 ((eq? op-name INTERNAL-IDENTITY)
+	  (loop (car op-args)))
+	 ((annFetchOpDiscardability e)
+	  (make-ge-op-pure (annExprFetchLevel e) op-name (map loop op-args)))
+	 (else
+	  (make-ge-op (annExprFetchLevel e) op-name (map loop op-args))))))
      ((annIsCall? e)
       (let ((args (annFetchCallArgs e)))
       (make-ge-call (annFetchCallName e)
