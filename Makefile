@@ -130,7 +130,7 @@ $(INTERACTIVE_IMAGE) : $(cogen_files) $(config_files)
 	| $(SCHEME48) -h $(INTERACTIVE_HEAPSIZE)
 
 $(DISTRIBUTION): $(cogen_files) $(config_files) $(cogen_examples) $(additional_files)
-	tar cvfz $(DISTRIBUTION) $(cogen_files) $(config_files) $(cogen_examples) $(additional_files)
+	tar cvhzf $(DISTRIBUTION) $(cogen_files) $(config_files) $(cogen_examples) $(additional_files)
 
 $(GENEXT_DISTRIBUTION): $(genext_files) $(genext_config_files)
-	tar cvfz $(GENEXT_DISTRIBUTION) $(genext_files) $(genext_config_files)
+	tar cvhzf $(GENEXT_DISTRIBUTION) $(genext_files) $(genext_config_files)
