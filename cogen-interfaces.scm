@@ -629,6 +629,7 @@
 
 (define-structure pgg-residual
   (export ((start-memo define-data) :syntax)
+	  specialize
 	  make-cell cell-ref cell-set!)
   (open scheme escapes pgg-library cogen-boxops)
   (files cogen-ctors))
@@ -643,6 +644,7 @@
 
 (define-interface cogen-memo-interface
   (export ((start-memo) :syntax)
+	  specialize
 	  nextlevel
 	  multi-memo))
 

@@ -61,6 +61,7 @@ cogen_examples = \
 	examples/cyclic.scm \
 	examples/dotprod.scm \
 	examples/int.scm \
+	examples/list.dat \
 	examples/object.scm \
 	examples/pm-input.scm \
 	examples/pm.scm \

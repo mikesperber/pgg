@@ -10,6 +10,19 @@
     ((_ level fn bts args new-goal)
      (start-memo-internal level 'fn fn bts args))))
 
+(define (specialize memo-template args . new-goal)
+  ;; memo-template = (goal bt ...)
+  (let* ((bts (cdr memo-template))
+	 (level (apply max (cons 1 bts)))
+	 (goal-proc (car memo-template)))
+    (apply start-memo-internal
+	   level
+	   goal-proc
+	   (eval goal-proc (interaction-environment))
+	   bts
+	   args
+	   new-goal)))
+
 (define (nextlevel memo-template args . new-goal)
   (let ((level (list-ref memo-template 1))
 	(goal-proc (list-ref memo-template 3))

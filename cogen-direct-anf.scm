@@ -37,7 +37,10 @@
 		 (LAMBDA ,fvars (LAMBDA ,vars ,body))))
 (define (make-ge-vlambda-memo l fixed-vars var btv label fvars bts body)
   `(_VLAMBDA_MEMO ,l ',fixed-vars ',var ',label (LIST ,@fvars) ',bts
-		 (LAMBDA ,fvars (LAMBDA ,(append fixed-vars var) ,body))))
+		  (LAMBDA ,fvars
+		    (LAMBDA ,(if (zero? l)
+				 (append fixed-vars var)
+				 (cons var fixed-vars)) ,body))))
 (define (make-ge-app-memo l f btv args)
   `(_APP_MEMO ,l ,f ,@args))
 (define (make-ge-lambda l vars btv body)
@@ -185,19 +188,21 @@
 	 (new-bts (binding-times compressed-dynamics))
 	 (formal-fvs (map cdr clone-map)))
     ;; (> lv 0)
-    (_complete
-     `(_VLAMBDA_MEMO
-       ,(- lv 1)
-       ',arity
-       ',var
-       ',(gensym 'cls)
-       (LIST ,@actual-fvs)
-       ',new-bts
-       (LAMBDA ,formal-fvs
-	 (LAMBDA ,(append fixed-formals formal)
-	   ,(reset (apply (apply f cloned-vvs)
-			  fixed-formals
-			  (list formal)))))))))	;horrendously wrong
+    (let ((lv (-lv 1)))
+      (_complete
+       `(_VLAMBDA_MEMO
+	 ,lv
+	 ',arity
+	 ',var
+	 ',(gensym 'cls)
+	 (LIST ,@actual-fvs)
+	 ',new-bts
+	 (LAMBDA ,formal-fvs
+	   (LAMBDA ,(if (zero? lv)
+			(append fixed-formals formal)
+			(cons formal fixed-formals))
+	     ,(reset (apply (apply f cloned-vvs)
+			    (cons formal fixed-formals))))))))))
 
 (define-syntax _begin
   (syntax-rules ()
