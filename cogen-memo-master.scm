@@ -6,7 +6,7 @@
 (define-record pending-entry
   (program-point static-skeleton name bts fct))
 
-(define *master-pending*)
+(define *master-pending* #f)
 (define *master-pending-lock* (make-lock))
 (define *master-pending-placeholders*)
 (define *master-pending-placeholders-lock* (make-lock))
@@ -49,9 +49,9 @@
 
 ;;; entries in the global cache
 (define-record master-entry
-  (program-point name names+aspaces mark))
+  (program-point name ids+aspaces mark))
 
-(define *master-cache*)
+(define *master-cache* #f)
 (define *master-cache-lock* (make-lock))
 (define (master-cache-initialize!)
   (set! *master-cache* '()))
@@ -60,28 +60,28 @@
 (define (master-cache-lookup key)
   (cond ((assoc key *master-cache*) => cdr)
 	(else #f)))
-(define (master-cache-lookup-by-local-name local-name final?)
+(define (master-cache-lookup-by-local-id local-id final?)
   (let loop ((master-cache *master-cache*))
     (and (not (final? master-cache))
 	 (let* ((master-entry (cdar master-cache))
-		(names+aspaces (master-entry->names+aspaces master-entry)))
-	   (or (and (assoc local-name names+aspaces) master-entry)
+		(ids+aspaces (master-entry->ids+aspaces master-entry)))
+	   (or (and (assoc local-id ids+aspaces) master-entry)
 	       (loop (cdr master-cache)))))))
 
 ;; messages sent from server to master
 
-(define (server-working-on aspace local-name) ; async
+(define (server-working-on uid local-id) ; async
   ;; make sure that local-name is already registered with the master
-  (if (not (can-server-work-on? aspace local-name))
-      (remote-run! aspace server-kill-specialization local-name)))
+  (if (not (can-server-work-on? uid local-id))
+      (remote-run! (aspace-uid uid) server-kill-specialization local-id)))
 
-(define (can-server-work-on? aspace local-name)	; sync
-    (display "Server ") (display (aspace-uid server-aspace)) (display "asks if it can work on ") (display local-name) (newline)
+(define (can-server-work-on? uid local-id)	; sync
+    (display "Server ") (display uid) (display " asks if it can work on ") (display local-id) (newline)
   (let loop ((master-cache *master-cache*) (final? null?))
     (cond
-     ((master-cache-lookup-by-local-name local-name final?)
+     ((master-cache-lookup-by-local-id local-id final?)
       => (lambda (entry)
-	   (master-entry->add-local-name! entry local-name aspace)
+	   (master-entry->add-local-id! entry local-id uid)
 	   (with-lock *master-cache-lock*
 		      (lambda ()
 			(if (master-entry->mark entry)
@@ -93,14 +93,14 @@
       (relinquish-timeslice)
       (loop *master-cache* (lambda (item) (eq? item master-cache)))))))
 
-(define (server-registers-memo-point! server-aspace
-				      program-point local-name bts fct)
-  (display "Server ") (display (aspace-uid server-aspace)) (display "registers memo point ") (display program-point) (display ", local name ") (display local-name) (newline)
+(define (server-registers-memo-point! uid
+				      program-point local-name local-id bts fct)
+  (display "Server ") (display uid) (display " registers memo point ") (display program-point) (display ", local id ") (display local-id) (newline)
   (let ((static-skeleton (top-project-static program-point bts)))
     (cond
      ((master-cache-lookup static-skeleton)
       => (lambda (entry)
-	   (master-entry->add-local-name! entry local-name server-aspace)))
+	   (master-entry->add-local-id! entry local-id (uid->aspace uid))))
      (else
       (begin
 	(with-lock
@@ -110,7 +110,7 @@
 	    static-skeleton
 	    (make-master-entry program-point 			; key
 			       local-name			; global name
-			       (list (cons local-name server-aspace))	; an alist 
+			       (list (cons local-id (uid->aspace uid)))	; an alist 
 			       #f)))))
 	(with-lock
 	 *master-pending-lock*
@@ -124,12 +124,12 @@
 				fct))))))))
 				
 
-(define (server-is-unemployed server-aspace)
-  (display "Server ") (display (aspace-uid server-aspace)) (display "says it's unemployed") (newline)
+(define (server-is-unemployed uid)
+  (display "Server ") (display uid) (display " says it's unemployed") (newline)
   (let ((entry (with-lock *master-pending-lock* master-pending-advance!)))
     (if entry
 	;; we can put it right back to work
-	(remote-run! server-aspace
+	(remote-run! (uid->aspace uid)
 		     server-specialize
 		     (pending-entry->name entry) 
 		     (pending-entry->program-point entry)
@@ -150,7 +150,7 @@
 		   *n-unemployed-servers-lock*
 		   (lambda ()
 		     (set! *n-unemployed-servers* (- *n-unemployed-servers* 1))))
-		  (remote-run! server-aspace
+		  (remote-run! (uid->aspace uid)
 			       server-specialize
 			       (pending-entry->name entry) 
 			       (pending-entry->program-point entry)
@@ -159,29 +159,29 @@
 
 ;; Specialization driver
 
-(define *server-aspaces*)
-(define *n-servers*)
-(define *n-unemployed-servers*)
+(define *server-aspaces* #f)
+(define *n-servers* #f)
+(define *n-unemployed-servers* #f)
 (define *n-unemployed-servers-lock* (make-lock))
 
-(define (start-specialization server-aspaces
+(define (start-specialization server-uids
 			      level fname fct bts args)
     (master-cache-initialize!)
     (master-pending-initialize!)
 
-    (set! *server-aspaces* server-aspaces)
-    (set! *n-servers* (length server-aspaces))
+    (set! *server-aspaces* (map uid->aspace server-uids))
+    (set! *n-servers* (length *server-aspaces*))
     (set! *n-unemployed-servers* 0)
 
     (let* ((program-point (cons fname args))
 	   (static-skeleton (top-project-static program-point bts))
 	   (new-name (gensym fname)))
       (server-registers-memo-point!
-       (car server-aspaces) program-point new-name bts fct))
+       (car server-uids) program-point new-name #f bts fct))
 
-    (for-each (lambda (id aspace)
-		(remote-run! aspace server-initialize! aspace))
-	      server-aspaces))
+    (for-each (lambda (aspace)
+		(remote-run! aspace server-initialize! (local-aspace-uid)))
+	      *server-aspaces*))
 
 (define (collect-residual-program)
   (apply append
@@ -189,8 +189,8 @@
 		(remote-apply aspace collect-local-residual-program))
 	      *server-aspaces*)))
 
-(define (master-entry->add-local-name! master-entry local-name aspace)
-  (let ((names+aspaces (master-entry->names+aspaces master-entry)))
-    (master-entry->names+aspaces!
+(define (master-entry->add-local-id! master-entry local-id uid)
+  (let ((ids+aspaces (master-entry->ids+aspaces master-entry)))
+    (master-entry->ids+aspaces!
      master-entry
-     (cons (list local-name aspace) names+aspaces))))
+     (cons (cons local-id uid) ids+aspaces))))

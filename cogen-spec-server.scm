@@ -4,10 +4,21 @@
 ;;; memoization master.
 
 (define-record server-entry
-  (program-point static-skeleton name bts fct))
+  (program-point static-skeleton name local-id bts fct))
 
-(define *local-cache*)
-(define *local-pending*)
+(define *local-cache* #f)
+(define *local-pending* #f)
+(define *local-id-shift* 8)
+(define *local-id-count* #f)
+
+(define (generate-local-id)
+  (let ((count *local-id-count*))
+    (set! *local-id-count* (+ 1 *local-id-count*))
+    (bitwise-ior (local-aspace-uid)
+		 (arithmetic-shift count *local-id-shift*))))
+(define (generate-local-symbol f)
+  (concatenate-symbol (gensym f) "-" (local-aspace-uid)))
+
 (define (local-cache-initialize!)
   (set! *local-cache* '()))
 (define (local-pending-initialize!)
@@ -20,12 +31,15 @@
 	  ((assoc pp *local-pending*) => cdr)
 	  (else
 	   (let ((entry (make-server-entry
-			 pp static-skeleton (gensym fname) bts fct)))
+			 pp static-skeleton
+			 (generate-local-symbol fname)
+			 (generate-local-id)
+			 bts fct)))
 		(set! *local-pending* (cons (cons pp entry) *local-pending*))
 		entry)))))
 (define (local-cache-insert! res-name pp static-skeleton bts fct)
-  (let ((entry (make-server-entry pp static-skeleton res-name bts fct)))
-    (set! *local-cache* (cons entry *local-cache*))
+  (let ((entry (make-server-entry pp static-skeleton res-name #f bts fct)))
+    (set! *local-cache* (cons (cons pp entry) *local-cache*))
     entry))
 (define (local-cache-advance!)
   (let ((pending *local-pending*))
@@ -36,7 +50,7 @@
       entry)))
 
 ;;; residual code
-(define *local-resid*)
+(define *local-resid* #f)
 (define (local-resid-initialize!)
   (set! *local-resid* '()))
 (define (make-residual-definition! name formals body)
@@ -102,8 +116,10 @@
 	 (dynamics (top-project-dynamic full-pp bts))
 	 (actuals (apply append dynamics))
 	 (entry (local-cache-enter! full-pp pp bts fct))
-	 (res-name (server-entry->name entry)))
-    (I-register-memo-point! full-pp res-name bts fct)
+	 (res-name (server-entry->name entry))
+	 (local-id (server-entry->local-id entry)))
+    
+    (I-register-memo-point! full-pp res-name local-id bts fct)
     (if (= level 1)
 	;; generate call to fn with actual arguments
 	(_complete-serious
@@ -123,29 +139,30 @@
 
 ;; This assumes all servers are running on different Kalis!
 
-(define server-master-aspace)
+(define *server-master-aspace* #f)
 
 (define (I-am-unemployed)
-  (remote-run! server-master-aspace
+  (remote-run! *server-master-aspace*
 	       server-is-unemployed
-	       (local-aspace)))
+	       (local-aspace-uid)))
 
-(define (I-register-memo-point! program-point local-name bts fct)
-  (remote-run! server-master-aspace
+(define (I-register-memo-point! program-point name local-id bts fct)
+  (remote-run! *server-master-aspace*
 	       server-registers-memo-point!
-	       (local-aspace) program-point local-name bts fct))
+	       (local-aspace-uid) program-point name local-id bts fct))
 
-(define (can-I-work-on? local-name)	; synchronous
-  (remote-apply server-master-aspace
-		can-server-work-on? (local-aspace) local-name))
+(define (can-I-work-on? local-id)	; synchronous
+  (remote-apply *server-master-aspace*
+		can-server-work-on? (local-aspace-uid) local-id))
 
-(define (I-am-working-on local-name)	; asynchronous
-  (remote-run! server-master-aspace
-	       server-working-on (local-aspace) local-name))
+(define (I-am-working-on local-id)	; asynchronous
+  (remote-run! *server-master-aspace*
+	       server-working-on (local-aspace-uid) local-id))
 
-(define (server-initialize! aspace)
-  (display "Initializing, uid ") (display (aspace-uid (local-aspace))) (newline)
-  (set! server-master-aspace aspace)
+(define (server-initialize! uid)
+  (display "Initializing, uid ") (display uid) (newline)
+  (set! *server-master-aspace* (uid->aspace uid))
+  (set! *local-id-count* 0)
   (local-cache-initialize!)
   (local-pending-initialize!)
   (local-resid-initialize!)
@@ -155,19 +172,22 @@
 ;;; Specialization work
 
 (define (server-specialize res-name program-point bts fct)
-  (display "Specializing ") (display program point) (newline)
   (let ((fname (car program-point))
 	(static-skeleton (top-project-static program-point bts)))
     ;; assume master-cache knows about this specialization
     (let loop ((entry
 		(local-cache-insert! res-name program-point static-skeleton bts fct)))
+      (display "Specializing ") (display (server-entry->program-point entry)) (newline)
       (specialize-entry entry)
       (let inner-loop ()
 	(if (local-pending-empty?)
 	    (I-am-unemployed)
 	    (let ((entry (local-cache-advance!)))
-	      (if (can-I-work-on? (server-entry->name entry))
-		  (loop entry)
+	      (if (can-I-work-on? (server-entry->local-id entry))
+		  (begin
+		    (display "Master says I can work on ") (display (server-entry->local-id entry)) (newline)
+		    
+		    (loop entry))
 		  (inner-loop))))))))
 
 (define (specialize-entry entry)
@@ -190,7 +210,7 @@
   (name thread thunk))
 
 (define *server-status* #f)
-(define server-status-lock)
+(define server-status-lock #f)
 
 (define (set-server-status! status)
   (with-lock server-status-lock
@@ -221,5 +241,3 @@
 	    ((status->thunk *server-status*)))
 	  (release-lock server-status-lock))
       (release-lock server-status-lock)))
-
-
