@@ -1,4 +1,9 @@
-;;; copyright by Peter Thiemann, 1998
+;;; cogen-gensym.scm
+
+;;; copyright © 1996, 1997, 1998 by Peter Thiemann
+;;; non-commercial use is free as long as the original copright notice
+;;; remains intact
+
 
 ;;; symbol generation
 (define *gensym-counter* 0)

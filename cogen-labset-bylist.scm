@@ -1,3 +1,9 @@
+;;; cogen-labset-bylist.scm
+
+;;; copyright © 1996, 1997, 1998 by Peter Thiemann
+;;; non-commercial use is free as long as the original copright notice
+;;; remains intact
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; a simple implementation of labset, should be replaced by a bitset impl 
 ;;; (define (labset-first? e l))

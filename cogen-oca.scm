@@ -1,3 +1,9 @@
+;;; cogen-oca.scm
+
+;;; copyright © 1996, 1997, 1998 by Peter Thiemann
+;;; non-commercial use is free as long as the original copright notice
+;;; remains intact
+
 ;;; occurrence count analysis on abstract syntax
 ;;; meaning of an oc for a variable:
 ;;; 0 - it does not occur
@@ -41,6 +47,9 @@
 	(annSetLetUseCount! e oc)
 	(oca-add (loop header)
 		 (cdr oca-body))))
+     ((annIsBegin? e)
+      (oca-add (loop (annFetchBeginHeader e))
+	       (loop (annFetchBeginBody e))))
      ((annIsVLambda? e)
       (let* ((fixed-formals (annFetchVLambdaFixedVars e))
 	     (var-formal (annFetchVLambdaVar e))

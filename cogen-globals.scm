@@ -1,3 +1,9 @@
+;;; cogen-globals.scm
+
+;;; copyright © 1996, 1997, 1998 by Peter Thiemann
+;;; non-commercial use is free as long as the original copright notice
+;;; remains intact
+
 ;;; global variables for the PGG system
 
 (define *bta-display-level* 1)		;debug level for the BTA

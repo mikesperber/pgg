@@ -1,4 +1,9 @@
-;;; $Id $
+;;; cogen-memo-standard.scm
+
+;;; copyright © 1996, 1997, 1998 by Peter Thiemann
+;;; non-commercial use is free as long as the original copright notice
+;;; remains intact
+
 ;;; memo function stuff: standard implementation
 
 (define-record memolist-entry (name) (count 0))

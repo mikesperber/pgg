@@ -1,4 +1,4 @@
-;;; cogen-driver
+;;; cogen-driver.scm
 ;;; driver for the compiler generator
 
 ;;; copyright © 1996, 1997, 1998 by Peter Thiemann
@@ -31,38 +31,22 @@
 	 (full-source
 	  (append *macro-source*
 		  (apply append (map file->list source-files)))))
-    (let loop ((D* full-source)
-	       (def-function* '())
-	       (def-type*     '())
-	       (def-syntax*   '())
-	       (other*	      '()))
-      (if (pair? D*)
-	  (let ((D (car D*))
-		(D* (cdr D*)))
-	    (case (car D)
-	      ((define define-without-memoization)
-	       (loop D* (cons D def-function*) def-type* def-syntax* other*))
-	      ((define-data define-type define-primitive define-memo)
-	       (loop D* def-function* (cons D def-type*) def-syntax* other*))
-	      ((define-syntax)
-	       (loop D* def-function* def-type* (cons D def-syntax*) other*))
-	      (else
-	       (loop D* def-function* def-type* def-syntax* (cons D other*)))))
-	  ;; finally:
-	  (let* ((symbol-table (process-type-declarations def-type*))
-		 (preprocessed-source (scheme->abssyn-d def-function*
-							def-syntax*
-							other*
-							symbol-table))
-		 (d* (bta-run preprocessed-source
-			      symbol-table
-			      skeleton
-			      def-type*)))
-	    (perform-termination-analysis d*)
-	    (generate-d d*)
-	    (append (filter (lambda (def) (eq? (car def) 'define-data))
-			    def-type*)
-		    *generating-extension*)))))) 
+    (call-with-values
+     (lambda ()
+       (scheme-desugar full-source))
+     (lambda (def-function* rejected*)
+       ;; (writelpp def-function* "/tmp/def1.scm")
+       (let* ((symbol-table (process-type-declarations rejected*))
+	      (abssyn (scheme->abssyn-d def-function* symbol-table))
+	      (d* (bta-run abssyn
+			   symbol-table
+			   skeleton
+			   rejected*)))
+	 (perform-termination-analysis d*)
+	 (generate-d d*)
+	 (append (filter (lambda (def) (eq? (car def) 'define-data))
+			 rejected*)
+		 *generating-extension*)))))) 
 ;;; TO DO:
 ;;; - error recognition & handling
 ;;; + remove Similix dependencies (i.e., file->list, anythingelse?) 

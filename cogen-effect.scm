@@ -1,3 +1,9 @@
+;;; cogen-effect.scm
+
+;;; copyright © 1996, 1997, 1998 by Peter Thiemann
+;;; non-commercial use is free as long as the original copright notice
+;;; remains intact
+
 ;;; effect analysis
 
 ;;; debugging and trace aids
@@ -66,6 +72,10 @@
        ((annIsLet? e)
 	(let ((eheader (loop (annFetchLetHeader e)))
 	      (ebody (loop (annFetchLetBody e))))
+	  (append eheader ebody)))
+       ((annIsBegin? e)
+	(let ((eheader (loop (annFetchBeginHeader e)))
+	      (ebody (loop (annFetchBeginBody e))))
 	  (append eheader ebody)))
        ((annIsCall? e)
 	(let* ((name (annFetchCallName e))
@@ -268,6 +278,11 @@
        ((annIsLet? e)
 	(let* ((eheader (loop (annFetchLetHeader e)))
 	       (ebody (loop (annFetchLetBody e))))
+	  (effect-add-neighbor! eheader evar)
+	  (effect-add-neighbor! ebody evar)))
+       ((annIsBegin? e)
+	(let* ((eheader (loop (annFetchBeginHeader e)))
+	       (ebody (loop (annFetchBeginBody e))))
 	  (effect-add-neighbor! eheader evar)
 	  (effect-add-neighbor! ebody evar)))
        ;;(annIsVLambda? e)

@@ -1,4 +1,9 @@
-;;; $Id$
+;;; cogen-direct-syntax.scm
+
+;;; copyright © 1996, 1997, 1998 by Peter Thiemann
+;;; non-commercial use is free as long as the original copright notice
+;;; remains intact
+
 ;;; direct style version of the continuation-based multi-level
 ;;; compiler generator (with control operators)
 ;;;

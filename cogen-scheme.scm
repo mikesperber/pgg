@@ -37,19 +37,19 @@
   (let ((template (cadr d)))
     (and (not (pair? template))
 	 (memq template *scheme->abssyn-mutable-variables*))))
+
 (define (scheme-desugar d*)
   (gensym-reset!)
   (set! *scheme->abssyn-mutable-variables* '())
   (scheme-rename-variables-d '() '() d*))
-(define (scheme->abssyn-d d* def-syntax* other* ctor-symtab)
+
+(define (scheme->abssyn-d d* ctor-symtab)
   ;; (display-line "scheme->abssyn " ctor-symtab)
-  (gensym-reset!)
+  ;; (gensym-reset!)
   (set-scheme->abssyn-label-counter! 1)
-  (set! *scheme->abssyn-mutable-variables* '())
+  ;; (set! *scheme->abssyn-mutable-variables* '())
   (set-scheme->abssyn-static-references! #f)
-  (let* ((d* (scheme-rename-variables-d d* def-syntax* other*))
-	 ;; (dummy (writelpp d* "/tmp/def1.scm"))
-	 (imp-defined-names* (map cadr (filter mutable-definition? d*)))
+  (let* ((imp-defined-names* (map cadr (filter mutable-definition? d*)))
 	 (dummy (set! *scheme->abssyn-mutable-variables*
 		      (set-difference *scheme->abssyn-mutable-variables*
 				      imp-defined-names*)))
@@ -207,19 +207,17 @@
 				  ,body)
 			       (cons (list (caaar args) scheme-make-var-app -1)
 				     symtab)))))))
-	     ;; misuse LET for sequencing, too
-	     ;; these LETs may have to be marked as not discardable if
-	     ;; side effects are around
+	     ;; BEGIN has gotten its own identity
 	     ((equal? tag 'BEGIN)
 	      (if (null? args)
 		  (annMakeConst 'begin-0)
-		  (scheme->abssyn-e
-		   (let loop ((args args))
-		     (if (= 1 (length args))
-			 (car args)
-			 `(LET ((,(gensym 'BEGIN) ,(car args)))
-			    ,(loop (cdr args)))))
-		   symtab)))
+		  (let loop ((args args) (l (- (length args) 1)))
+		    (if (zero? l)
+			(scheme->abssyn-e (car args) symtab)
+			(annMakeBegin
+			 (scheme->abssyn-e (car args) symtab)
+			 (loop (cdr args) (- l 1)))))))
+	     ;;
 	     ((and (equal? tag 'LAMBDA)
 		   (list? (car args)))
 	      (let* ((formals (car args))
@@ -235,6 +233,7 @@
 		  (ann-maybe-coerce
 		   (scheme->abssyn-e (cadr args)
 				     symtab))))))
+	     ;;
 	     ((equal? tag 'LAMBDA)
 	      (let loop ((fixed-formals '())
 			 (rest (car args)))
@@ -344,11 +343,7 @@
 		      (else
 		       (if (zero? count)
 			   (begin
-			     (set! not-recognized* other*)
-			     (display "Warning: cannot resolve toplevel expressions")
-			     (newline)
-			     (display not-recognized*)
-			     (newline))
+			     (set! not-recognized* (cons other other*)))
 			   (loop (append other* (list other))
 				 (- count 1) reset)))))))
 		(error "bad toplevel expression" other)))))
@@ -359,22 +354,24 @@
 		     macro-symtab))
     ;; start renaming
     (set! *scheme-rename-counter* '())
-    (map (lambda (d)
-	   ;;(display "scheme-rename-variables: ") (display (caadr d)) (newline)
-	   (let* ((definer (car d))
-		  (template (cadr d))
-		  (is-proc-def (pair? template))
-		  (fname (if is-proc-def (car template) template))
-		  (formals (if is-proc-def (cdr template) '()))
-		  (new-formals (map scheme-rename-clone formals))
-		  (current-box
-		   (fresh-boxed-env* formals new-formals top-level-box))
-		  (body-list (cddr d))
-		  (body (scheme-body-list->body body-list current-box))
-		  (new-body (scheme-rename-variables current-box body))
-		  (new-template (if is-proc-def (cons fname new-formals) fname)))
-	     `(,definer ,new-template ,new-body)))
-	 d*)))
+    (values
+     (map (lambda (d)
+	    ;;(display "scheme-rename-variables: ") (display (caadr d)) (newline)
+	    (let* ((definer (car d))
+		   (template (cadr d))
+		   (is-proc-def (pair? template))
+		   (fname (if is-proc-def (car template) template))
+		   (formals (if is-proc-def (cdr template) '()))
+		   (new-formals (map scheme-rename-clone formals))
+		   (current-box
+		    (fresh-boxed-env* formals new-formals top-level-box))
+		   (body-list (cddr d))
+		   (body (scheme-body-list->body body-list current-box))
+		   (new-body (scheme-rename-variables current-box body))
+		   (new-template (if is-proc-def (cons fname new-formals) fname)))
+	      `(,definer ,new-template ,new-body)))
+	  d*)
+     not-recognized*)))
 
 (define (scheme-lookup-tag symtab* tag)
   (let loop ((symtab* symtab*) (tag tag))

@@ -1,4 +1,8 @@
-;;; copyright by Peter Thiemann 1998
+;;; cogen-interfaces.scm
+
+;;; copyright © 1996, 1997, 1998 by Peter Thiemann
+;;; non-commercial use is free as long as the original copright notice
+;;; remains intact
 
 (define-interface cogen-abssyn-interface
   (export annMakeDef
@@ -64,6 +68,12 @@
 	  annSetLetUnfoldability!
 	  annFetchLetUseCount
 	  annSetLetUseCount!
+	  annMakeBegin
+	  annIsBegin?
+	  annFetchBeginHeader
+	  annFetchBeginBody
+	  annFetchBeginUnfoldability
+	  annSetBeginUnfoldability!
 	  annMakeVLambda
 	  annIsVLambda?
 	  annFetchVLambdaFixedVars

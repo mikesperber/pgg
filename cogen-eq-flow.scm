@@ -1,5 +1,10 @@
-;;; binding-time analysis based on annotated type systems
+;;; cogen-eq-flow
 
+;;; copyright © 1996, 1997, 1998 by Peter Thiemann
+;;; non-commercial use is free as long as the original copright notice
+;;; remains intact
+
+;;; binding-time analysis based on annotated type systems
 
 ;;; step 0
 ;;; the driver for the bta
@@ -108,10 +113,10 @@
 	body
 	(let ((def (car defs)))
 	  (if (eq? (car def) 'define-data)
-	      (annMakeLet (gensym 'begin)
-			  (make-op '_DEFINE_DATA
-				   (list (annMakeConst (cdr def))))
-			  (loop (cdr defs)))
+	      (annMakeBegin
+	       (make-op '_DEFINE_DATA
+			(list (annMakeConst (cdr def))))
+	       (loop (cdr defs)))
 	      (loop (cdr defs))))))))
 
 (define (bta-insert-def-mutable d* body)
@@ -125,11 +130,11 @@
 	(let ((def (car d*))
 	      (d* (cdr d*)))
 	  (if (annIsDefMutable? def)
-	      (annMakeLet (gensym 'begin)
-			  (make-op '_DEFINE
-				   (list (annMakeVar (annDefFetchProcName def))
-					 (ann-maybe-coerce (annDefFetchProcBody def))))
-			  (loop d*))
+	      (annMakeBegin
+	       (make-op '_DEFINE
+			(list (annMakeVar (annDefFetchProcName def))
+			      (ann-maybe-coerce (annDefFetchProcBody def))))
+	       (loop d*))
 	      (loop d*)))))))
 
 (define (collect-mutable-defs d*)
@@ -505,6 +510,10 @@
 	       (phi-2 (full-collect (annFetchLetBody e)
 				    (extend-env (annFetchLetVar e) phi-1 symtab))))
 	  (full-equate phi phi-2)))
+       ((annIsBegin? e)
+	(let* ((phi-1 (loop (annFetchBeginHeader e)))
+	       (phi-2 (loop (annFetchBeginBody e))))
+	  (full-equate phi phi-2)))
        ((annIsVLambda? e)
 	(let* ((fixed-formals (annFetchVLambdaFixedVars e))
 	       (var-formal (annFetchVLambdaVar e))
@@ -696,6 +705,9 @@
        ((annIsLet? e)
 	(loop (annFetchLetHeader e))
 	(loop (annFetchLetBody e)))
+       ((annIsBegin? e)
+	(loop (annFetchBeginHeader e))
+	(loop (annFetchBeginBody e)))
        ((annIsVLambda? e)
 	(loop (annFetchVLambdaBody e)))
        ((annIsLambda? e)
@@ -899,6 +911,9 @@
        ((annIsLet? e)
 	(loop (annFetchLetHeader e))
 	(loop (annFetchLetBody e)))
+       ((annIsBegin? e)
+	(loop (annFetchBeginHeader e))
+	(loop (annFetchBeginBody e)))
        ((annIsLambda? e)
 	(loop (annFetchLambdaBody e))
 	(annSetLambdaBTVars! e (map (lambda (node)
@@ -980,6 +995,10 @@
 	 ((annIsLet? e)
 	  (let ((header (loop (annFetchLetHeader e)))
 		(body (loop (annFetchLetBody e))))
+	    (or header body)))
+	 ((annIsBegin? e)
+	  (let ((header (loop (annFetchBeginHeader e)))
+		(body (loop (annFetchBeginBody e))))
 	    (or header body)))
 	 ((annIsLambda? e)
 	  (let* ((dyn-lambda (< 0 bt))
@@ -1083,6 +1102,9 @@
        ((annIsLet? e)
 	`(LET ((,(annFetchLetVar e) ,(loop (annFetchLetHeader e))))
 	   ,(loop (annFetchLetBody e))))
+       ((annIsBegin? e)
+	`(BEGIN ,(loop (annFetchBeginHeader e))
+		,(loop (annFetchBeginBody e))))
        ((annIsVLambda? e)
 	`(LAMBDA (,@(annFetchVLambdaFixedVars e)
 		  . ,(annFetchVLambdaVar e))

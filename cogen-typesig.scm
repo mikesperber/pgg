@@ -1,3 +1,9 @@
+;;; cogen-typesig.scm
+
+;;; copyright © 1996, 1997, 1998 by Peter Thiemann
+;;; non-commercial use is free as long as the original copright notice
+;;; remains intact
+
 ;;; type declarations
 
 (define (process-type-declarations def-type*)

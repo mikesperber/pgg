@@ -1,5 +1,10 @@
+;;; cogen-skeleton
+
+;;; copyright © 1996, 1997, 1998 by Peter Thiemann
+;;; non-commercial use is free as long as the original copright notice
+;;; remains intact
+
 ;;; skeleton for multi-level cogen
-;;; $Id$
 
 ;;; idea: generate new procedure names for the "copies" of the old
 ;;; procedures; use the original procedure names for the memoization
@@ -94,6 +99,17 @@
 			 var
 			 resid-header
 			 resid-body))))
+     ((annIsBegin? e)
+      (let* ((header (annFetchBeginHeader e))
+	     (body (annFetchBeginBody e))
+	     (header-level (annExprFetchLevel header))
+	     (body-level (annExprFetchLevel body))
+	     (resid-header (loop header))
+	     (resid-body (loop body)))
+	(make-ge-begin header-level
+		       body-level
+		       resid-header
+		       resid-body)))
      ((annIsLambda? e)
 ;;;      `(_LAMBDA ,(annExprFetchLevel e)
 ;;;		(LAMBDA ,(annFetchLambdaVars e)

@@ -1,3 +1,9 @@
+;;; cogen-terminate
+
+;;; copyright © 1996, 1997, 1998 by Peter Thiemann
+;;; non-commercial use is free as long as the original copright notice
+;;; remains intact
+
 ;;; termination analysis
 
 ;;; a graph abstraction
@@ -259,6 +265,13 @@
 	(simple-graph-add-edge! *flow0* (get-number e-body) e-number)
 	(remove-vars! (list var))
 	`(,e-number ,e ,v-number ,e-header ,e-body))) 
+     ((annIsBegin? e)
+      (let* ((e-number (next-number))
+	     (e-header (loop (annFetchBeginHeader e)))
+	     (e-body (numerate-e (annFetchLetBody e)
+				 env)))
+	(simple-graph-add-edge! *flow0* (get-number e-body) e-number)
+	`(,e-number ,e ,e-header ,e-body))) 
      ((annIsVLambda? e)
       (let* ((e-number (next-number))
 	     (fixed-vars (annFetchVLambdaFixedVars e))
@@ -571,6 +584,9 @@
       (annMakeLet (annFetchLetVar e)
 		  (loop (annFetchLetHeader e))
 		  (loop (annFetchLetBody e))))
+     ((annIsBegin? e)
+      (annMakeLet (loop (annFetchBeginHeader e))
+		  (loop (annFetchBeginBody e))))
      ((annIsVLambda? e)
       (annMakeVLambda (annFetchVLambdaLabel e)
 		      (annFetchVLambdaFixedVars e)
