@@ -42,6 +42,7 @@
   (gensym-reset!)
   (creation-log-initialize!)
   (let* ((initial-scope (gensym-local-push!))
+	 (initial-static-store (initialize-static-store!))
 	 (result (reset (multi-memo level fname fct bts args)))
 	 (result (if (and (pair? result) (eq? (car result) 'LET))
 		     (car (cdaadr result))

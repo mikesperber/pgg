@@ -307,12 +307,12 @@
 
 (define current-static-store! reference-log-push!)
 (define install-static-store! reference-log-rollback!)
+(define initialize-static-store! reference-log-initialize!)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; toplevel projection functions
 (define (top-project-static value bts)
   (address-registry-reset!)
-  (reference-log-initialize!)
   (project-static value bts))
 (define (top-project-dynamic value bts)
   (address-registry-reset!)

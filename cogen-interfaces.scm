@@ -375,6 +375,7 @@
 	  static-cell
 	  current-static-store!
 	  install-static-store!
+	  initialize-static-store!
 	  address-registry-reset!
 	  address-map-reset!
 	  creation-log-initialize!
