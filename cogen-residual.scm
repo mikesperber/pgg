@@ -82,21 +82,74 @@
       'pooof				;ignored
       `(_OP ,(- lv 1) _DEFINE ,var ,arg)))
 
+(define (make-branch branch) 
+  (let ((code (cadr branch)))
+    (if (and (pair? code)
+	     (eq? 'BEGIN (car code)))
+	(cons (car branch)
+	      (cdr code))
+	branch)))
+
+(define (constant-expression? exp)
+  (cond
+   ((boolean? exp) #t)
+   ((number? exp) #t)
+   ((char? exp) #t)
+   ((string? exp) #t)
+   ((and (pair? exp)
+	 (eq? 'QUOTE (car exp)))
+    #t)
+   (else #f)))
+
+(define (constant-expression-constant exp)
+  (if (pair? exp)
+      (cadr exp)
+      exp))
+   
+(define (detect-constant-test test)
+  (cond
+   ((not (pair? test))
+    #f)
+   ((not (eq? 'EQV? (car test)))
+    #f)
+   ((constant-expression? (cadr test))
+    (cons 
+     (caddr test)
+     (constant-expression-constant (cadr test))))
+   ((constant-expression? (caddr test))
+    (cons
+     (cadr test)
+     (constant-expression-constant (caddr test))))
+   (else
+    #f)))
+
 (define (make-residual-if c t e)
   (cond
    ((eq? c #t)
     t)
    ((eq? c #f)
     e)
+   ((detect-constant-test c)
+    => (lambda (stuff)
+	 (let ((exp (car stuff))
+	       (constant (cdr stuff)))
+	   (if (and (pair? e) (eq? 'CASE (car e))
+		    (equal? (cadr e) exp))
+	       `(CASE ,exp
+		  ,(make-branch `((,constant) ,t))
+		  ,@(cddr e))
+	       `(CASE ,exp
+		  ,(make-branch `((,constant) ,t))
+		  (else ,e))))))
    ((and (pair? e) (eq? 'IF (car e)))
     `(COND
-      (,c ,t)
+      ,(make-branch `(,c ,t))
       (,(cadr e) ,(caddr e))
       (else ,(cadddr e))))
    ((and (pair? e) (eq? 'COND (car e)))
-    `(COND
-      (,c ,t)
-      ,@(cdr e)))
+     `(COND
+       ,(make-branch `(,c ,t))
+       ,@(cdr e)))
    (else
     `(IF ,c ,t ,e))))
 
