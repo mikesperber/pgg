@@ -1082,7 +1082,7 @@
 ;;; introduces lifts, too
 (define (bta-introduce-memo e auto-memo)
   (let new-loop ((e e)
-		 (i-must-memo #t))	;you must memoize!
+		 (memoized-at-level 0))	;you must memoize control at greater level
     (let loop ((e e))	
       (let ((bt (annExprFetchLevel e)))
 	(cond
@@ -1095,13 +1095,13 @@
 	 ((annIsCond? e)
 	  (let* ((e-test (annFetchCondTest e))
 		 (level (annExprFetchLevel e-test))
-		 (inner-i-must-memo (and i-must-memo (zero? level)))
-		 (r-test (new-loop e-test inner-i-must-memo))
-		 (r-then (new-loop (annFetchCondThen e) inner-i-must-memo))
-		 (r-else (new-loop (annFetchCondElse e) inner-i-must-memo))
+		 (inner-memoized-at-level (max memoized-at-level level))
+		 (r-test (new-loop e-test inner-memoized-at-level))
+		 (r-then (new-loop (annFetchCondThen e) inner-memoized-at-level))
+		 (r-else (new-loop (annFetchCondElse e) inner-memoized-at-level))
 		 (need-memo (or r-test r-then r-else)))
 	    (cond
-	     ((or (zero? level) (not i-must-memo))
+	     ((<= level memoized-at-level)
 	      need-memo)
 	     (need-memo
 	      (if auto-memo
@@ -1133,7 +1133,7 @@
 	    (or header body)))
 	 ((annIsLambda? e)
 	  (let* ((dyn-lambda (< 0 bt))
-		 (body (new-loop (annFetchLambdaBody e) (not dyn-lambda))))
+		 (body (new-loop (annFetchLambdaBody e) bt)))
 	    (if (and dyn-lambda body auto-memo)
 		(let ((fvs  (filter (make-variable-filter *bta-mutable-defines*)
 				    (annFreeVars e))))
@@ -1142,7 +1142,7 @@
 	  #f)
 	 ((annIsVLambda? e)
 	  (let* ((dyn-lambda (< 0 bt))
-		 (body (new-loop (annFetchVLambdaBody e) (not dyn-lambda))))
+		 (body (new-loop (annFetchVLambdaBody e) bt)))
 	    (if (and dyn-lambda body auto-memo)
 		(let ((fvs  (filter (make-variable-filter *bta-mutable-defines*)
 				    (annFreeVars e))))

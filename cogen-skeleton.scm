@@ -1,6 +1,6 @@
 ;;; cogen-skeleton
 
-;;; copyright © 1996, 1997, 1998, 1999 by Peter Thiemann
+;;; copyright © 1996, 1997, 1998, 1999, 2000 by Peter Thiemann
 ;;; non-commercial use is free as long as the original copright notice
 ;;; remains intact
 
@@ -52,7 +52,7 @@
       => (lambda (level)
 	   (loop (cdr def-type*)
 		 (cons
-		  `(_OP ,level _DEFINE-DATA ',(cdar def-type*))
+		  `(_OP ,level _DEFINE_DATA ',(cdar def-type*))
 		  res))))
      (else
       (loop (cdr def-type*) res)))))

@@ -1,6 +1,6 @@
 ;;; cogen-direct-anf.scm
 
-;;; copyright © 1996, 1997, 1998, 1999 by Peter Thiemann
+;;; copyright © 1996, 1997, 1998, 1999, 2000 by Peter Thiemann
 ;;; non-commercial use is free as long as the original copright notice
 ;;; remains intact
 
@@ -86,7 +86,7 @@
 			 actual-fvs))
 	 (cloned-pp (top-clone-with clone-map lambda-pp bts))
 	 (cloned-vvs (cdr cloned-pp))
-	 (new-bts (map cdr compressed-dynamics))
+	 (new-bts (map pred (map cdr compressed-dynamics)))
 	 (formal-fvs (map cdr clone-map)))
     ;; (> lv 0)
     (_complete
@@ -144,7 +144,7 @@
 			 actual-fvs))
 	 (cloned-pp (top-clone-with clone-map lambda-pp bts))
 	 (cloned-vvs (cdr cloned-pp))
-	 (new-bts (map cdr compressed-dynamics))
+	 (new-bts (map pred (map cdr compressed-dynamics)))
 	 (formal-fvs (map cdr clone-map)))
     ;; (> lv 0)
     (let ((lv (- lv 1)))
