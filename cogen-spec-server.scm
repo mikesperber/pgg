@@ -192,8 +192,13 @@
 	       (local-aspace-uid) program-point name local-id bts fct))
 
 (define (can-I-work-on? local-id)	; synchronous
-  (remote-apply *server-master-aspace*
-		can-server-work-on? (local-aspace-uid) local-id))
+  (call-with-values
+   (lambda ()
+     (remote-apply *server-master-aspace*
+		   can-server-work-on? (local-aspace-uid) local-id))
+   (lambda (can-I? killed)
+     (for-each server-kill-local-id! killed)
+     can-I?)))
 
 (define (I-am-working-on local-id)	; asynchronous
   (remote-run! *server-master-aspace*

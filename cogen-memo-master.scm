@@ -91,13 +91,13 @@
 	  (else #f))))
 
 (define (master-entry->add-local-id! master-entry local-id uid)
-  ;;(with-lock
-  ;;(master-entry->lock master-entry)
-  ;;(lambda ()
-  ;;(let ((ids+aspaces (master-entry->ids+aspaces master-entry)))
-  ;;(master-entry->ids+aspaces!
-  ;;master-entry
-  ;;(cons (cons local-id uid) ids+aspaces)))))
+  (with-lock
+   (master-entry->lock master-entry)
+   (lambda ()
+     (let ((ids+aspaces (master-entry->ids+aspaces master-entry)))
+       (master-entry->ids+aspaces!
+	master-entry
+	(cons (cons local-id uid) ids+aspaces)))))
   (with-lock
    *master-cache-lock*
    (lambda ()
@@ -127,6 +127,19 @@
 	   (master-entry->mark! entry #t)
 	   #t)))))
 
+(define (kill-master-entry-except-on! entry uid)
+  (for-each
+   (lambda (id+aspace)
+     (let* ((id (car id+aspace))
+	    (kill-uid (aspace-uid (cdr id+aspace)))
+	    (p (vector-ref *servers-killed* kill-uid)))
+       (if (not (= kill-uid uid))
+	   (with-lock
+	    (car p)
+	    (lambda ()
+	      (set-cdr! p (cons id (cdr p))))))))
+   (master-entry->ids+aspaces entry)))
+
 (define (can-server-work-on? uid local-id) ; sync
   (let loop ()
     ;; (display (list "can-server-work-on?" uid local-id)) (newline)
@@ -134,8 +147,16 @@
       (cond
        ((master-cache-lookup-by-local-id local-id)
 	=> (lambda (entry)
-	     (master-entry->add-local-id! entry local-id uid)
-	     (can-I-work-on-master-entry? entry)))
+	     (let ((can-I? (can-I-work-on-master-entry? entry)))
+	       (if can-I?
+		   (kill-master-entry-except-on! entry uid))
+	       (let* ((p (vector-ref *servers-killed* uid))
+		      (lock (car p)))
+		 (obtain-lock lock)
+		 (let ((killed (cdr p)))
+		  (set-cdr! p '())
+		  (release-lock lock)
+		  (values can-I? killed))))))
        (else				; wait until local name registered
 	;; (display "Server ") (display uid) (display " suspends on: ")(display (list "can-server-work-on?" local-id)) (newline)
 	(placeholder-value placeholder)
@@ -173,7 +194,7 @@
 	(let* ((master-entry
 		(make-master-entry program-point ; key
 				   local-name ; global name
-				   local-id ; previously: (list (cons local-id (uid->aspace uid))) ; an alist 
+				   (list (cons local-id (uid->aspace uid))) ; an alist
 				   (make-lock)
 				   #f))
 	       (pending-entry
@@ -214,14 +235,10 @@
       (if entry
 	  (if (can-I-work-on-master-entry? (pending-entry->master-entry entry))
 	      (begin
-		(let ((local-id (pending-entry->local-id entry)))
-		  (if local-id
-		      (remote-run! (uid->aspace (pending-entry->server-uid entry))
-				   server-kill-local-id!
-				   local-id)))
+		(kill-master-entry-except-on! (pending-entry->master-entry entry) uid)
 		;; we can put it right back to work
 		(remote-run! (uid->aspace uid)
-			     server-specialize-async
+			     server-specialize ;; -async
 			     (pending-entry->name entry) 
 			     (pending-entry->program-point entry)
 			     (pending-entry->bts entry)
@@ -231,11 +248,9 @@
 	  (let ((entry-placeholder (make-placeholder)))
 	    (master-pending-sign-up! entry-placeholder)
 	    (let ((entry (placeholder-value entry-placeholder)))
-	      (remote-run! (uid->aspace (pending-entry->server-uid entry))
-			   server-kill-local-id!
-			   (pending-entry->local-id entry))
+	      (kill-master-entry-except-on! (pending-entry->master-entry entry) uid)
 	      (remote-run! (uid->aspace uid)
-			   server-specialize ;-async
+			   server-specialize ;; -async
 			   (pending-entry->name entry) 
 			   (pending-entry->program-point entry)
 			   (pending-entry->bts entry)
@@ -249,6 +264,8 @@
 (define *n-servers* #f)
 (define *n-unemployed-servers* #f)
 (define *n-unemployed-servers-lock* #f)
+
+(define *servers-killed* #f)
 
 (define *finished-placeholder* #f)
 
@@ -264,6 +281,16 @@
      (vector-set! *servers-placeholders* (aspace-uid aspace) (make-placeholder)))
    *server-aspaces*))
 
+(define (servers-killed-initialize!)
+  (set! *servers-killed*
+	(make-vector (+ 1 (apply max
+				 (map aspace-uid *server-aspaces*)))
+		     #f))
+  (for-each
+   (lambda (aspace)
+     (vector-set! *servers-killed* (aspace-uid aspace) (cons (make-lock) '())))
+   *server-aspaces*))
+
 (define (start-specialization server-uids
 			      level fname fct bts args)
     (set! *server-aspaces* (map uid->aspace server-uids))
@@ -274,6 +301,7 @@
     (master-cache-initialize!)
     (master-pending-initialize!)
     (servers-placeholders-initialize!)
+    (servers-killed-initialize!)
 
     (let* ((program-point (wrap-program-point (cons fname args) bts))
 	   (new-name (gensym fname)))
