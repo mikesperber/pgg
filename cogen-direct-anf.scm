@@ -53,16 +53,16 @@
   (let* ((vars (map gensym-local arity))
 	 (body (reset (apply f vars)))
 	 (l (pred lv))
-	 (generate-lamdba
+	 (generate-lambda
 	  (if (zero? l)
 	      (lambda ()
 		(make-residual-closed-lambda vars 'FREE body))
 	      (lambda ()
 		(make-residual-generator-vve '_LAMBDA l vars body)))))
     (if *lambda-is-pure*
-	(generate-lamdba)
+	(generate-lambda)
 	(_complete			;don't duplicate, experimental
-	 (generate-lamdba)))))
+	 (generate-lambda)))))
 
 (define-syntax _lambda_memo
   (syntax-rules ()
