@@ -113,7 +113,10 @@ cogen_examples = \
 	examples/modint-dynamic.scm \
 	examples/modint-mutual.scm \
 	examples/modint-examples.scm \
-	examples/sample_modules_session.scm
+	examples/sample_modules_session.scm \
+	examples/optimal.scm \
+	examples/poly.scm \
+	examples/poly-rec.scm
 additional_files = Makefile
 
 cogen-load-gambit.scm : Makefile
