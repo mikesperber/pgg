@@ -102,7 +102,9 @@ cogen_examples = \
 	examples/unify-aux.scm \
 	examples/unify.scm \
 	examples/modint.scm \
-	examples/modint-forward.scm \
+	examples/modint-base.scm \
+	examples/modint-dynamic.scm \
+	examples/modint-mutual.scm \
 	examples/modint-examples.scm
 additional_files = Makefile
 
