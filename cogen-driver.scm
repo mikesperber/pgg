@@ -11,13 +11,21 @@
 ;;; '((anil) (acons d *)) means "expect a list with static spine
 ;;; and dynamic elements"; it is a shorthand for the recursive type 
 ;;; \mu \alpha . ANIL + CONS d \alpha.
+
+(define *macro-source*
+  (file->list
+   (namestring "scheme-standard-macros.scm"
+	       (file-name-directory (%file-name%))
+	       #f)))
+
 (define (cogen-driver job-file/files skeleton)
   (let* ((source-files
 	  (if (string? job-file/files)
 	      (map symbol->string (file->list job-file/files))
 	      job-file/files))
 	 (full-source
-	  (apply append (map file->list source-files))))
+	  (append *macro-source*
+		  (apply append (map file->list source-files)))))
     (let loop ((D* full-source)
 	       (def-function* '())
 	       (def-type*     '())
