@@ -20,6 +20,9 @@
    (else
     `(LET ((,var ,exp)) ,body))))
 
+(define make-residual-let-serious make-residual-let)
+(define make-residual-let-trivial make-residual-let)
+
 (define (make-residual-begin exp1 exp2)
   (if (and (pair? exp1) (not (eq? (car exp1) 'QUOTE)))
       (let ((exp2-begin (and (pair? exp2) (eq? (car exp2) 'BEGIN))))
@@ -71,3 +74,23 @@
     e)
    (else
     `(IF ,c ,t ,e))))
+
+(define (make-residual-call f . args)
+  `(,f ,@args))
+
+(define (make-residual-closed-lambda formals free body)
+  (if (and (pair? body) (eq? (car body) 'BEGIN))
+      `(LAMBDA ,formals ,@(cdr body))
+      `(LAMBDA ,formals ,body)))
+
+(define (make-residual-literal val)
+  (if (or (number? val) (string? val) (boolean? val))
+      val
+      `(QUOTE ,val)))
+
+(define (make-residual-definition! name formals body)
+  (let ((new-def
+	 (if (and (pair? body) (eq? (car body) 'BEGIN))
+	     `(DEFINE (,name ,@formals) ,@(cdr body))
+	     `(DEFINE (,name ,@formals) ,body))))
+    (add-to-residual-program! new-def)))

@@ -5,11 +5,11 @@
 
 (define-syntax old-reset
   (syntax-rules ()
-    ((_ e) (reset e))))
+    ((_ e) e)))
 
 (define-syntax new-reset
   (syntax-rules ()
-    ((_ e) e)))
+    ((_ e) (reset e))))
 
 ;;; interface to create generating extensions
 ;;; syntax constructors
@@ -145,22 +145,30 @@
     (cond
      ((or unf? (not (pair? e)) (equal? 'QUOTE (car e)))
       (f e))
+     ((zero? bl)
+      (shift k (make-residual-let var e (reset (k (f var))))))
      (else
-      (shift k (make-residual-let var e (reset (k (f var)))))))))
+      (make-residual-let var e (f var))))))
 
 (define (_let-internal lv unf? bl orig-var e f)
   (let ((var (gensym-local orig-var)))
+    (if (zero? bl)
 	(shift k
-	       (make-ge-let (pred lv) unf? bl var e (reset (k (f var)))))))
+	       (make-ge-let (pred lv) unf? bl var e (reset (k (f var)))))
+	(make-ge-let (pred lv) unf? (pred bl) var e (old-reset (f var))))))
 
 (define-syntax _begin
   (syntax-rules ()
     ((_ 0 bl e1 e2)
      (begin e1 e2))
-    ((_ 1 bl e1 e2)
+    ((_ 1 0 e1 e2)
      (shift k (make-residual-begin (old-reset e1) (reset (k e2)))))
+    ((_ 1 1 e1 e2)
+     (make-residual-begin (old-reset e1) (old-reset (k e2))))
+    ((_ lv 0 e1 e2)
+     (shift k `(_BEGIN ,(pred lv) 0 ,(old-reset e1) ,(reset (k e2)))))
     ((_ lv bl e1 e2)
-     (shift k `(_BEGIN ,(pred lv) 0 ,(old-reset e1) ,(reset (k e2)))))))
+     `(_BEGIN ,(pred lv) ,(pred bl) ,(old-reset e1) ,(old-reset (k e2))))))
 
 (define-syntax _ctor_memo
   (syntax-rules ()
@@ -180,13 +188,18 @@
   (syntax-rules ()
     ((_if 0 lb e1 e2 e3)
      (if e1 e2 e3))
-    ((_if 1 bl e1 e2 e3)
+    ((_if 1 0 e1 e2 e3)
      (shift k (make-residual-if (reset e1) (reset (k e2)) (reset (k e3)))))
-    ((_if lv bl e1 e2 e3)
+    ((_if 1 lb e1 e2 e3)
+     (make-residual-if e1 e2 e3))
+    ((_if lv 0 e1 e2 e3)
      (shift k `(_IF ,(pred lv) 0
 		    ,(reset e1)
 		    ,(reset (k e2))
-		    ,(reset (k e3)))))))
+		    ,(reset (k e3)))))
+    ((_if lv lb e1 e2 e3)
+     `(_IF ,(pred lv) ,(pred lb)
+	   ,e1 ,e2 ,e3))))
 
 (define-syntax _op
   (syntax-rules (apply cons _define_data)

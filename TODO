@@ -1,3 +1,7 @@
+- extend the top-level such that arbitrary scheme programs (including
+  non-functional definitions) are allowed
+- automatically insert representation coercions for (partially) static
+  top-level arguments (from the standard representation to the memoized one)
 - revise symbol handling to pairs of (symbol, version number)
 - change the way static skeletons are represented: include information
   on sharing of dynamic values by replacing them in a consistent way
@@ -25,7 +29,7 @@
 + write the library functions in direct style using shift/reset to
   achieve continuation-based reduction
 + printout mechanism for bt analyzed program?
-- use introspection/reflective facilities to obtain the values of the
++ use introspection/reflective facilities to obtain the values of the
   free variables
 - support variadic procedures (by considering argument lists as a
   special partially static datatype)

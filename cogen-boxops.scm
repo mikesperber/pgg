@@ -1,0 +1,6 @@
+(define (make-cell v)
+  (list v))
+(define (cell-ref r)
+  (car r))
+(define (cell-set! r v)
+  (set-car! r v))

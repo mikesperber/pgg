@@ -23,16 +23,16 @@
   v)
 (define (make-ge-const c)
   `(RESULT ',c))
-(define (make-ge-cond l c t e)
+(define (make-ge-cond l lb c t e)
   `(_IF ,l ,c ,t ,e))
 (define (make-ge-op l o args)
   `(_OP ,l ,o ,@args))
-(define (make-ge-call f args)
+(define (make-ge-call f bts args)
   `(,f ,@args))
-(define (make-ge-let l v e body)
-  `(_LET ,l ((,v ,e)) ,body))
-(define (make-ge-begin l e1 e2)
-  `(_BEGIN ,l ,e1 ,e2))
+(define (make-ge-let l unf? prop? v e body)
+  `(_LET ,l ,unf? ,prop? ((,v ,e)) ,body))
+(define (make-ge-begin l prop? e1 e2)
+  `(_BEGIN ,l ,prop? ,e1 ,e2))
 (define (make-ge-lambda-memo l vars btv label fvars bts body)
   `(_LAMBDA_MEMO ,l ',vars ',label (LIST ,@fvars) ',bts
 		 (LAMBDA_RESULT ,fvars (LAMBDA_RESULT ,vars ,body))))
@@ -156,10 +156,10 @@
 ;;; LET with context propagation
 (define-syntax _let
   (syntax-rules ()
-    ((_ lv ((?v e)) body)
-     (_let-internal lv '?v e (lambda (?v) body)))))
+    ((_ lv u? p? ((?v e)) body)
+     (_let-internal lv u? p? '?v e (lambda (?v) body)))))
 
-(define (_let-internal lv orig-var ec f)
+(define (_let-internal lv unf? prop? orig-var ec f)
   (if (zero? lv)
       (lambda (kappa)
 	(ec (lambda (value)
@@ -170,17 +170,18 @@
 	  (ec
 	   (lambda (value)
 	     (cond
-	      ((and (= lv 1) (or (not (pair? value)) (equal? 'QUOTE (car value))))
+	      ((and (= lv 1)
+		    (or unf? (not (pair? e)) (equal? 'QUOTE (car e))))
 	       ((f (result value)) kappa))
 	      (else
-	       `(_LET ,(- lv 1) ((,var ,value))
+	       `(_LET ,(- lv 1) ,unf? ,prop? ((,var ,value))
 		      ,((f varc) kappa))))))))))
 
-(define (_begin lv e1c e2c)
+(define (_begin lv prop? e1c e2c)
   (lambda (kappa)
     (if (= lv 0)
 	(e1c (lambda (y1) (e2c kappa)))
-	(e1c (lambda (y1) `(_BEGIN ,(pred lv) ,y1 ,(e2c kappa)))))))
+	(e1c (lambda (y1) `(_BEGIN ,(pred lv) ,prop? ,y1 ,(e2c kappa)))))))
 
 ;;; constructors with memoization
 (define-syntax _ctor_memo
@@ -318,7 +319,7 @@
      (let* ((goal-proc (car *residual-program*))
 	    (defn-template (take 2 goal-proc))
 	    (defn-body (list-tail goal-proc 2)))
-       (set! *residual-program*
+       (set-residual-program!
 	     (list (append defn-template
 			   (cdr *residual-program*)
 			   defn-body)))

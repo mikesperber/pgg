@@ -39,6 +39,8 @@
 (define (clear-memolist!)
   (set! *memolist* '()))
 
+(define (set-residual-program! prg)
+  (set! *residual-program* prg))
 (define (add-to-residual-program! item)
   (set! *residual-program* (cons item *residual-program*)))
 (define (clear-residual-program!)

@@ -19,7 +19,7 @@
 (display "PGG (app) :") (newline)
 
 ,collect
-,time (ntimes (lambda() (cogen-driver '("examples/app.scm") '(app 0 1)) #f) repetitions)
+,time (ntimes (lambda() (cogen-driver '("examples/app.scm") '(app 0 1)) #f) 1)
 (display (list "^^^ preprocessing time *" repetitions)) (newline)
 
 (display "!!!compiling") (newline)
@@ -40,7 +40,7 @@
 (display "PGG (ctors) :") (newline)
 
 ,collect
-,time (ntimes (lambda() (cogen-driver '("examples/ctors.scm") '(main 0 1)) #f) repetitions)
+,time (ntimes (lambda() (cogen-driver '("examples/ctors.scm") '(main 0 1)) #f) 1)
 (display (list "^^^ preprocessing time *" repetitions)) (newline)
 
 (display "!!!compiling") (newline)
@@ -61,7 +61,7 @@
 (display "PGG (lambda) :") (newline)
 
 ,collect
-,time (ntimes (lambda() (cogen-driver '("examples/lambda.scm") '(main 0 1)) #f) repetitions)
+,time (ntimes (lambda() (cogen-driver '("examples/lambda.scm") '(main 0 1)) #f) 1)
 (display (list "^^^ preprocessing *" repetitions)) (newline)
 
 (display "!!!compiling") (newline)

@@ -21,41 +21,73 @@
 ;;; annMakeOp, annMakeCall, annMakeApp, or annMakeCtor by extending
 ;;; the constructor symbol table `ctor-symtab'
 ;;; remove AND, OR, and BEGIN forms
-(define *scheme->abssyn-label-counter* 0)
+;;; (define *scheme->abssyn-label-counter* 0)
 (define (scheme->abssyn-make-label)
-  (set! *scheme->abssyn-label-counter*
+  (set-scheme->abssyn-label-counter!
 	(+ 1 *scheme->abssyn-label-counter*))
   *scheme->abssyn-label-counter*)
+;;; (define *scheme->abssyn-static-references* #f)
+(define (scheme->abssyn-static-references-yes!)
+  (set-scheme->abssyn-static-references! #t))
+(define *scheme->abssyn-mutable-variables* '())
+(define (scheme->abssyn-mutable-variable! v)
+  (set! *scheme->abssyn-mutable-variables*
+	(cons v *scheme->abssyn-mutable-variables*)))
 (define (scheme->abssyn-d d* ctor-symtab)
   ;;(display "scheme->abssyn") (newline)
-  (set! *scheme->abssyn-label-counter* 0)
+  (set-scheme->abssyn-label-counter! 1)
+  (set! *scheme->abssyn-mutable-variables* '())
+  (set-scheme->abssyn-static-references! #f)
   (let* ((d* (scheme-rename-variables-d d*))
 	 ;; (dummy (p d*))
+	 (d* (map scheme-wrap-one-d d*))
 	 (d* (scheme-lambda-lift-d d*))
 	 ;; (dummy (p d*))
 	 (symtab
-	  (cons
-	   (list 'EVAL annMakeEval 2)
-	   (append
-	    (map (lambda (d)
-		   (let ((template (cadr d)))
-		     (if (pair? template)
-			 (list (car template) scheme->abssyn-make-call (length (cdr template)))
-			 (list template scheme->abssyn-make-call -1))))
-		 d*)
-	    ctor-symtab))))
+	  (append
+	   (map (lambda (d)
+		  (let ((template (cadr d)))
+		    (if (pair? template)
+			(list (car template) scheme->abssyn-make-call (length (cdr template)))
+			(list template scheme->abssyn-make-call -1))))
+		d*)
+	   (list (list 'EVAL annMakeEval 2)
+		 (list 'MAKE-CELL (lambda (tag args)
+				    (scheme->abssyn-static-references-yes!)
+				    (annMakeRef
+				     (scheme->abssyn-make-label)
+				     (car args))) 1)
+		 (list 'CELL-REF (lambda (tag args)
+				   (scheme->abssyn-static-references-yes!)
+				   (annMakeDeref (car args))) 1)
+		 (list 'CELL-SET! (lambda (tag args)
+				    (scheme->abssyn-static-references-yes!)
+				    (annMakeAssign
+				     (scheme->abssyn-make-label)
+				     (car args)
+				     (cadr args))) 2))
+	   ctor-symtab)))
     (map (lambda (d) (scheme->abssyn-one-d symtab d)) d*))) 
 
 (define (scheme->abssyn-make-call fname args)
-  (annMakeCall fname (map scheme->abssyn-maybe-coerce args)))
+  (annMakeCall fname (map ann-maybe-coerce args)))
 
 (define (scheme->abssyn-make-app f args)
-  (annMakeApp f (map scheme->abssyn-maybe-coerce args)))
+  (annMakeApp f (map ann-maybe-coerce args)))
 
 (define (scheme->abssyn-make-ctor1 desc)
-  (let ((maker (annMakeCtor1 desc)))
     (lambda (ctor args)
-      (maker ctor (map scheme->abssyn-maybe-coerce args)))))
+      (let ((label (scheme->abssyn-make-label))
+	    (args (map ann-maybe-coerce args)))
+	(if *scheme->abssyn-let-insertion*
+	    (let loop ((args args) (vars '()))
+	      (if (null? args)
+		  (annMakeCtor ctor label desc (map annMakeVar (reverse vars)))
+		  (let ((newvar (gensym 'ctorarg)))
+		    (annMakeLet newvar
+				(car args)
+				(loop (cdr args) (cons newvar vars))))))
+	    (annMakeCtor ctor label desc args)))))
 
 (define (scheme->abssyn-one-d symtab d)
   (let ((make-def (case (car d)
@@ -71,13 +103,11 @@
 			symtab))
 	       (body (scheme->abssyn-wrap-in-let
 		       formals
-		       (scheme->abssyn-maybe-coerce 
+		       (ann-maybe-coerce 
 			(scheme->abssyn-e (caddr d) symtab)))))
 	  (make-def procname formals body))
 	(make-def template #f (scheme->abssyn-e (caddr d) symtab)))))
 
-(define (scheme->abssyn-maybe-coerce e)
-  (annMakeOp INTERNAL-IDENTITY (list e)))
 (define (scheme->abssyn-e e symtab)
   (let loop ((e e))
     (cond
@@ -87,7 +117,7 @@
 	    (let* ((arity (caddr syminfo))
 		   (newvars (nlist arity (lambda () (gensym 'XXX)))))
 	      (loop `(LAMBDA (,@newvars) (,e ,@newvars))))
-	    (scheme->abssyn-maybe-coerce (annMakeVar e)))))
+	    (ann-maybe-coerce (annMakeVar e)))))
      ((not (pair? e))
       (annMakeConst e))
      ((equal? (car e) 'QUOTE)
@@ -102,8 +132,8 @@
 	    (cond
 	     ((equal? tag 'IF)
 	      (annMakeCond (loop (car args))
-			   (scheme->abssyn-maybe-coerce (loop (cadr args)))
-			   (scheme->abssyn-maybe-coerce (loop (caddr args)))))
+			   (ann-maybe-coerce (loop (cadr args)))
+			   (ann-maybe-coerce (loop (caddr args)))))
 	     ((equal? tag 'AND)
 	      (cond
 	       ((null? args)
@@ -188,7 +218,7 @@
 		 (car args)
 		 (scheme->abssyn-wrap-in-let
 		  formals
-		  (scheme->abssyn-maybe-coerce
+		  (ann-maybe-coerce
 		   (scheme->abssyn-e (cadr args)
 				     symtab))))))
 	     ((equal? tag 'LAMBDA)
@@ -218,11 +248,13 @@
 
 ;;; wrap the formal parameters in let-binders around a procedure body 
 (define (scheme->abssyn-wrap-in-let formals body)
-  (let loop ((formals formals))
-    (if (null? formals)
-	body
-	(let ((v (car formals)))
-	  (annMakeLet v (annMakeVar v) (loop (cdr formals)))))))
+  (if (not *scheme->abssyn-let-insertion*)
+      body
+      (let loop ((formals formals))
+	(if (null? formals)
+	    body
+	    (let ((v (car formals)))
+	      (annMakeLet v (annMakeVar v) (loop (cdr formals))))))))
 
 (define (scheme-make-var-app var rands)
   (scheme->abssyn-make-app (annMakeVar var) rands))
@@ -263,6 +295,7 @@
 	   `(,definer ,new-template ,new-body))) d*)))
 
 (define (scheme-rename-variables symtab e)
+  (let loop ((e e))
   (if (symbol? e)
       (let ((found (assoc e symtab)))
 	(if found
@@ -274,16 +307,14 @@
 		(args (cdr e)))
 	    (cond
 	     ((pair? tag)
-	      (let ((new-tag (scheme-rename-variables symtab tag))
-		    (new-args (map (lambda (e) (scheme-rename-variables
-						symtab e)) args)))
+	      (let ((new-tag (loop tag))
+		    (new-args (map loop args)))
 		(cons new-tag new-args)))
 	     ((equal? tag 'QUOTE)
 	      e)
 	     ;;
 	     ((equal? tag 'CASE)
-	      (scheme-rename-variables
-	       symtab
+	      (loop
 	       (let ((var (gensym 'CASE))
 		     (key (car args))
 		     (clauses (cdr args)))
@@ -303,39 +334,35 @@
 				    (loop (cdr clauses)))))))))))))
 	     ;;
 	     ((equal? tag 'COND)
-	      (scheme-rename-variables
-	       symtab
-	      (let loop ((body args))
-		  (cond
-		   ((null? body)
-		    #f)
-		   ((equal? (caar body) 'ELSE)
-		    (scheme-body-list->body (cdar body)))
-		   (else				;general case
-		    `(IF ,(caar body)
-			 ,(scheme-body-list->body (cdar body))
-			 ,(loop (cdr body))))))))
+	      (loop
+	       (let loop ((body args))
+		 (cond
+		  ((null? body)
+		   #f)
+		  ((equal? (caar body) 'ELSE)
+		   (scheme-body-list->body (cdar body)))
+		  (else				;general case
+		   `(IF ,(caar body)
+			,(scheme-body-list->body (cdar body))
+			,(loop (cdr body))))))))
 	     ;;
 	     ((and (equal? tag 'LET)
 		   (not (pair? (car args))))
-	      (scheme-rename-variables
-	       symtab
-	      (let* ((name (car args))
-		     (formals (map car (cadr args)))
-		     (inits (map cadr (cadr args)))
-		     (body-list (cddr args)))
-		`(LETREC ((,name
-			   (LAMBDA ,formals ,@body-list)))
-		   (,name ,@inits)))))
+	      (loop
+	       (let* ((name (car args))
+		      (formals (map car (cadr args)))
+		      (inits (map cadr (cadr args)))
+		      (body-list (cddr args)))
+		 `(LETREC ((,name
+			    (LAMBDA ,formals ,@body-list)))
+		    (,name ,@inits)))))
 	     ;;
 	     ((equal? tag 'LET)
 	      (let* ((formals (map car (car args)))
 		     (bodies (map cadr (car args)))
 		     (body-list (cdr args))
 		     (new-formals (map scheme-rename-clone formals))
-		     (new-bodies (map (lambda (body)
-					(scheme-rename-variables
-					 symtab body)) bodies))
+		     (new-bodies (map loop bodies))
 		     (new-symtab (append (map cons formals new-formals) symtab))
 		     (new-body (scheme-rename-variables
 				new-symtab
@@ -410,6 +437,10 @@
 					 symtab))
 		     (new-body (scheme-rename-variables new-symtab body)))
 		`(LAMBDA ,new-formals ,new-body)))
+	     ((equal? tag 'SET!)
+	      (let ((renamed-args (map loop args)))
+		(scheme->abssyn-mutable-variable! (car renamed-args))
+		`(SET! ,@(map loop renamed-args))))
 	     (else
 	      (let* ((found (assoc tag symtab))
 		     (new-tag (if found
@@ -417,8 +448,7 @@
 				      (cdr found)
 				      (caaddr (cdr found)))
 				  tag)))
-		(cons new-tag (map (lambda (e) (scheme-rename-variables
-						symtab e)) args)))))))))
+		(cons new-tag (map loop args))))))))))
 
 (define (scheme-formals->vars formals)
   (let loop ((formals formals) (acc '()))
@@ -452,8 +482,85 @@
 			     definitions)
 		     ,real-body)))))))
 
+;;; before second step:
+;;; wrap mutable variables into explicit boxes
+
+(define (scheme-wrap-template template e)
+  (if (pair? template)
+      (scheme-wrap-mutables (cdr template) e)
+      e))
+
+(define (scheme-wrap-mutables formals e)
+  (letrec
+      ((wrap
+	(lambda (formals)
+	  (if (null? formals)
+	      e
+	      (let ((formal (car formals)))
+		(if (member formal *scheme->abssyn-mutable-variables*)
+		    `(LET ((,formal (MAKE-CELL ,formal)))
+		       ,(wrap (cdr formals)))
+		    (wrap (cdr formals))))))))
+    (wrap formals)))
+
+(define (scheme-wrap-one-d d)
+  (let ((definer (car d))
+	(template (cadr d)))
+  `(,definer ,template
+     ,(scheme-wrap-template
+       template
+       (scheme-wrap-e (caddr d))))))
+
+(define (scheme-wrap-e e)
+  (if (not (pair? e))
+      (if (member e *scheme->abssyn-mutable-variables*)
+	  `(CELL-REF ,e)
+	  e)
+      (let ((tag (car e))
+	    (args (cdr e)))
+	(cond
+	 ((pair? tag)
+	  (let ((rator (scheme-wrap-e tag))
+		(rands (map scheme-wrap-e args)))
+	    `(,rator ,@rands)))
+	 ((equal? tag 'QUOTE)
+	  e)
+	 ((equal? tag 'SET!)
+	  `(CELL-SET! ,(car args) ,
+			(scheme-wrap-e (cadr args))))
+	 ;; only one binder in a LET
+	 ((equal? tag 'LET)
+	  (let* ((header (caar args))
+		 (body (cadr args))
+		 (bound-var (car header))
+		 (bound-body (cadr header)))
+	    `(LET ((,bound-var
+		    ,(scheme-wrap-e bound-body)))
+	       ,(scheme-wrap-mutables
+		 (list bound-var)
+		 (scheme-wrap-e body)))))
+	 ;;
+	 ((equal? tag 'LETREC)
+	  (let* ((headers (car args))
+		 (body (cadr args)))
+	    `(LETREC ,(map (lambda (header)
+			     (cons (car header)
+				   (scheme-wrap-e (cdr header))))
+			   headers)
+	       ,(scheme-wrap-e body))))
+	 ;;
+	 ((equal? tag 'LAMBDA)
+	  (let* ((bound-vars (car args))
+		 (body (cadr args)))
+	    `(LAMBDA ,bound-vars
+	       ,(scheme-wrap-mutables bound-vars (scheme-wrap-e body)))))
+	 (else
+	  (cons tag (map scheme-wrap-e args)))))))
+
 ;;; second step: perform lambda lifting for LETREC forms, assumes
 ;;; first step has been performed
+
+
 (define *scheme-lambda-lift-definitions* '())
 (define (scheme-lambda-lift-add-definition d)
   (set! *scheme-lambda-lift-definitions*
@@ -534,7 +641,8 @@
 	  (let* ((bound-vars (car args))
 		 (vars (append (scheme-formals->vars bound-vars) vars))
 		 (body (cadr args)))
-	    `(LAMBDA ,bound-vars ,(scheme-lambda-lift body vars definer))))
+	    `(LAMBDA ,bound-vars
+	       ,(scheme-lambda-lift body vars definer))))
 	 (else
 	  (cons tag
 		(map (lambda (e) (scheme-lambda-lift e vars definer)) args)))))))
@@ -666,10 +774,10 @@
 ;;; where np = sum of # args of c[1] ... c[i-1]
 ;;;       nc = # args of c[i]
 ;;;       nt = sum of # args of c[1] ... c[m]
-(define (desc-type desc) (list-ref desc 0))
-(define (desc-np desc) (list-ref desc 1))
-(define (desc-nc desc) (list-ref desc 2))
-(define (desc-nt desc) (list-ref desc 3))
+;(define (desc-type desc) (list-ref desc 0))
+;(define (desc-np desc) (list-ref desc 1))
+;(define (desc-nc desc) (list-ref desc 2))
+;(define (desc-nt desc) (list-ref desc 3))
 (define (scheme->abssyn-nc ctor)
   (- (length ctor) 1))
 (define (scheme->abssyn-nt ctors)
@@ -747,37 +855,3 @@
 		      (parse-type '(all t t)))
 	  1)))
 
-
-
-;;; T  ::= (all TV T) | (rec TV T) | (TC T*) | TV
-;;; TV type variable (must be bound by rec or all)
-;;; TC type constructor
-;;; abstract syntax:
-(define-record primop (op-name op-type op-prop))
-(define-record primop-tapp (tcon types))
-(define-record primop-trec (tvar type))
-(define-record primop-tall (tvar type))
-(define-record primop-tvar (tvar))
-
-(define parse-type
-  (lambda (texp)
-    (let loop ((texp texp)
-	       (tenv the-empty-env))
-      (cond
-       ((pair? texp)
-	(if (member (car texp) '(all rec))
-	    (let ((tvar (cadr texp)))
-	      ((if (equal? (car texp) 'rec)
-		   make-primop-trec
-		   make-primop-tall)
-	       tvar
-	       (loop (caddr texp)
-		     (extend-env tvar (make-primop-tvar tvar) tenv))))
-	    (make-primop-tapp (car texp)
-			      (map (lambda (texp)
-				     (loop texp tenv))
-				   (cdr texp)))))
-       (else
-	(apply-env tenv texp
-		   (lambda ()
-		     (make-primop-tapp texp '()))))))))

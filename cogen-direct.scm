@@ -13,16 +13,16 @@
   v)
 (define (make-ge-const c)
   `',c)
-(define (make-ge-cond l c t e)
+(define (make-ge-cond l lb c t e)
   `(_IF ,l ,(make-thunk c) ,(make-thunk t) ,(make-thunk e)))
 (define (make-ge-op l o args)
   `(_OP ,l ',o ,@(map make-thunk args)))
-(define (make-ge-call f args)
+(define (make-ge-call f bts args)
   `(,f ,@args))
-(define (make-ge-let l v e body)
-  `(_LET ,l ',v ,e (LAMBDA (,v) ,body)))
-(define (make-ge-begin l e1 e2)
-  `(_BEGIN ,l ,e1 ,(make-thunk e2)))
+(define (make-ge-let hl unf? prop? v header body)
+  `(_LET ,hl ,unf? ',v ,header (LAMBDA (,v) ,body)))
+(define (make-ge-begin hl prop? e1 e2)
+  `(_BEGIN ,hl ,e1 ,(make-thunk e2)))
 (define (make-ge-lambda-memo l vars btv label fvars bts body)
   `(_LAMBDA_MEMO ',l ',vars ',label (LIST ,@fvars) ',bts
 		 (LAMBDA ,fvars (LAMBDA ,vars ,body))))
@@ -101,19 +101,18 @@
 	      (LAMBDA ,vars
 		,(reset (apply (apply f vvs) vars)))))))))
 
-(define (_let lv orig-var e f)
+(define (_let lv unf? orig-var e f)
   (let ((var (gensym-local orig-var)))
     (cond
      ((zero? lv)
       (f e))
      ((= lv 1)
-      (if (and (pair? e)
-	       (not (equal? 'QUOTE (car e))))
-	  (shift k (make-residual-let var e (reset (k (f var)))))
-	  (f e)))
+      (if (or unf? (not (pair? e)) (equal? 'QUOTE (car e)))
+	  (f e)
+	  (shift k (make-residual-let var e (reset (k (f var)))))))
      (else
       (shift k
-	     `(_LET ,(pred lv) ',orig-var
+	     `(_LET ,(pred lv) ,unf? ',orig-var
 		    ,e (LAMBDA (,var)
 			 ,(reset (k (f var))))))))))
 
@@ -146,7 +145,7 @@
 (define (_If level et1 et2 et3)
   (if (= level 1)
       (shift k `(IF ,(reset-thunk et1) ,(reset (k (et2))) ,(reset (k (et3)))))
-      (shift k (make-ge-cond (- level 1)
+      (shift k (make-ge-cond (- level 1) #f
 			     (reset-thunk et1)
 			     (reset (k (et2)))
 			     (reset (k (et3)))))))

@@ -6,13 +6,14 @@ E ::=	K | (quote A) | V | (if E E E) | (cond (E E)* (else E)?) |
 	(case E ((A*) E*)* (else E*)?) |
 	(lambda (V*) D0* E*) | (E E*) |
 	[ (lambda V D0* E*) | (lambda (V* . V) D0* E*) | ]
-	(C E*) | (Ci E) | (C? E) |		% constructors, selectors, tests
-	(M B E)					% a memoization point at level B
+	(C E*) | (Ci E) | (C? E) |		% ctors, selectors, tests
+	(M B E) |				% memoization point at level B
+	(set! V E) | (make-cell E) | (cell-ref E) | (cell-set! E E)
 A ::=   <datum> of R4RS
 D0 ::=  (define (P V*) D0* E*) |
 	(define-without-memoization (P V*) D0* E*)
 D ::=	D0 |
-	(define P D0* E*) |			% not allowed for goal procedure
+	(define P D0* E*) |			% not allowed for goal proc
 	(define-data TC (C Ci*)+) |
 	(define-type (P B*) B) |
 	(define-primitive O T [dynamic|error|opaque]) |
@@ -23,6 +24,6 @@ TC    type constructor
 B ::=	* | d | -
 prg ::= D+
 
-
 S ::=   (P G*)					% syntax of the skeleton call
 G ::=	* | - | d | s | <number> | ((C G*)*)	% binding times in the skeleton
+
