@@ -776,9 +776,10 @@
 (define (wft-make-memo-property level)
   (lambda (type type*)
     (for-each (lambda (type)
-		(bta-note-level!
-		 level
-		 (type-fetch-btann type)))
+		(if (<= level *bta-max-bt*)
+		    (bta-note-level!
+		     level
+		     (type-fetch-btann type))))
 	      (cons type type*))))
 
 (define wft-property-table
