@@ -1,4 +1,4 @@
-(defdata my-list (my-nil) (my-cons my-car my-cdr)) 
+(define-data my-list (my-nil) (my-cons my-car my-cdr)) 
 (define (main ss dd)
   (my-length (list->my-list-by ss dd)))
 (define (main2 d1 d2 d3)
