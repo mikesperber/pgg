@@ -141,9 +141,9 @@
        (specialize
 	(lambda (new-name)
 	  (gensym-local-push!)
+	  (creation-log-push!)
 	  (let* ((cloned-pp (top-clone-dynamic full-pp bts))
 		 (new-formals (map car (top-project-dynamic cloned-pp bts))))
-	    (creation-log-push!)
 	    (make-residual-definition! new-name
 				       new-formals
 				       (reset (apply fct (cdr cloned-pp))))

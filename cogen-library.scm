@@ -43,7 +43,7 @@
 			       (list ,@(map serialize-one vvs bts))
 			       ',bts))
 	 (else
-	  (error "static-constructor: bad argument ~a" what)))))) 
+	  (error (string-append "static-constructor: bad argument " (symbol->string what)))))))) 
 
 (define (hidden-constructor ctor closed-value vvs bts)
   (let ((v (static-constructor ctor closed-value vvs bts)))
@@ -149,8 +149,11 @@
 
 ;;; procedures for dealing with references
 (define (static-cell label value bt)
-  (let ((static-address (gen-address label))
-	(the-ref (make-cell value)))
+  (let ((static-address (gen-address label)))
+    (static-cell-at static-address label value bt)))
+
+(define (static-cell-at static-address label value bt)
+  (let ((the-ref (make-cell value)))
     (creation-log-add! static-address the-ref bt)
     (lambda (what)
       (case what
@@ -199,7 +202,11 @@
 		(cell-set! new-ref (clone-with-one value bt clone-map))
 		new-cell))
 	    (lambda (normalized)
-	      (address-map->new-cell normalized)))))))))
+	      (address-map->new-cell normalized)))))
+	((serialize)
+	 `(static-cell-at ',static-address ,label ,(serialize-one value bt) ,bt))
+	(else
+	 (error (string-append "static-cell: bad message " (symbol->string what))))))))
 
 ;;; procedures for dealing with vectors
 (define (static-vector label size value bt)

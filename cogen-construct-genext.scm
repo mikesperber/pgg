@@ -72,7 +72,7 @@
 (define (make-ge-cell-ref-memo l a)
   `(_S_T_MEMO ,l CELL-REF ,a))
 (define (make-ge-cell-set!-memo l r a)
-  `(_MESSAGE!_MEMO ,l CELL-SET! ,r ,a))
+  `(_MESSAGE!_MEMO ,l ,r CELL-SET! ,a))
 (define (make-ge-cell-eq?-memo l args)
   `(_CELL-EQ?_MEMO ,l ,@args))
 (define (make-ge-make-vector-memo l label bt s a)

@@ -166,7 +166,7 @@
 	  top-clone-dynamic
 	  top-clone-with
 	  serialize
-	  static-cell
+	  static-cell static-cell-at
 	  static-vector
 	  current-static-store!
 	  install-static-store!
