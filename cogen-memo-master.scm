@@ -63,19 +63,23 @@
   (let* ((pending-root (vector-ref *master-pending-by-uid* uid))
 	 (uid-preferred-procedure (vector-ref *master-preferred-by-uid* uid))
 	 (lock (pending-root->lock pending-root)))
-    (obtain-lock lock)
-    (let ((entries (pending-root->entries pending-root)))
-      (if (queue-empty? entries)
-	  (begin
-	    (release-lock lock)
-	    #f)
-	  (let ((entry (or (dequeue-first! entries
-					   (lambda (entry)
-					     (not (eq? (pending-entry->program-point entry)
-						       uid-preferred-procedure))))
-			   (and hard (dequeue! entries)))))
-	    (release-lock lock)
-	    entry)))))
+
+    (with-lock
+     lock
+     (lambda ()
+       (let ((entries (pending-root->entries pending-root)))
+	 (and (not (queue-empty? entries))
+	      (cond
+	       ((dequeue-first!
+		 (lambda (entry)
+		   (not (eq? (pending-entry->program-point entry)
+			     uid-preferred-procedure)))
+		 entries)
+		;; we assume that it gets marked right afterwards
+		=> (lambda (entry) entry))
+	       (hard 
+		(dequeue! entries))
+	       (else #f))))))))
 
 (define (master-pending-advance!)
   (or (let loop ((aspaces *server-aspaces*))
@@ -84,7 +88,7 @@
 		 (loop (cdr aspaces)))))
       (let loop ((aspaces *server-aspaces*))
 	(and (not (null? aspaces))
-	     (or (uid-pending-advance! (aspace-uid (car aspaces)) 'HARD)
+	     (or (uid-pending-advance! (aspace-uid (car aspaces)) 'hard)
 		 (loop (cdr aspaces)))))))
 
   
@@ -201,7 +205,16 @@
 		   (release-lock lock)
 		   (if can-I?
 		       (values can-I? killed)
-		       (values (uid-pending-advance! uid 'HARD) killed)))))))
+		       (let loop ()
+			 (let ((entry (uid-pending-advance! uid 'hard)))
+			   (cond
+			    ((not entry)
+			     (values #f killed))
+			    ((can-I-work-on-master-entry?
+			      (pending-entry->master-entry entry))
+			     (values (pending-entry->local-id entry) killed))
+			    (else
+			     (loop)))))))))))
 						   
        (else				; wait until local name registered
 	;; (display "Server ") (display uid) (display " suspends on: ")(display (list "can-server-work-on?" local-id)) (newline)
@@ -309,6 +322,9 @@
 		    (lock (pending-root->lock root))
 		    (table (pending-root->run-time-table root))
 		    (memo-point (car (master-entry->program-point entry))))
+
+	       ;; (display ">>>working on ") (display memo-point) (display ", delay ") (display (- process-time (master-entry->arrival-time entry))) (newline)
+
 	       (vector-set! *master-preferred-by-uid* uid memo-point)
 
 	       (obtain-lock lock)

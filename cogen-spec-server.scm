@@ -66,14 +66,18 @@
 (define (local-cache-advance!)
   (if (queue-empty? *local-pending*)
       #f
-      (let ((item (or (dequeue-first! *local-pending*
-				      (lambda (item)
-					(eq? (caar item) *local-preferred-procedure*)))
+      (let ((item (or (dequeue-first!
+		       (lambda (item)
+			 (let ((entry (cdr item)))
+			   (eq? (car (server-entry->program-point entry))
+				*local-preferred-procedure*)))
+		       *local-pending*)
 		      (dequeue! *local-pending*))))
-	(set! *local-cache* (cons item *local-cache*))
-	(if (server-entry->killed? entry)
-	    (local-cache-advance!)
-	    entry))))
+	(let ((entry (cdr item)))
+	  (set! *local-cache* (cons item *local-cache*))
+	  (if (server-entry->killed? entry)
+	      (local-cache-advance!)
+	      entry)))))
 
 (define (local-pending-lookup local-id)
   (cond

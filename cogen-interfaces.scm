@@ -622,13 +622,16 @@
 		      (export multi-memo
 			      start-specialization
 			      collect-residual-program
-			      display-kill-counts))
+			      display-kill-counts
+			      display-elapsed-times))
   (open scheme shift-reset broken-distributed-auxiliary
-	bitwise small-big-scheme smurf-queues
+	bitwise small-big-scheme smurf-queues tables
 	cogen-distributed-library
 	cogen-record cogen-distributed-completers cogen-residual
 	cogen-wrapping
-	message-low aspaces proxies threads threads-internal locks placeholders)
+	time
+	message-low aspaces proxies
+	threads threads-internal locks placeholders)
   (files cogen-distributed-utils
 	 cogen-spec-server
 	 cogen-memo-master))
