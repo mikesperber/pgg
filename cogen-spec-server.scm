@@ -22,6 +22,11 @@
   ;;(concatenate-symbol (gensym f) "-" (local-aspace-uid))
   )
 
+(define *local-kill-count* #f)
+(define *local-kill-count-lock* #f)
+(define (get-local-kill-count)
+  *local-kill-count*)
+
 (define (local-cache-initialize!)
   (set! *local-cache* '()))
 
@@ -198,6 +203,8 @@
   (display "Initializing, uid ") (display uid) (newline)
   (set! *server-master-aspace* (uid->aspace uid))
   (set! *local-id-count* 0)
+  (set! *local-kill-count* 0)
+  (set! *local-kill-count-lock* (make-lock))
   (local-cache-initialize!)
   (local-pending-initialize!)
   (local-resid-initialize!)
@@ -252,6 +259,10 @@
     (if maybe-entry
 	(begin
 	  ;; (display "Master killed local id ") (display local-id) (newline)
+	  (with-lock
+	   *local-kill-count-lock*
+	   (lambda ()
+	     (set! *local-kill-count* (+ 1 *local-kill-count*))))
 	  (server-entry->killed?! maybe-entry #t)))))
 
 ;; Async variant
@@ -294,6 +305,11 @@
   (obtain-lock *server-status-lock*)
   (if (eqv? local-id *server-current-local-id*)
       (begin
+	;; (display "Killing local id " local-id) (newline)
+	(with-lock
+	 *local-kill-count-lock*
+	 (lambda ()
+	   (set! *local-kill-count* (+ 1 *local-kill-count*))))
 	(kill-thread! *server-current-thread*)
 	(release-lock *server-status-lock*)
 	;; (display "Killed local id " local-id) (newline)

@@ -574,25 +574,28 @@
 
 (define-structure broken-distributed-auxiliary auxiliary-interface
   (open auxiliary scheme)
-  (begin
-    (define any->symbol
-      (lambda args
-	(apply string-append
-	       (map (lambda (arg)
-		      (cond
-		       ((symbol? arg) (symbol->string arg))
-		       ((string? arg) arg)
-		       ((number? arg) (number->string arg))))
-		    args))))))
+  (files dummy-gensym))
+
+(define-structure cogen-distributed-library cogen-library-interface
+  (open scheme signals broken-distributed-auxiliary cogen-boxops)
+  (files cogen-library))
+
+(define-structure cogen-distributed-completers
+  cogen-completers-interface
+  (open scheme shift-reset cogen-residual broken-distributed-auxiliary)
+  (files cogen-completer))
 
 (define-structure cogen-memo-distributed
   (compound-interface cogen-memo-interface
 		      (export multi-memo
 			      start-specialization
-			      collect-residual-program))
+			      collect-residual-program
+			      display-kill-counts))
   (open scheme shift-reset broken-distributed-auxiliary
 	bitwise small-big-scheme smurf-queues
-	cogen-library cogen-record cogen-completers cogen-residual cogen-wrapping
+	cogen-distributed-library
+	cogen-record cogen-distributed-completers cogen-residual
+	cogen-wrapping
 	message-low aspaces proxies threads threads-internal locks placeholders)
   (files cogen-distributed-utils
 	 cogen-spec-server
@@ -604,8 +607,8 @@
 		      cogen-direct-anf-interface
 		      cogen-memo-interface)
   (open scheme escapes signals broken-distributed-auxiliary
-	cogen-boxops cogen-globals cogen-library
-	shift-reset cogen-completers cogen-memo-distributed cogen-residual)
+	cogen-boxops cogen-globals cogen-distributed-library
+	shift-reset cogen-distributed-completers cogen-memo-distributed cogen-residual)
   (files cogen-direct-anf))
 
 (define-interface cogen-wrapping-interface

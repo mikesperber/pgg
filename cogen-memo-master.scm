@@ -248,3 +248,11 @@
 		(remote-apply aspace collect-local-residual-program))
 	      *server-aspaces*)))
 
+(define (display-kill-counts)
+  (for-each
+   (lambda (aspace)
+     (display "Aspace #") (display (aspace-uid aspace)) (display ": ")
+     (display (remote-apply aspace get-local-kill-count))
+     (newline))
+   *server-aspaces*))
+				   
