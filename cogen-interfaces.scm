@@ -535,11 +535,12 @@
 	  generic-sort
 	  filter
 	  remove-duplicates
+	  countq
 	  list-or
 	  take
 	  ((load-program) :syntax)
 	  file->list writelpp writel count-cells
-	  display-line display-return spaces))
+	  display-line display-return display-list spaces))
 
 (define-structure auxiliary auxiliary-interface
   (open scheme pretty-print)

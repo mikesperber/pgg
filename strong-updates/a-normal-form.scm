@@ -27,7 +27,8 @@
   rreturn
   (saved-rpass #f)
   (saved-rreturn #f))
-(define-record anf-ctor (name actuals))	;values -> comp 
+(define-record anf-ctor (name actuals)	;values -> comp
+  nr)
 (define-record anf-sel (name actual))	;value -> comp
 (define-record anf-test (name actual))	;value -> comp
 (define-record anf-ref (actual)		;value -> comp
@@ -192,6 +193,73 @@
       (for-each (lambda (actual)
 		  (display " ") (loop actual))
 		(anf-celleq->actuals anf)))
+     (else
+      (error "unknown syntax" anf)))))
+
+(define (anf-display-freevars-d* d*)
+  (display "FREEVARS ")
+  (display-list (anf-collect-freevars-d* d*))
+  (newline))
+
+(define (anf-collect-freevars-d* d*)
+  (apply append (map anf-collect-freevars-d d*)))
+
+(define (anf-collect-freevars-d def)
+  (anf-collect-freevars-e (anf-def->body def)))
+
+
+(define (anf-collect-freevars-e anf)
+  (let loop ((anf anf))
+    (cond
+     ((anf-var? anf)
+      '())
+     ((anf-const? anf)
+      '())
+     ((anf-cond? anf)
+      (append 
+       (loop (anf-cond->if anf))
+       (loop (anf-cond->then anf))
+       (loop (anf-cond->else anf))))
+     ((anf-op? anf)
+      (apply append 
+	     (map (lambda (actual) (loop actual))
+		  (anf-op->actuals anf))))
+     ((anf-call? anf)
+      'unused)
+     ((anf-let? anf)
+      (append 
+       (loop (anf-let->header anf))
+       (loop (anf-let->body anf))))
+     ((anf-unit? anf)
+      (loop (anf-unit->body anf)))
+     ((anf-lambda? anf)
+      (append (anf-lambda->free anf)
+	      (loop (anf-lambda->body anf))))
+     ((anf-app? anf)
+      (append
+       (loop (anf-app->rator anf))
+       (apply append (map (lambda (rand) (loop rand))
+			  (anf-app->rands anf)))))
+     ((anf-ctor? anf)
+      (apply append
+	     (map (lambda (actual) (loop actual))
+		  (anf-ctor->actuals anf))))
+     ((anf-sel? anf)
+      (loop (anf-sel->actual anf)))
+     ((anf-test? anf)
+      (loop (anf-test->actual anf)))
+     ((anf-ref? anf)
+      (loop (anf-ref->actual anf)))
+     ((anf-deref? anf)
+      (loop (anf-deref->actual anf)))
+     ((anf-assign? anf)
+      (append
+       (loop (anf-assign->ref anf))
+       (loop (anf-assign->actual anf))))
+     ((anf-celleq? anf)
+      (apply append
+	     (map (lambda (actual) (loop actual))
+		  (anf-celleq->actuals anf))))
      (else
       (error "unknown syntax" anf)))))
 

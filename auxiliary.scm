@@ -173,6 +173,14 @@
 	      (loop (cdr l) u)
 	      (loop (cdr l) (cons e u)))))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define (countq e l)
+  (let loop ((l l) (r 0))
+    (if (pair? l)
+	(if (eq? (car l) e)
+	    (loop (cdr l) (+ r 1))
+	    (loop (cdr l) r))
+	r)))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define (list-or l)
   (and (pair? l)
        (or (car l) (list-or (cdr l)))))
@@ -222,5 +230,7 @@
   (newline))
 (define display-return
   (lambda (x) (display-line "returning " x) x))
+(define display-list
+  (lambda (l) (for-each (lambda (x) (display x) (display " ")) l)))
 (define (spaces n)
   (make-string n #\space))

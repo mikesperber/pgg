@@ -3,6 +3,7 @@
 (define *anf-app-count* 0)
 (define *anf-let/unit-count* 0)
 (define *anf-lambdas* '())
+(define *anf-ctor* '())
 (define *anf-refs* '())
 (define *anf-apps* '())
 (define *anf-let/units* '())
@@ -36,6 +37,13 @@
       (anf-ref->nr! anf x)
       (set! *anf-refs* (cons anf *anf-refs*))
       anf)))
+(define anf-next-ctor!
+  (lambda (anf)
+    (let ((x *anf-pp-count*))
+      (set! *anf-pp-count* (+ 1 x))
+      (anf-ctor->nr! anf x)
+      (set! *anf-ctor* (cons anf *anf-ctor*))
+      anf)))
 (define anf-next-app!
   (lambda (anf)
     (let ((x *anf-app-count*))
@@ -55,6 +63,7 @@
   (set! *anf-pp-map* (make-vector *anf-pp-count*))
   (anf-update-map! *anf-pp-map* anf-lambda->nr *anf-lambdas*)
   (anf-update-map! *anf-pp-map* anf-ref->nr *anf-refs*)
+  ;(anf-update-map! *anf-pp-map* anf-ctor->nr *anf-ctor*)
   (set! *anf-app-map* (make-vector *anf-app-count*))
   (anf-update-map! *anf-app-map* anf-app->nr *anf-apps*))
 
@@ -63,6 +72,7 @@
   (set! *anf-app-count* 0)
   (set! *anf-let/unit-count* 0)
   (set! *anf-lambdas* '())
+  (set! *anf-ctor* '())
   (set! *anf-refs* '())
   (set! *anf-apps* '())
   (set! *anf-let/units* '())
@@ -169,9 +179,11 @@
 				 (make-anf-app conv-rator conv-rands)))
 			      c))))
      ((annIsCtor? e)
-      (anf-convert-e* (annFetchCtorArgs e) v (lambda (conv-rands)
-					       (make-anf-ctor (annFetchCtorName e)
-							      conv-rands))
+      (anf-convert-e* (annFetchCtorArgs e) v
+		      (lambda (conv-rands)
+			(anf-next-ctor!
+			 (make-anf-ctor (annFetchCtorName e)
+					conv-rands)))
 		      c))
      ((annIsSel? e)
       (anf-convert-e* (list (annFetchSelArg e)) v (lambda (conv-rands)

@@ -248,6 +248,12 @@
 	      (proc i obj))
 	  (loop (+ i 1))))))
 
+(define (anf-ref-loop! proc)
+  (for-each (lambda (obj) (proc (anf-ref->nr obj) obj)) *anf-refs*))
+
+(define (anf-lambda-loop! proc)
+  (for-each (lambda (obj) (proc (anf-lambda->nr obj) obj)) *anf-lambdas*))
+
 (define (pp-loop-acc select? init proc)
   (let loop ((i 0) (result init))
     (if (< i *anf-pp-count*)
@@ -386,8 +392,8 @@
     (let loop ((i 0))
       (if (< i l)
 	  (let ((anf-app (vector-ref anf-app-map i)))
-	    (anf-app->saved-rpass! anf-app (anf-app->rpass anf-app))
-	    (anf-app->saved-rreturn! anf-app (anf-app->rreturn anf-app))
+	    (anf-app->saved-rpass! anf-app (copy-reachmap (anf-app->rpass anf-app)))
+	    (anf-app->saved-rreturn! anf-app (copy-reachmap (anf-app->rreturn anf-app)))
 	    (loop (+ i 1)))
 	  'finished))))
 
@@ -425,6 +431,12 @@
 
 (define (new-top-reachmap)
   (make-vector *anf-pp-count* (new-top-aval)))
+
+(define (copy-reachmap reachmap)
+  (do ((vec (make-vector *anf-pp-count*))
+       (i 0 (+ i 1)))
+      ((>= i *anf-pp-count*) vec)
+    (vector-set! vec i (vector-ref reachmap i))))
 
 (define (reachmap-display anf-app-map)
   (let ((l (vector-length anf-app-map)))
@@ -490,7 +502,7 @@
 		(if-init-thunk!
 		 (anf-get-init anf-unit)
 		 (lambda ()
-		   ;;(display "!!! point 3") (newline)
+		   ;;(display-line "!!! point 3 name=" (anf-def->name def))
 		   (add-subset! (flowmap-lookup flowmap
 						(anf-var->name (anf-unit->body anf-unit)))
 				def-aval))))
@@ -565,8 +577,7 @@
 	      (if-init-thunk!
 	       init
 	       (lambda ()
-		 (pp-loop!
-		  anf-lambda?
+		 (anf-lambda-loop!
 		  (lambda (i obj)
 		    (let ((formals (anf-lambda->formals obj)))
 		      (if (= nr-rands (length formals))
@@ -606,11 +617,11 @@
 	       (initialize! init-body)
 	       (let ((actual-aval (anfvar-lookup (anf-deref->actual header)))
 		     (astore (anf-get-astore anf)))
-		 (pp-loop! anf-ref?
-			   (lambda (i obj)
-			     (add-conditional! i actual-aval
-					       (astore-ref astore i)
-					       formal-aval)))))))
+		 (anf-ref-loop!
+		  (lambda (i obj)
+		    (add-conditional! i actual-aval
+				      (astore-ref astore i)
+				      formal-aval)))))))
 	   ((anf-assign? header)
 	    (if-init-thunk!
 	     init
@@ -619,11 +630,11 @@
 	       (let ((ref-aval (anfvar-lookup (anf-assign->ref header)))
 		     (actual-aval (anfvar-lookup (anf-assign->actual header)))
 		     (astore (anf-get-astore body)))
-		 (pp-loop! anf-ref?
-			   (lambda (i obj)
-			     (add-conditional! i ref-aval
-					       actual-aval
-					       (astore-ref astore i))))))))
+		 (anf-ref-loop!
+		  (lambda (i obj)
+		    (add-conditional! i ref-aval
+				      actual-aval
+				      (astore-ref astore i))))))))
 	   ((anf-celleq? header)
 	    (if-init-thunk!
 	     init
@@ -843,32 +854,32 @@
 	       (let ((rator-aval (anfvar-lookup (anf-app->rator header)))
 		     (rpass (anf-app->rpass header))
 		     (rreturn (anf-app->rreturn header)))
-		 (pp-loop! anf-lambda?
-			   (lambda (i obj)
-			     (let ((thunk
-				    (lambda ()
-				      (let* ((vp (aval-freevarsof (vector-ref rpass i)))
-					     (vr (aval-freevarsof (vector-ref rreturn i)))
-					     (formals (anf-lambda->formals obj))
-					     (body (anf-lambda->body obj))
-					     (vcm-before-body (anf-get-varcardmap body))
-					     (last* (anf-lambda->last obj))
-					     (vcm-after-body* (map anf-get-varcardmap last*)))
-					(cm-restricted-join-leq! vcm-before vp
-								 formals
-								 vcm-before-body)
-					(for-each
-					 (lambda (anf-unit vcm-after-body)
-					   (if-init-thunk!
-					    (anf-get-init anf-unit)
-					    (lambda ()
-					      (cm-restricted-double-join! vcm-before vp
-									  (list vcm-after-body) vr
-									  formal
-									  vcm-after))))
-					 last*
-					 vcm-after-body*)))))
-			       (add-conditional!-internal i rator-aval thunk))))))))
+		 (anf-lambda-loop!
+		  (lambda (i obj)
+		    (let ((thunk
+			   (lambda ()
+			     (let* ((vp (aval-freevarsof (vector-ref rpass i)))
+				    (vr (aval-freevarsof (vector-ref rreturn i)))
+				    (formals (anf-lambda->formals obj))
+				    (body (anf-lambda->body obj))
+				    (vcm-before-body (anf-get-varcardmap body))
+				    (last* (anf-lambda->last obj))
+				    (vcm-after-body* (map anf-get-varcardmap last*)))
+			       (cm-restricted-join-leq! vcm-before vp
+							formals
+							vcm-before-body)
+			       (for-each
+				(lambda (anf-unit vcm-after-body)
+				  (if-init-thunk!
+				   (anf-get-init anf-unit)
+				   (lambda ()
+				     (cm-restricted-double-join! vcm-before vp
+								 (list vcm-after-body) vr
+								 formal
+								 vcm-after))))
+				last*
+				vcm-after-body*)))))
+		      (add-conditional!-internal i rator-aval thunk))))))))
 	   ((anf-ref? header)
 	    (if-init-thunk!
 	     init
@@ -911,28 +922,28 @@
 				   (map anf-var->name (anf-app->rands anf-app))))
 		 (rpass (anf-app->rpass anf-app))
 		 (rreturn (anf-app->rreturn anf-app)))
-	    (pp-loop! anf-lambda?
-		      (lambda (j obj)
-			(if (present? (vector-ref rator-vec j))
-			    (let* ((new-pass
-				    (RRR flowmap
-					 (list (anf-get-astore anf-app))
-					 (aval-union-elements rands-avals (list j))))
-				   (new-return
-				    (RRR flowmap
-					 (map anf-get-astore (anf-lambda->last obj))
-					 (aval-union-elements
-					  (cons new-pass
-						(map (lambda (anf-unit)
-						       (flowmap-lookup flowmap
-								       (anf-var->name (anf-unit->body anf-unit))))
-						     (anf-lambda->last obj)))
-					  '()))))
-			      (vector-set! rpass j new-pass)
-			      (vector-set! rreturn j new-return))
-			    (begin
-			      (vector-set! rpass j aval-bottom)
-			      (vector-set! rreturn j aval-bottom)))))
+	    (anf-lambda-loop!
+	     (lambda (j obj)
+	       (if (present? (vector-ref rator-vec j))
+		   (let* ((new-pass
+			   (RRR flowmap
+				(list (anf-get-astore anf-app))
+				(aval-union-elements rands-avals (list j))))
+			  (new-return
+			   (RRR flowmap
+				(map anf-get-astore (anf-lambda->last obj))
+				(aval-union-elements
+				 (cons new-pass
+				       (map (lambda (anf-unit)
+					      (flowmap-lookup flowmap
+							      (anf-var->name (anf-unit->body anf-unit))))
+					    (anf-lambda->last obj)))
+				 '()))))
+		     (vector-set! rpass j new-pass)
+		     (vector-set! rreturn j new-return))
+		   (begin
+		     (vector-set! rpass j aval-bottom)
+		     (vector-set! rreturn j aval-bottom)))))
 	    (loop (+ i 1)))
 	  'finished))))
 
@@ -991,7 +1002,6 @@
 		(vector-set! current-vec i not-present))
 	    (loop (+ i 1)))))
     current))
-
 
 ;;; store constraints
 (define (add-astore-subset! astore1 astore2)
@@ -1086,8 +1096,7 @@
 	       (let ((rator-aval (anfvar-lookup (anf-app->rator header)))
 		     (rpass (anf-app->rpass header))
 		     (rreturn (anf-app->rreturn header)))
-		 (pp-loop!
-		  anf-lambda?
+		 (anf-lambda-loop!
 		  (lambda (i obj)
 		    (let ((thunk
 			   (lambda ()
@@ -1184,20 +1193,20 @@
 			 (thunk1)
 			 (let ((ref-vec (aval->pps ref-aval)))
 			   ;; if any other reference arrives
-			   (pp-loop! anf-ref?
-				     (lambda (i obj)
-				       (if (not (= the-ref i))
-					   (vector-set! ref-vec i
-							(cons thunk1 (vector-ref ref-vec i))))))
+			   (anf-ref-loop!
+			    (lambda (i obj)
+			      (if (not (= the-ref i))
+				  (vector-set! ref-vec i
+					       (cons thunk1 (vector-ref ref-vec i))))))
 			   ;; or the cardinality increases
 			   (cardmap->neighbors! rcm-before
 						(cons worker1
 						      (cardmap->neighbors rcm-before)))))))
 		  (else			;(zero ref-count)
 		   (let ((ref-vec (aval->pps ref-aval)))
-		     (pp-loop! anf-ref?
-			       (lambda (i obj)
-				 (vector-set! ref-vec i (cons thunk0 (vector-ref ref-vec i)))))))))
+		     (anf-ref-loop!
+		      (lambda (i obj)
+			(vector-set! ref-vec i (cons thunk0 (vector-ref ref-vec i)))))))))
 	       (cm-leq! rcm-before rcm-after))))
 	   ((anf-celleq? header)
 	    (if-init-thunk!
@@ -1366,7 +1375,7 @@
    (lambda () (make-number-fm '()))
    anf-get-refcardmap))
 
-(define (display-cardmap-analysis single-multiple-map)
+(define (display-cardmap-analysis keys-to-mark single-multiple-map)
   (let ((single (car single-multiple-map))
 	(multiple (cadr single-multiple-map))
 	(fm-ref (lambda (fm key)
@@ -1378,15 +1387,31 @@
      single
      (lambda (key value)
        (display key)
-       (display ":    ")
+       (display "[")
+       (display (countq key keys-to-mark))
+       (display "]= ")
        (display value)
        (display "     ")
        (display (fm-ref multiple key))
        (newline)))
     (newline)))
 
-(define (display-analyze-varcardmap)
-  (display-cardmap-analysis (analyze-all-varcardmap)))
+(define (display-analyze-varcardmap vars-to-mark)
+  (display-cardmap-analysis vars-to-mark (analyze-all-varcardmap)))
 
 (define (display-analyze-refcardmap)
-  (display-cardmap-analysis (analyze-all-refcardmap)))
+  (display-cardmap-analysis '() (analyze-all-refcardmap)))
+
+;;; gather free variable statistic
+(define (display-free-variable-statistics)
+  (anf-lambda-loop!
+   (lambda (i obj)
+     (let* ((freevars (anf-lambda->free obj))
+	    (body (anf-lambda->body obj))
+	    (varcardmap (anf-get-varcardmap body)))
+       (for-each (lambda (var)
+		   (let ((card (cardmap-lookup varcardmap var)))
+		     (if (cardinality? card)
+			 (display-line card))))
+		 freevars)))))
+

@@ -72,6 +72,8 @@
 	  equal-reachmap?
 	  flowmap-display	latex-display-flowmap
 	  anf-display-d*	latex-display-anf-d*
+	  anf-collect-freevars-d*
+	  anf-display-freevars-d*
 	  refcardmap-display	latex-display-refcardmap
 	  varcardmap-display	latex-display-varcardmap
 	  reachmap-display	latex-display-reachmap
@@ -79,6 +81,7 @@
 	  all-init-display	latex-display-all-init
 	  display-analyze-varcardmap
 	  display-analyze-refcardmap
+	  display-free-variable-statistics
 	  ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
