@@ -111,7 +111,7 @@
 			   0))
 	 (memo-type (if (number? active-level)
 			'(all t t)
-			'(all t (-> b (-> b t) t)))))
+			'(all t (-> b (-> b b t) t)))))
     (list memo-name
 	  (annMakeOp1 #t
 		      (wft-make-memo-property memo-level active-level)

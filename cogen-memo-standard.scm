@@ -90,7 +90,7 @@
     (for-each
      (lambda (kv)
        (let ((entry (cdr kv)))
-	 (generate-def entry (list value))))
+	 (generate-def entry (list var value))))
      dynamic-deferred)
     (let loop ((flag #f))
       (for-each-deferred-list
@@ -101,7 +101,7 @@
 	       (begin
 		 (set! flag #t)
 		 (set-car! entry-var -1)
-		 (generate-def entry (list value)))))))
+		 (generate-def entry (list var value)))))))
       (if flag (loop #f)))))
 
 (define memo-version-stamp "pgg-memo-dump-1")
@@ -201,7 +201,7 @@
       (let ((body
 	     (reset
 	      (let* ((v0 (apply fct (cdr cloned-pp)))
-		     (v (if extra-arg (v0 (car extra-arg)) v0)))
+		     (v (if extra-arg (apply v0 extra-arg) v0)))
 		(if (not (zero? bt))
 		    v
 		    (let* ((return-v (list 'return v))

@@ -10,6 +10,8 @@
 (define-memo _memo 1)
 (define-memo _load 1 'deferred)
 
+(define-primitive dyn-error (-> b b) dynamic)
+
 (define-primitive zero? - pure)	; (all t t); (all x (-> (* b x) b))
 (define-primitive null? - pure)
 (define-primitive + - pure)
@@ -40,7 +42,7 @@
       (nil)
       (:: (car l) (prepare (- n 1) (cdr l)))))
 
-(define-without-memoization (exec mod mods instrs regs)
+(define-without-memoization (exec mod exported-labels instrs regs)
   (let loop ((instrs instrs) (regs regs))
     (if (null? instrs)
 	(hd regs)
@@ -69,27 +71,41 @@
 		    (xxx (split r regs))
 		    (regr (hd (snd xxx))))
 	       (if (zero? regr)
-		   (jump mod mods label regs)
+		   (jump-global exported-labels mod label regs)
 		   (loop instrs regs))))
 	    ((Jump)
 	     (let* ((label (cadr instr)))
-	       (jump mod mods label regs)))
+	       (jump-global exported-labels mod label regs)))
 	    (else
 	     (error "Illegal Instruction" instr)))))))
 
-;;; jump : 0 1 0 [1]0
-(define (jump mod mods lab regs)
-  (let ((found (assoc lab mod)))
-    (if found
-	(_memo (exec mod mods (cdr found) regs))
-	(_load mods
-	       (lambda (mod-name next-mod)
-		 (if (null? next-mod)
-		     (error "Undefined label")
-		     (jump next-mod mods lab regs)))))))
+;;; jump-global : 0 0 0 [1]0
+(define (jump-global exported-labels mod lab regs)
+  (cond
+   ((assoc lab exported-labels)
+    => (lambda (lab-mod)
+	 (_load (cdr lab-mod)
+		(lambda (mod-name this-mod)
+		  (let ((found (assoc lab this-mod)))
+		    (exec this-mod exported-labels (cdr found) regs))))))
+   ((assoc lab mod)
+    => (lambda (found)
+	 (_memo (exec mod exported-labels (cdr found) regs))))
+   (else
+    (error "Undefined label"))))
 
-;;; main : 1 0 0 1
-(define (main modules label nregs initial_registers)
+;;; jump-initial: 0 1 1 [1]0
+(define-without-memoization (jump-initial exported-labels mods label regs)
+  (let loop ((exports exported-labels))
+    (if (null? exports)
+	(dyn-error "Unknown label")
+	(let ((export (car exports)))
+	  (if (eq? label (car export))
+	      (jump-global exported-labels '() (car export) regs)
+	      (loop (cdr exports)))))))
+
+;;; main : 1 0 1 0 1
+(define (main modules exported-labels label nregs initial_registers)
   (let ((regs (prepare nregs initial_registers)))
-    (jump '() modules label regs)))
+    (jump-initial exported-labels modules label regs)))
 
