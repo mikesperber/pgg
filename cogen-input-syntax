@@ -9,13 +9,14 @@ E ::=	K | (quote A) | V | (if E E E) | (cond (E E)* (else E)?) |
 	(C E*) | (Ci E) | (C? E) |		% constructors, selectors, tests
 	(M B E)					% a memoization point at level B
 A ::=   <datum> of R4RS
-D0 ::=  (define (P V*) D0* E*)
+D0 ::=  (define (P V*) D0* E*) |
+	(define-without-memoization (P V*) D0* E*)
 D ::=	D0 |
 	(define P D0* E*) |			% not allowed for goal procedure
 	(define-data TC (C Ci*)+) |
 	(define-type (P B*) B) |
 	(define-primitive O T [dynamic|error|opaque]) |
-	(define-memo M [only])			% "only" present => standard memoization off
+	(define-memo M <number>)
 T ::= (all TV T) | (rec TV T) | (TC T*) | TV
 TV    type variable (must be bound by rec or all)
 TC    type constructor
