@@ -83,7 +83,7 @@
   (vector-ref e 5))
 ;;; let, one variable
 (define (annMakeLet v e1 e2)
-  (vector 'LET #f #f 0 v e1 e2 'suspended))
+  (vector 'LET #f #f 0 v e1 e2 #f))
 (define (annIsLet? e)
   (equal? 'LET (vector-ref e 0)))
 (define (annFetchLetVar e)

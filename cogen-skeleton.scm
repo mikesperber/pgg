@@ -1,7 +1,10 @@
 ;;; skeleton for multi-level cogen
 ;;; $Id$
 ;;; $Log$
-;;; Revision 1.7  1995/11/06 15:40:50  thiemann
+;;; Revision 1.8  1995/11/09 16:48:06  thiemann
+;;; implemented simple occurrence count analysis
+;;;
+;;; Revision 1.7  1995/11/06  15:40:50  thiemann
 ;;; handle eval, fix bug in lambda lifter
 ;;;
 ;;; Revision 1.6  1995/11/03  17:12:26  thiemann
@@ -33,6 +36,8 @@
   ;; generators, clear memo caches, and to return the constructed
   ;; program afterwards
   (set! *generating-extension* '())
+  ;; perform occurrence count analysis
+  (oca-d d*)
   (let loop ((d* d*))
     (if (null? d*)
 	*generating-extension*
@@ -67,10 +72,13 @@
       `(,(annFetchCallName e)
 	,@(map loop (annFetchCallArgs e))))
      ((annIsLet? e)
-      `(_LET ,(+ 1 (annExprFetchLevel (annFetchLetHeader e)))
+      (let* ((level (annExprFetchLevel (annFetchLetHeader e)))
+	     (unfoldability (annFetchLetUnfoldability e))
+	     (n-level (if unfoldability level (+ level 1))))
+      `(_LET ,n-level
 	     ,(loop (annFetchLetHeader e))
 	     (LAMBDA (,(annFetchLetVar e))
-	       ,(loop (annFetchLetBody e)))))
+	       ,(loop (annFetchLetBody e))))))
      ((annIsLambda? e)
 ;;;      `(_LAMBDA ,(+ 1 (annExprFetchLevel e))
 ;;;		(LAMBDA ,(annFetchLambdaVars e)

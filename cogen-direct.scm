@@ -2,7 +2,10 @@
 ;;; direct style version of the continuation-based multi-level
 ;;; compiler generator (with control operators)
 ;;; $Log$
-;;; Revision 1.5  1995/11/06 15:40:48  thiemann
+;;; Revision 1.6  1995/11/09 16:48:02  thiemann
+;;; implemented simple occurrence count analysis
+;;;
+;;; Revision 1.5  1995/11/06  15:40:48  thiemann
 ;;; handle eval, fix bug in lambda lifter
 ;;;
 ;;; Revision 1.4  1995/11/03  17:12:21  thiemann
@@ -70,15 +73,19 @@
 
 (define (_let lv e f)
   (let ((var (gensym 'var)))
-    (if (= lv 1)
-	(if (and (pair? e)
-		 (not (equal? 'QUOTE (car e))))
-	    (shift k `(LET ((,var ,e))
-			,(reset (k (f var)))))
-	    (f e))
-	(shift k
-	       `(_LET ,(pred lv) ,e (LAMBDA (,var)
-				      ,(reset (k (f var)))))))))
+    (cond
+     ((zero? lv)
+      (f e))
+     ((= lv 1)
+      (if (and (pair? e)
+	       (not (equal? 'QUOTE (car e))))
+	  (shift k `(LET ((,var ,e))
+		      ,(reset (k (f var)))))
+	  (f e)))
+     (else
+      (shift k
+	     `(_LET ,(pred lv) ,e (LAMBDA (,var)
+				    ,(reset (k (f var))))))))))
 
 (define (_ctor_memo lv bts ctor . args)
   (let ((new-bts (map pred bts)))
@@ -113,8 +120,23 @@
 
 (define (_Op level op . args)
   (if (= level 1)
-      `(,op ,@args)
+      (if (equal? op 'apply)
+	  (_apply args)
+	  `(,op ,@args))
       `(_OP ,(- level 1) ',op ,@args)))
+
+(define (_apply args)
+  (let ((fn (car args))
+	(fa (cadr args)))
+    (let loop ((fa fa) (acc '()))
+      (if (pair? fa)
+	  (if (equal? (car fa) 'CONS)
+	      (loop (caddr fa) (cons (cadr fa) acc))
+	      (if (and (equal? (car fa) 'QUOTE)
+		       (equal? (cadr fa) '()))
+		  `(,fn ,@(reverse acc))
+		  `(APPLY ,@args)))
+	  `(APPLY ,@args)))))
 
 (define (_Lift0 level val)
   (if (= level 1)

@@ -32,11 +32,11 @@
 	 (symtab
 	  (cons
 	   (list 'EVAL annMakeEval 2)
-	  (append
-	   (map (lambda (d)
-		  (list (caadr d) annMakeCall (length (cdadr d))))
-		d*)
-	   ctor-symtab))))
+	   (append
+	    (map (lambda (d)
+		   (list (caadr d) annMakeCall (length (cdadr d))))
+		 d*)
+	    ctor-symtab))))
     (map (lambda (d)
 	   (let* ((formals (cdadr d))
 		  (symtab (append (map (lambda (v)

@@ -4,7 +4,8 @@
 (newline)
 (load "auxiliary.scm")
 (load "cogen-abssyn.scm") 
-(load "cogen-scheme.scm") 
+(load "cogen-scheme.scm")
+(load "cogen-oca.scm")
 (load "cogen-skeleton.scm")
 (load "cogen-bta.scm") 
 ;;; to run the generating extension
