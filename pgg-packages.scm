@@ -272,13 +272,6 @@
 	  type->memo
 	  ctor-function ctor-reference ctor-top))
 
-(define-structure cogen-bta cogen-bta-interface
-  (open scheme signals auxiliary
-	cogen-gensym cogen-globals pp cogen-env
-	cogen-typesig cogen-abssyn cogen-record cogen-labset)
-  (files cogen-eq-flow
-	 cogen-effect))
-
 (define-interface cogen-effect-interface
   (export *effect-display-level*
 	  effect-analysis
@@ -303,11 +296,14 @@
 	  type-rec? type-rec->tvar type-rec->type
 	  type-app? type-app->tcon type-app->types))
 
-(define-structure cogen-typesig cogen-typesig-interface
-  (open scheme signals
-	cogen-record cogen-env cogen-abssyn
-	cogen-scheme cogen-bta)
-  (files cogen-typesig))
+(define-structures ((cogen-bta cogen-bta-interface)
+		    (cogen-typesig cogen-typesig-interface))
+  (open scheme signals auxiliary
+	cogen-scheme cogen-gensym cogen-globals pp cogen-env
+	cogen-abssyn cogen-record cogen-labset)
+  (files cogen-eq-flow
+	 cogen-effect
+	 cogen-typesig))
 
 (define-interface cogen-macro-interface
   (export syntax-make-pop-mark
@@ -456,5 +452,7 @@
 	cogen-abssyn
 	cogen-oca
 	cogen-bta
+	cogen-typesig
+	cogen-construct-genext
 	pgg-compiler-library)
   (files cogen-skeleton))
