@@ -487,7 +487,6 @@
 
 (define-structure pgg-residual
   (export ((start-memo define-data) :syntax)
-	  nextlevel
 	  make-cell cell-ref cell-set!)
   (open scheme escapes pgg-library)
   (files cogen-boxops
@@ -512,26 +511,19 @@
 
 (define-structure pgg-compiler
   (export cogen-driver)
-  (open scheme
-	escapes signals pretty-print
-	anf-specializer
-	cogen-record)
-  (files 
-	 auxiliary
-	 cogen-globals
-	 cogen-labset
-	 cogen-env
-	 cogen-typesig
-	 cogen-abssyn
-	 cogen-scheme
-	 cogen-oca
-	 cogen-skeleton
-	 cogen-effect
-	 cogen-eq-flow
-	 ;; to run the generating extension
-	 shift-reset
-	 cogen-anf-compile
-	 cogen-driver
-	 ))
+  (open scheme auxiliary
+	cogen-scheme cogen-bta
+	cogen-compile-skeleton
+	)
+  (files cogen-driver))
 
-
+;;; this is really a case for a higher-order module,
+;;; parameterized over the pgg-compiler-library
+(define-structure cogen-compile-skeleton cogen-skeleton-interface
+  (open scheme auxiliary signals
+	cogen-globals
+	cogen-abssyn
+	cogen-oca
+	cogen-bta
+	pgg-compiler-library)
+  (files cogen-skeleton))

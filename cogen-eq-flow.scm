@@ -45,11 +45,7 @@
 					      (ann-maybe-coerce
 					       (annMakeCall goal-proc (map annMakeVar formals))))))
 	 (d* (cons d0 d*))
-	 (do-type-inference
-	  (with-output-to-file "/tmp/display-types.scm"
-	    (lambda ()
-	      (full-collect-d* d*)
-	      (p (display-bts-d* d*)))))
+	 (do-type-inference (full-collect-d* d*))
 	 (proc-node (full-ecr (annDefFetchProcBTVar d0)))
 	 (proc-type (node-fetch-type proc-node))
 	 (proc-type-tcargs (type-fetch-args proc-type))
@@ -70,10 +66,10 @@
 	  (if *scheme->abssyn-static-references*
 	      (effect-analysis d* (+ *scheme->abssyn-label-counter* 1)))) 
 	 (construct-bt-constraints (wft-d* d*))
-	 (SHOW-BT_CONSTRAINTS
-	  (with-output-to-file "/tmp/display-bt-constraints.scm"
-	    (lambda ()
-	      (p (display-bts-d* d*)))))
+;	 (SHOW-BT_CONSTRAINTS
+;	  (with-output-to-file "/tmp/display-bt-constraints.scm"
+;	    (lambda ()
+;	      (p (display-bts-d* d*)))))
 	 (bt-ann* (bt-ann-sort
 		   (append (map (lambda (bt type)
 				  (cons bt (type-fetch-btann type)))
@@ -179,7 +175,7 @@
 (define ctor-function '->)
 (define ctor-product '*)
 (define ctor-reference 'ref)
-(define ctor-uninteresting (list ctor-top ctor-bot ctor-basic))
+(define ctor-uninteresting (list ctor-bot ctor-basic))
 
 (define type-bottom?
   (lambda (type)
@@ -367,12 +363,10 @@
 	       (ctor1 (type-fetch-ctor (node-fetch-type node1)))
 	       (ctor2 (type-fetch-ctor (node-fetch-type node2))))
 	  ;; (display (list "lift" ctor1 ctor2))
-	  (if (and (member ctor1 ctor-uninteresting)
-		   (member ctor2 ctor-uninteresting))
+	  (if (member ctor2 ctor-uninteresting)
 	      (begin
 		;; (display " no") (newline)
-		(loop the-lifts (cdr cur-lifts) (cons lift-pair
-						      remaining-lifts)))
+		(loop the-lifts (cdr cur-lifts) (cons lift-pair remaining-lifts)))
 	      (begin
 		(full-equate node1 node2)
 		;; (display (list "yes" (type-fetch-ctor (node-fetch-type (full-ecr node1)))))
@@ -397,7 +391,7 @@
 ;;; this is ___ONLY___ concerned with type inference
 (define (full-collect e symtab)
   (let loop ((e e))
-    (display (list "full-collect" (vector-ref e 0))) (newline)
+    ;;(display (list "full-collect" (vector-ref e 0))) (newline)
     (let ((phi (new-node)))
       (annExprSetType! e phi)
       (cond
