@@ -1,7 +1,12 @@
 ;;; cogen-bta
 ;;; $Id$
 ;;; $Log$
-;;; Revision 1.5  1995/10/27 08:52:24  thiemann
+;;; Revision 1.6  1995/11/03 17:12:19  thiemann
+;;; more sophisticated type signatures
+;;; correct handling of direct-style if and let
+;;; extended syntax (nested defines allowed)
+;;;
+;;; Revision 1.5  1995/10/27  08:52:24  thiemann
 ;;; fixed problem in binding-time analysis
 ;;;
 ;;; Revision 1.4  1995/10/23  16:59:04  thiemann
@@ -11,6 +16,7 @@
 
 (define *bta-user-memoization* #f)
 (define *bta-dynamic-ops* '())
+(define *bta-op-types-alist* '())
 
 ;;; binding-time analysis
 ;;; `d*' list of function definitions
@@ -23,6 +29,7 @@
 	(and def-memo (cadr def-memo)))
   (set! *bta-dynamic-ops*
 	(if *bta-user-memoization* (list *bta-user-memoization*) '()))
+  (set! *bta-op-types-alist* '())
   (let* ((goal-proc (car skeleton))
 	 (bts (cdr skeleton))
 	 (d (annDefLookup goal-proc d*))
@@ -52,7 +59,9 @@
 	    ((bta-assert symtab) bt-result (car procsig))
 	    (map (bta-assert symtab) bts (cdr procsig)))
 	  (if (equal? 'D bt-result)
-	      (set! *bta-dynamic-ops* (cons proc *bta-dynamic-ops*)))))))
+	      (set! *bta-dynamic-ops* (cons proc *bta-dynamic-ops*))
+	      (set! *bta-op-types-alist*
+		    (cons (list proc (cons bt-result bts)) *bta-op-types-alist*)))))))
 ;;; assert binding time `bt' for `tv'
 (define (bta-assert symtab)
   (lambda (bt tv0)
@@ -271,11 +280,27 @@
 	  (bta-equate pi po2)
 	  (bta-equate pi po3)))
        ((annIsOp? e)
-	(let ((pos (map loop (annFetchOpArgs e))))
-	  (map (lambda (po) (bta-equate pi po)) pos)
-	  (if (member (annFetchOpName e) *bta-dynamic-ops*)
-	      (bta-make-dynamic pi)
-	      (bta-add-leq pi '***static*** '()))))
+	(let ((pos (map loop (annFetchOpArgs e)))
+	      (found (assoc (annFetchOpName e) *bta-op-types-alist*)))
+	  (if found
+	      (let ((tv-internal (tv-make))
+		    (type-sig (cadr found)))
+		(for-each (lambda (phi type)
+			    (cond
+			     ((equal? type '-)
+			      (bta-add-dependent phi tv-internal)
+			      (bta-add-dependent tv-internal phi))
+			     ((equal? type '*)
+			      (bta-equate phi tv-internal))
+			     (else
+			      (bta-equate phi tv-internal)
+			      (bta-make-dynamic tv-internal)))) (cons pi pos) type-sig)
+		(bta-add-leq tv-internal '***static*** '()))
+	      (begin
+		(map (lambda (phi) (bta-equate pi phi)) pos)
+		(if (member (annFetchOpName e) *bta-dynamic-ops*)
+		    (bta-make-dynamic pi)
+		    (bta-add-leq pi '***static*** '()))))))
        ((annIsCall? e)
 	(let ((pos (map loop (annFetchCallArgs e))))
 	  (bta-add-leq (cdr (assoc (annFetchCallName e) symtab))

@@ -2,7 +2,12 @@
 ;;; direct style version of the continuation-based multi-level
 ;;; compiler generator (with control operators)
 ;;; $Log$
-;;; Revision 1.3  1995/10/27 08:52:24  thiemann
+;;; Revision 1.4  1995/11/03 17:12:21  thiemann
+;;; more sophisticated type signatures
+;;; correct handling of direct-style if and let
+;;; extended syntax (nested defines allowed)
+;;;
+;;; Revision 1.3  1995/10/27  08:52:24  thiemann
 ;;; fixed problem in binding-time analysis
 ;;;
 ;;; Revision 1.2  1995/10/23  16:59:07  thiemann
@@ -12,7 +17,10 @@
 
 ;;; set result to the unit of the identity monad
 (define result id)
+;;; set creation of conditional arms
+(define (make-conditional-arm e) `(LAMBDA () ,e))
 
+;;; cogen functions
 (define (_app lv f . args)
   (if (= lv 1)
       `(,f ,@args)
@@ -60,13 +68,14 @@
 (define (_let lv e f)
   (let ((var (gensym 'var)))
     (if (= lv 1)
-	(if (pair? e)
-	    `(LET ((,var ,e))
-	       ,(f var))
+	(if (and (pair? e)
+		 (not (equal? 'QUOTE (car e))))
+	    (shift k `(LET ((,var ,e))
+			,(reset (k (f var)))))
 	    (f e))
-	`(SHIFT k
-		(_LET ,(pred lv) ,e (LAMBDA (,var)
-				      (RESET (k ,(f var)))))))))
+	(shift k
+	       `(_LET ,(pred lv) ,e (LAMBDA (,var)
+				      ,(reset (k (f var)))))))))
 
 (define (_ctor_memo lv bts ctor . args)
   (let ((new-bts (map pred bts)))
@@ -85,10 +94,19 @@
       `(_TEST ,(- level 1) ',ctor-test ,v)))
 
 ;;; needs RESET, somewhere
-(define (_If level e1 e2 e3)
+;;; therefore: the arms of the conditional must be thunks, so that we
+;;; can capture control. we get this for free in the CPS version where
+;;; et2 and et3 are continuations, anyway
+(define (_If level e1 et2 et3)
   (if (= level 1)
-      `(IF ,e1 ,e2 ,e3)
-      `(_IF ,(- level 1) ,e1 (RESET ,e2) (RESET ,e3))))
+      `(IF ,e1 ,(reset (et2)) ,(reset (et3)))
+      `(_IF ,(- level 1) ,e1 (LAMBDA () ,(reset (et2))) (LAMBDA () ,(reset (et3))))))
+
+;;; alternative implementation
+(define (_If1 level e1 et2 et3)
+  (if (= level 0)
+      (if e1 (et2) (et3))
+      `(_IF1 ,(- level 1) ,e1 (LAMBDA () ,(reset (et2))) (LAMBDA () ,(reset (et3))))))
 
 (define (_Op level op . args)
   (if (= level 1)
@@ -97,7 +115,9 @@
 
 (define (_Lift0 level val)
   (if (= level 1)
-      `(QUOTE ,val)
+      (if (or (number? val) (string? val) (boolean? val))
+	  val
+	  `(QUOTE ,val))
       `(_LIFT0 ,(- level 1) ',val)))
 
 (define (_Lift level diff value)

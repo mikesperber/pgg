@@ -315,7 +315,20 @@
 (define (scheme-body-list->body body-list)
   (if (= 1 (length body-list))
       (car body-list)
-      `(BEGIN ,@body-list)))
+      (let loop ((body-list body-list) (definitions '()))
+	(if (and (pair? body-list)
+		 (pair? (car body-list))
+		 (equal? 'DEFINE (caar body-list)))
+	    (loop (cdr body-list) (cons (car body-list) definitions))
+	    (let ((real-body `(BEGIN ,@body-list)))
+	      (if (null? definitions)
+		  real-body
+		  `(LETREC
+		       ,(map (lambda (d)
+			       `(,(caadr d)
+				 (LAMBDA ,(cdadr d) ,@(cddr d))))
+			     definitions)
+		     ,real-body)))))))
 
 ;;; second step: perform lambda lifting for LETREC forms, assumes
 ;;; first step has been performed
@@ -359,12 +372,11 @@
 	  (let* ((headers (car args))
 		 (body (cadr args))
 		 (bound-vars (map car headers))
+		 (free-vars (map (lambda (h)
+				   (scheme-freevars (cadr h) vars))
+				 headers))
 		 ;;(new-vars (append bound-vars vars))
-		 (fv* (apply
-		       set-union*
-		       (map (lambda (h)
-			      (scheme-freevars (cadr h) vars))
-			    headers)))
+		 (fv* (apply set-union* free-vars))
 		 (bound-bodies
 		  (map (lambda (h)
 			 (scheme-lambda-lift

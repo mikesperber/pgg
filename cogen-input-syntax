@@ -1,15 +1,16 @@
 E ::=	K | V | (if E E E) | (cond (E E)* (else E)?) |
 	(O E*) | (P E*) | (begin E*)
-	(let ((V E)*) E*) | (let* ((V E)*) E*) |
-	(letrec ((V (lambda (V*) E*))*) E*) |
-	(let P ((V E)*) E*) |
-	(lambda (V*) E*) | (E E*) |
+	(let ((V E)*) D0* E*) | (let* ((V E)*) D0* E*) |
+	(letrec ((V (lambda (V*) E*))*) D0* E*) |
+	(let P ((V E)*) D0* E*) |
+	(lambda (V*) D0* E*) | (E E*) |
 	(C E*) | (Ci E) | (C? E) |
 	(M B E)		% a memoization point
-D ::=	(define (P V*) E*) |
+D0 ::=  (define (P V*) D0* E*)
+D ::=	D0 |
 	(defdata T (C Ci*)+) |
 	(deftype (P B*) B) |
 	(deftype (O B*) B) |
 	(defmemo M)
-B ::=	* | d
+B ::=	* | d | -
 prg ::= D+

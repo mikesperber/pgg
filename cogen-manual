@@ -1,0 +1,27 @@
+(define (P V*) E*)
+
+define procedure P with formal parameters V* and body expressions E*
+
+(defdata T (C Ci*)+)
+
+define a new datatype  T with constructors C and selectors Ci. the
+elements of T may be partially static.
+
+(deftype (P B*) B)
+
+define the type of a procedure which is subject to
+specialization. useful to generalize arguments.
+
+(deftype (O B*) B)
+
+define the type of an operator (or external procedure). admits the
+special binding-time description "-" which prescribes that the
+respective argument/result is unrelated to the others (i.e. it is not
+equated to the remaining args and it is not related to S). for example
+
+	(deftype (eval * *) -) 
+
+means that the first and second arguments are equated and that S is
+leq than they; the result is unconstrained (i.e., may be a function);
+however, if any argument or the result becomes dynamic the others are
+made dynamic, too.

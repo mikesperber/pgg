@@ -1,7 +1,12 @@
 ;;; skeleton for multi-level cogen
 ;;; $Id$
 ;;; $Log$
-;;; Revision 1.5  1995/10/27 08:52:27  thiemann
+;;; Revision 1.6  1995/11/03 17:12:26  thiemann
+;;; more sophisticated type signatures
+;;; correct handling of direct-style if and let
+;;; extended syntax (nested defines allowed)
+;;;
+;;; Revision 1.5  1995/10/27  08:52:27  thiemann
 ;;; fixed problem in binding-time analysis
 ;;;
 ;;; Revision 1.4  1995/10/23  16:59:13  thiemann
@@ -49,8 +54,8 @@
      ((annIsCond? e)
       `(_IF ,(+ 1 (annExprFetchLevel (annFetchCondTest e)))
 	    ,(loop (annFetchCondTest e))
-	    ,(loop (annFetchCondThen e))
-	    ,(loop (annFetchCondElse e))))
+	    ,(make-conditional-arm (loop (annFetchCondThen e)))
+	    ,(make-conditional-arm (loop (annFetchCondElse e)))))
      ((annIsOp? e)
       `(_OP ,(+ 1 (annExprFetchLevel e))
 	    ',(annFetchOpName e)

@@ -4,6 +4,8 @@
 + put type annotations to work
 - type annotation for arity of operators
 + handle (begin ...)
++ handle nested (define ...)
+- inspect the lambda lifter (dependency analysis?)
 - analyze which lambdas and ctors are really memoized
 - specialize project-static, project-dynamic, and friends
 - use delay/force in project-* functions
@@ -13,6 +15,7 @@
   achieve continuation-based reduction
 + printout mechanism for bt analyzed program?
 - how many memoization points are really necessary?
+- insert LET only if the variable appears more than once in the body
 - use introspection/reflective facilities to obtain the values of the
   free variables
 - support variadic procedures (by considering argument lists as a

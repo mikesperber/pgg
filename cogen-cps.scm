@@ -4,7 +4,12 @@
 ;;; presence of dynamic free variables
 ;;; $Id$
 ;;; $Log$
-;;; Revision 1.3  1995/10/23 16:59:06  thiemann
+;;; Revision 1.4  1995/11/03 17:12:20  thiemann
+;;; more sophisticated type signatures
+;;; correct handling of direct-style if and let
+;;; extended syntax (nested defines allowed)
+;;;
+;;; Revision 1.3  1995/10/23  16:59:06  thiemann
 ;;; type annotations (may) work
 ;;; standard memoization may be circumvented
 ;;;
@@ -23,6 +28,8 @@
 
 ;;; set result to the unit of the continuation monad
 (define result result-c)
+;;; set creation of conditional arms
+(define (make-conditional-arm e) e)
 
 ;;; application with arbitrary many arguments
 ;;; _app : Level \times K Code \times (K Code)^* -> K Code
