@@ -394,7 +394,7 @@
 		 (node2 (full-ecr (cdr lift-pair)))
 		 (ctor1 (type-fetch-ctor (node-fetch-type node1)))
 		 (ctor2 (type-fetch-ctor (node-fetch-type node2))))
-	    ;;(display (list "lift" ctor2 "to" ctor1 "?"))
+	    ;;(display (list "lift" ctor2 (info-fetch-id (node-fetch-info node2)) "to" ctor1 (info-fetch-id (node-fetch-info node1)) "?"))
 	    (if (eq? ctor2 ctor-bot)
 		(begin
 		  ;;(display-line " no")
@@ -714,7 +714,9 @@
 	 (let ((arg-btann (type-fetch-btann arg-type))
 	       (arg-stann (type-fetch-stann arg-type)))
 	   (ann+>dlist! arg-btann arg-stann) ; sigma_i <= beta_i
-	   (ann+>dlist! btann arg-btann)))	; beta_i <= beta
+	   (ann+>dlist! btann arg-btann)	; beta_i <= beta
+	   (ann+>dlist! arg-btann btann)	; beta <= beta_i
+	   ))
        type*))))
 
 (define wft-apply-property
@@ -990,7 +992,7 @@
   (for-each
    (lambda (d)
      (let ((name (annDefFetchProcName d))
-	   (formals (annDefFetchProcFormals d))
+	   (formals (or (annDefFetchProcFormals d) '(NO_ARGS)))
 	   (body (annDefFetchProcBody d)))
      (display `(define (,name ,@formals : ,(display-bts-t
 					    (annDefFetchProcBTVar d)))
@@ -1003,7 +1005,8 @@
       (let ((effect (type-fetch-effect (node-fetch-type node))))
 	(display-bts-eff effect))
       (let loop ((node node) (seenb4 '()))
-	(let ((type (node-fetch-type node)))
+	(let ((type (node-fetch-type node))
+	      (info (node-fetch-info (full-ecr node))))
 	  (let* ((args (type-fetch-args type))
 		 (ctor (type-fetch-ctor type))
 		 (effect (type-fetch-effect type))
@@ -1011,7 +1014,7 @@
 		 (dlist (ann->dlist btann))
 		 (seen (cons node seenb4)))
 	    (if #t ;;(memq node seenb4)
-		`(*** ,ctor ,(ann->visited btann))
+		`(*** ,ctor ,(info-fetch-id info))
 		`(,ctor ,(ann->visited btann)
 			,(ann->bt btann)
 			,(map ann->visited dlist)
