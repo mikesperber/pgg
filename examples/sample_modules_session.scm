@@ -7,7 +7,7 @@
 ,open pp
 
 ;; naive approach
-(define genext (cogen-driver '("examples/modint-base.scm" "examples/modint-standard.scm") '(main 1 0 0 1)))
+(define genext (cogen-driver '("examples/modint-base.scm" "examples/modint.scm") '(main 1 0 0 1)))
 (writelpp genext "regcompiler1.scm")
 (load "regcompiler1.scm")
 (specialize-$goal 'add 3)
