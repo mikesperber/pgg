@@ -76,24 +76,30 @@
 ;;; - args are the free variables of the function's body
 ;;; - bts are their binding times
 (define (multi-memo level fname fct bts args)
+  (multi-memo-internal level fname fct bts args #t))
+
+(define (multi-memo-no-result level fname fct bts args)
+  (multi-memo-internal level fname fct bts args #f))
+
+(define (multi-memo-internal level fname fct bts args result-needed)
   (let*
       ((enter-scope (gensym-local-push!))
        (full-pp (cons fname args))
        (pp (top-project-static full-pp bts))
        (dynamics (top-project-dynamic full-pp bts))
-       ; (compressed-dynamics (map remove-duplicates dynamics))
+					; (compressed-dynamics (map remove-duplicates dynamics))
        (actuals (apply append dynamics))
        (found
 	(or (lookup-memolist pp)
 	    (let*
 		((new-name (gensym-trimmed fname))
-		 ; (clone-map (map (lambda (arg)
-		 ; 		   (cons arg (if (symbol? arg)
-		 ; 				 (gensym-local arg)
-		 ; 				 (gensym-local 'clone))))
-		 ; 		 actuals))
+					; (clone-map (map (lambda (arg)
+					; 		   (cons arg (if (symbol? arg)
+					; 				 (gensym-local arg)
+					; 				 (gensym-local 'clone))))
+					; 		 actuals))
 		 (cloned-pp (top-clone-dynamic full-pp bts))
-		 ; (new-formals (map cdr clone-map))
+					; (new-formals (map cdr clone-map))
 		 (new-formals (apply append (top-project-dynamic cloned-pp bts)))
 		 (new-entry (make-memolist-entry new-name))
 		 (register-entry (add-to-memolist! pp new-entry))
@@ -109,13 +115,25 @@
        (exit-scope (gensym-local-pop!)))
     (if (= level 1)
 	;; generate call to fn with actual arguments
-	(_complete-serious
-	 (apply make-residual-call res-name actuals))
+	(if result-needed
+	    (_complete-serious
+	     (apply make-residual-call res-name actuals))
+	    (_complete-serious-no-result
+	     (apply make-residual-call res-name actuals)))
 	;; reconstruct multi-memo
-	(_complete-serious
-	 (make-residual-call 'MULTI-MEMO
-			     (- level 1)
-			     `',res-name
-			     res-name
-			     `',(binding-times dynamics)
-			     `(LIST ,@actuals))))))
+	(if result-needed
+	    (_complete-serious
+	     (make-residual-call 'MULTI-MEMO
+				 (- level 1)
+				 `',res-name
+				 res-name
+				 `',(binding-times dynamics)
+				 `(LIST ,@actuals)))
+	
+	    (_complete-serious-no-result
+	     (make-residual-call 'MULTI-MEMO
+				 (- level 1)
+				 `',res-name
+				 res-name
+				 `',(binding-times dynamics)
+				 `(LIST ,@actuals)))))))

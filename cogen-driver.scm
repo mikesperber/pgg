@@ -23,7 +23,7 @@
 	       (file-name-directory (%file-name%))
 	       #f)))
 
-(define (cogen-driver job-file/files skeleton)
+(define (cogen-driver job-file/files skeleton . options)
   (let* ((source-files
 	  (if (string? job-file/files)
 	      (map symbol->string (file->list job-file/files))
@@ -44,14 +44,60 @@
 			   rejected*)))
 	 (perform-termination-analysis d*)
 	 (generate-d d*)
+	 (process-options options skeleton rejected*)
 	 (append (filter (lambda (def) (eq? (car def) 'define-data))
 			 rejected*)
 		 *generating-extension*)))))) 
+
+(define (process-options options skeleton rejected*)
+  (let* ((user-open '())
+	 (user-files '())
+	 (user-export '())
+	 (user-options '()))
+    (let loop ((options options))
+      (and (not (null? options))
+	   (let ((option (car options)))
+	     (cond
+	      ((pair? option)
+	       (case (car option)
+		 ((export)
+		  (set! user-export (append user-export (cdr option))))
+		 ((open)
+		  (set! user-open (append user-open (cdr option))))
+		 ((files)
+		  (set! user-files (append user-files (cdr option))))
+		 (else
+		  (set! user-options (cons option user-options))))
+	       (loop (cdr options)))
+	      ((string? option)
+	       (let* ((suffix-stripped (strip-path-suffix option))
+		      (option (strip-path-prefix suffix-stripped))
+		      (outfile-name (string-append suffix-stripped ".scm"))
+		      (config-name  (string-append suffix-stripped ".config.scm")))
+		 (with-output-to-file outfile-name
+		   (lambda ()
+		     (for-each (lambda (def)
+				 (if (eq? (car def) 'define-data)
+				     (p def)))
+			       rejected*)
+		     (for-each p *generating-extension*)))
+		 (with-output-to-file config-name
+		   (lambda ()
+		     (let ((interface-sym
+			    (string->symbol (string-append option "-interface")))
+			   (structure-sym
+			    (string->symbol option))
+			   (main-sym
+			    '$goal))
+		       (p
+			`(define-interface ,interface-sym
+			   (export ,main-sym ,@user-export)))
+		       (p
+			`(define-structure ,structure-sym ,interface-sym
+			   (open scheme signals define-data pgg-library
+				 ,@user-open)
+			   ,@(reverse user-options)
+			   (files ,@user-files ,structure-sym))))))))))))))
+
 ;;; TO DO:
 ;;; - error recognition & handling
-;;; + remove Similix dependencies (i.e., file->list, anythingelse?) 
-;;; + some support to run generating extensions, such as not having to
-;;;   write (lambda (k) (k 5)) in place of 5 and avoiding awkwardness
-;;;   when entering partially static data (it should be possible to
-;;;   use (_CTOR_MEMO 1 'CTOR ...) in place of (CTOR ...) but this is
-;;;   not really friendly ...)  

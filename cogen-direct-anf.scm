@@ -1,3 +1,9 @@
+;;; cogen-direct-anf.scm
+
+;;; copyright © 1996, 1997, 1998, 1999 by Peter Thiemann
+;;; non-commercial use is free as long as the original copright notice
+;;; remains intact
+
 ;;; 
 ;;; direct style version of the continuation-based multi-level
 ;;; compiler generator (with control operators)
@@ -7,78 +13,6 @@
 ;;;
 
 (set-scheme->abssyn-let-insertion! #f)
-
-;;; interface to create generating extensions
-;;; syntax constructors
-(define (make-ge-var l v)
-  v)
-(define (make-ge-freevar l v)
-  `(_FREEVAR ,l ,v))
-(define (make-ge-const c)
-  (if (number? c)
-      c
-      `',c))
-(define (make-ge-cond l lb c t e)
-  (if (zero? l)
-      `(IF ,c ,t, e)
-      `(_IF ,l ,c ,t ,e)))
-(define (make-ge-op l o args)
-  `(_OP ,l ,o ,@args))
-(define (make-ge-op-pure l o args)
-  `(_OP_PURE ,l ,o ,@args))
-(define (make-ge-call f bts args)
-  `(,f ,@args))
-(define (make-ge-let hl unf? bl v e body)
-  (make-residual-let v e body))
-(define (make-ge-begin hl prop? e1 e2)
-  (if (zero? hl)
-      (make-residual-begin e1 e2)
-      `(_BEGIN ,hl ,prop? ,e1 ,e2)))
-(define (make-ge-lambda-memo l vars btv label fvars bts body)
-  `(_LAMBDA_MEMO ,l ',vars ',label (LIST ,@fvars) ',bts
-		 (LAMBDA ,fvars (LAMBDA ,vars ,body))))
-(define (make-ge-vlambda-memo l fixed-vars var btv label fvars bts body)
-  `(_VLAMBDA_MEMO ,l ',fixed-vars ',var ',label (LIST ,@fvars) ',bts
-		  (LAMBDA ,fvars
-		    (LAMBDA ,(if (zero? l)
-				 (append fixed-vars var)
-				 (cons var fixed-vars)) ,body))))
-(define (make-ge-app-memo l f btv args)
-  `(_APP_MEMO ,l ,f ,@args))
-(define (make-ge-lambda l vars btv body)
-  (if (zero? l)
-      (make-residual-closed-lambda vars '() body)
-      `(_LAMBDA ,l ,vars ,body)))
-(define (make-ge-vlambda l fixed-vars var btv body)
-  (if (zero? l)
-      (make-residual-closed-lambda (append fixed-vars var) '() body)
-      `(_VLAMBDA ,l ,fixed-vars ,var ,body)))
-(define (make-ge-app l f btv args)
-  `(_APP ,l ,f ,@args))
-(define (make-ge-ctor-memo l bts ctor args)
-  `(_CTOR_MEMO ,l ,bts ,ctor ,@args))
-(define (make-ge-sel-memo l sel a)
-  `(_S_T_MEMO ,l ,sel ,a))
-(define (make-ge-test-memo l tst a)
-  `(_S_T_MEMO ,l ,tst ,a))
-(define (make-ge-ctor l ctor args)
-  `(_OP ,l ,ctor ,@args))
-(define (make-ge-sel l sel a)
-  `(_OP ,l ,sel ,a))
-(define (make-ge-test l tst a)
-  `(_OP ,l ,tst ,a))
-(define (make-ge-lift l diff a)
-  `(_LIFT ,l ,diff ,a))
-(define (make-ge-eval l diff a)
-  `(_EVAL ,l ,diff ,a))
-(define (make-ge-make-cell-memo l label bt a)
-  `(_MAKE-CELL_MEMO ,l ,label ,bt ,a))
-(define (make-ge-cell-ref-memo l a)
-  `(_S_T_MEMO ,l CELL-REF ,a))
-(define (make-ge-cell-set!-memo l r a)
-  `(_CELL-SET!_MEMO ,l ,r ,a))
-(define (make-ge-cell-eq?-memo l args)
-  `(_CELL-EQ?_MEMO ,l ,@args))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; an implementation using macros
@@ -91,6 +25,15 @@
      (_complete-serious (make-residual-call e ...)))
     ((_app lv e ...)
      (_complete (make-residual-generator '_APP (pred lv) e ...)))))
+
+(define-syntax _app-no-result
+  (syntax-rules ()
+    ((_app 0 e ...)
+     (e ...))
+    ((_app 1 e ...)
+     (_complete-serious-no-result (make-residual-call e ...)))
+    ((_app lv e ...)
+     (_complete-no-result (make-residual-generator '_APP (pred lv) e ...)))))
 
 (define-syntax _app_memo
   (syntax-rules ()
@@ -108,9 +51,12 @@
 
 (define (_lambda-internal lv arity f)
   (let* ((vars (map gensym-local arity))
-	 (body (reset (apply f vars))))
+	 (body (reset (apply f vars)))
+	 (l (pred lv)))
     (_complete				;don't duplicate, experimental
-     (make-ge-lambda (pred lv) vars #f body))))
+     (if (zero? l)
+	 (make-residual-closed-lambda vars '() body)
+	 `(_LAMBDA ,l ,vars ,body)))))
 
 (define-syntax _lambda_memo
   (syntax-rules ()
@@ -160,9 +106,14 @@
 
 (define (_vlambda-internal lv arity f)
   (let* ((vars (map gensym-local arity))
-	 (body (reset (apply f vars))))
+	 (body (reset (apply f vars)))
+	 (l (pred lv))
+	 (fixed-vars (cdr vars))
+	 (var (car vars)))
     (_complete				;don't duplicate, experimental
-     (make-ge-vlambda (pred lv) (cdr vars) (car vars) #f body))))
+     (if (zero? l)
+	 (make-residual-closed-lambda (append fixed-vars var) '() body)
+	 `(_VLAMBDA ,l ,fixed-vars ,var ,body)))))
 
 (define-syntax _vlambda_memo
   (syntax-rules ()
@@ -207,7 +158,21 @@
 			    (cons formal fixed-formals))))))))))
 
 (define-syntax _begin
-  (syntax-rules ()
+  (syntax-rules (multi-memo _app _op)
+    ((_begin 0 bl (multi-memo arg ...) e2)
+     (begin (multi-memo-no-result arg ...) e2))
+    ((_begin 1 bl (multi-memo arg ...) e2)
+     (shift k (make-residual-begin (multi-memo-no-result arg ...)
+				   (reset (k e2)))))
+    ((_begin 0 bl (_app arg ...) e2)
+     (begin (_app-no-result arg ...)
+	    e2))
+    ((_begin 1 bl (_app arg ...) e2)
+     (shift k (make-residual-begin (_app-no-result arg ...) (reset (k e2)))))
+    ((_begin 0 bl (_op arg ...) e2)
+     (begin (_op-no-result arg ...) e2))
+    ((_begin 1 bl (_op arg ...) e2)
+     (shift k (make-residual-begin (_op-no-result arg ...) (reset (k e2)))))
     ((_begin 0 bl e1 e2)
      (begin e1 e2))
     ((_begin 1 bl e1 e2)
@@ -288,6 +253,23 @@
      (_complete `(op ,arg ...)))
     ((_op lv op arg ...)
      (_complete `(_OP ,(pred lv) op ,arg ...)))))
+
+(define-syntax _op-no-result
+  (syntax-rules (apply cons _define_data _define)
+    ((_op lv _define_data arg)
+     (make-residual-define-data lv arg))
+    ((_op lv _define var arg)
+     (make-residual-define-mutable lv 'var arg))
+    ((_op 0 op arg ...)
+     (op arg ...))
+    ((_op 1 cons e1 e2)
+     (_complete-no-result (make-residual-cons e1 e2)))
+    ((_op 1 apply f arg)
+     (_complete-serious-no-result (make-residual-apply f arg)))
+    ((_op 1 op arg ...)
+     (_complete-no-result `(op ,arg ...)))
+    ((_op lv op arg ...)
+     (_complete-no-result `(_OP ,(pred lv) op ,arg ...)))))
 
 (define-syntax _op_pure
   (syntax-rules (cons)

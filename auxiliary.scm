@@ -198,3 +198,27 @@
   (lambda (l) (for-each (lambda (x) (display x) (display " ")) l)))
 (define (spaces n)
   (make-string n #\space))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define (strip-path-prefix path)
+  (let ((l (string-length path)))
+    (let loop ((s 0) (i 0))
+      (cond
+       ((= i l)
+	(substring path s l))
+       ((eq? (string-ref path i) #\/)
+	(loop (+ i 1) (+ i 1)))
+       (else
+	(loop s (+ i 1)))))))
+
+(define (strip-path-suffix path)
+  (let ((l (string-length path)))
+    (let loop ((e l) (i 0))
+      (cond
+       ((= i l)
+	(substring path 0 e))
+       ((eq? (string-ref path i) #\.)
+	(loop i (+ i 1)))
+       ((eq? (string-ref path i) #\/)
+	(loop l (+ i 1)))
+       (else
+	(loop e (+ i 1)))))))

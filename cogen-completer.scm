@@ -10,11 +10,23 @@
      (let ((var (gensym-local 'mlet)))
        (shift k (make-residual-let-trivial var body (k var)))))))
 
+(define-syntax _complete-no-result
+  (syntax-rules ()
+    ((_complete-no-result body)
+     (let ((var (gensym-local 'mlet)))
+       (shift k (make-residual-begin body (k var)))))))
+
 (define-syntax _complete-serious
   (syntax-rules ()
     ((_complete-serious body)
      (let ((var (gensym-local 'mlet)))
        (shift k (make-residual-let-serious var body (k var)))))))
+
+(define-syntax _complete-serious-no-result
+  (syntax-rules ()
+    ((_complete-serious-no-result body)
+     (let ((var (gensym-local 'mlet)))
+       (shift k (make-residual-begin body (k var)))))))
 
 (define-syntax _complete-maybe
   (syntax-rules ()

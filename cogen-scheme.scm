@@ -346,7 +346,8 @@
 			     (set! not-recognized* (cons other other*)))
 			   (loop (append other* (list other))
 				 (- count 1) reset)))))))
-		(error "bad toplevel expression" other)))))
+		(error "bad toplevel expression" other)))
+	  (set! not-recognized* '())))
     ;; bind the macros
     (let ((macro-symtab (unbox-env top-level-box)))
       (for-each-env! (lambda (entry)

@@ -21,6 +21,7 @@ cogen_base_files = \
 	cogen-abssyn.scm \
 	cogen-boxops.scm \
 	cogen-completer.scm \
+	cogen-construct-genext.scm \
 	cogen-ctors.scm \
 	cogen-driver.scm \
 	cogen-effect.scm \

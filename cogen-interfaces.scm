@@ -186,6 +186,11 @@
 	  make-ge-cell-set!-memo
 	  make-ge-cell-eq?-memo))
 
+(define-structure cogen-construct-genext
+  cogen-construct-genext-interface
+  (open scheme cogen-residual)
+  (files cogen-construct-genext))
+
 (define-interface shift-reset-interface
   (export ((shift reset) :syntax)
 	  *shift *reset))
@@ -207,6 +212,7 @@
 	  nextlevel
 	  start-memo-internal
 	  multi-memo
+	  multi-memo-no-result
 	  ))
 
 (define-interface define-data-interface
@@ -221,6 +227,7 @@
 	  nextlevel
 	  start-memo-internal
 	  multi-memo
+	  multi-memo-no-result
 	  ((_app
 	    _app_memo
 	    _lambda
@@ -253,7 +260,8 @@
 	  _Lift
 	  _Eval
 	  start-memo
-	  multi-memo))
+	  multi-memo
+	  multi-memo-no-result))
 
 (define-interface cogen-direct-anf-interface
   (export ((_app
@@ -281,6 +289,7 @@
   (export _vlambda
 	  start-memo-internal
 	  multi-memo
+	  multi-memo-no-result
 	  ((_app
 	    _app_memo
 	    _lambda
@@ -363,7 +372,8 @@
 	  effect->labset))
 
 (define-interface cogen-incremental-interface
-  (export multi-memo))
+  (export multi-memo
+	  multi-memo-no-result))
 
 (define-interface cogen-intro-interface
   (export ((_var
@@ -382,7 +392,8 @@
 	   :syntax)
 	  _let
 	  nextlevel
-	  multi-memo))
+	  multi-memo
+	  multi-memo-no-result))
 
 (define-interface cogen-library-interface
   (export static-constructor
@@ -545,7 +556,7 @@
 	cogen-abssyn
 	cogen-oca
 	cogen-bta
-	pgg-library)
+	cogen-construct-genext)
   (files cogen-skeleton))
 
 (define-interface cogen-labset-interface
@@ -602,7 +613,9 @@
 	  take
 	  ((load-program) :syntax)
 	  file->list writelpp writel count-cells
-	  display-line display-return display-list spaces))
+	  display-line display-return display-list spaces
+	  strip-path-prefix
+	  strip-path-suffix))
 
 (define-structure auxiliary auxiliary-interface
   (open scheme pretty-print)
@@ -669,6 +682,7 @@
 
 (define-structure pgg pgg-interface
   (open scheme filenames source-file-names auxiliary signals
+	pretty-print
 	cogen-scheme
 	cogen-typesig
 	cogen-bta
@@ -677,10 +691,10 @@
   (files cogen-driver))
 
 (define-structure pgg-library
-  (compound-interface cogen-construct-genext-interface
-		      cogen-residual-interface
+  (compound-interface cogen-residual-interface
 		      cogen-direct-anf-interface
-		      cogen-memo-interface)
+		      cogen-memo-interface
+		      cogen-boxops-interface)
   (open scheme escapes signals auxiliary
 	cogen-gensym cogen-boxops cogen-globals cogen-library
 	shift-reset cogen-completers cogen-memo-standard cogen-residual )
@@ -694,7 +708,11 @@
   (files cogen-ctors))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define-interface cogen-completers-interface
-  (export ((_complete _complete-serious _complete-maybe) :syntax)))
+  (export ((_complete
+	    _complete-no-result
+	    _complete-serious
+	    _complete-serious-no-result
+	    _complete-maybe) :syntax)))
 
 (define-structure cogen-completers
   cogen-completers-interface
@@ -705,7 +723,8 @@
   (export ((start-memo) :syntax)
 	  specialize
 	  nextlevel
-	  multi-memo))
+	  multi-memo
+	  multi-memo-no-result))
 
 (define-structure cogen-memo-standard
   cogen-memo-interface
@@ -713,6 +732,10 @@
 	cogen-specialize cogen-globals cogen-record cogen-gensym
 	cogen-library cogen-completers cogen-residual)
   (files cogen-memo-standard))
+
+(define-structure pgg-specialize
+  (export specialize)
+  (open cogen-memo-standard))
 
 (define-structure broken-distributed-auxiliary auxiliary-interface
   (open auxiliary scheme)
@@ -730,6 +753,7 @@
 (define-structure cogen-memo-distributed
   (compound-interface cogen-memo-interface
 		      (export multi-memo
+			      multi-memo-no-result
 			      start-specialization
 			      collect-residual-program
 			      display-kill-counts
