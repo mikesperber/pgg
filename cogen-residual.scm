@@ -257,3 +257,23 @@
 	     `(DEFINE (,name ,@formals) ,@(cdr body))
 	     `(DEFINE (,name ,@formals) ,body))))
     (add-to-residual-program! new-def)))
+
+;; kludge alert
+
+(define (residual-definition-replace-name defn new-name)
+  (let* ((old-defn-template (take 2 defn))
+	 (new-defn-template
+	  (list (car old-defn-template)
+		(cons new-name (cdadr old-defn-template))))
+	 (defn-body (list-tail defn 2)))
+    (append new-defn-template defn-body)))
+
+(define (residual-wrap-internal-definitions def internal-defs)
+  (let* ((defn-template (take 2 def))
+	 (defn-body (list-tail def 2)))
+    (append defn-template
+	    internal-defs
+	    defn-body)))
+
+
+	 

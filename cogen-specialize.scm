@@ -69,6 +69,12 @@
   (set! *residual-program* prg))
 (define (add-to-residual-program! item)
   (set! *residual-program* (cons item *residual-program*)))
+(define (first-residual-procedure)
+  (if (pair? *residual-program*)
+      (car *residual-program*)))
+(define (rest-residual-procedures)
+  (if (pair? *residual-program*)
+      (cdr *residual-program*)))
 (define (clear-residual-program!)
   (set! *residual-program* '()))
 

@@ -60,26 +60,23 @@
 (define (start-memo-internal level fname fct bts args . new-goal)
   (let* ((enter-scope (gensym-local-push!))
 	 (result (reset (multi-memo level level fname fct #f bts args)))
+	 ;; ####massive kludge
 	 (result (if (and (pair? result) (eq? (car result) 'LET))
 		     (car (cdaadr result))
 		     result))
 	 (drop-scope (gensym-local-pop!))
-	 (goal-proc (car *residual-program*))
-	 (defn-template (take 2 goal-proc))
-	 ;; kludge alert
-	 (defn-template
-	   (if (null? new-goal)
-	       defn-template
-	       (list (car defn-template)
-		     (cons (car new-goal) (cdadr defn-template)))))
-	 (defn-body (list-tail goal-proc 2)))
+	 (goal-proc
+	  (if (null? new-goal)
+	      (first-residual-procedure)
+	      (residual-definition-replace-name (first-residual-procedure)
+						(car new-goal)))))
     (set-residual-program!
      (if *generate-flat-program*
-	 (cons (append defn-template defn-body)
-	       (cdr *residual-program*))
-	 (list (append defn-template
-		       (cdr *residual-program*)
-		       defn-body))))
+	 (cons goal-proc
+	       (rest-residual-procedures))
+	 (list (residual-wrap-internal-definitions
+		goal-proc
+		(rest-residual-procedures)))))
     result))
 
 (define (continue var value)

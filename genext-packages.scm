@@ -74,7 +74,9 @@
 	  make-residual-generator-vvee
 	  make-residual-generator-vqqeqe
 	  make-residual-generator-vqqqeqe
-	  make-residual-definition!))
+	  make-residual-definition!
+	  residual-definition-replace-name
+	  residual-wrap-internal-definitions))
 
 (define-interface shift-reset-interface
   (export ((shift reset) :syntax)
@@ -137,11 +139,11 @@
   (export *memolist* *residual-program* *support-code*
 	  add-to-memolist! clear-memolist! lookup-memolist for-each-memolist
 	  set-residual-program! add-to-residual-program! clear-residual-program!
+	  first-residual-procedure rest-residual-procedures
 	  add-to-support-code! clear-support-code!
 	  add-to-deferred-list! clear-deferred-list!
 	  lookup-deferred-list for-each-deferred-list
-	  gen-address-reset! gen-address
-))
+	  gen-address-reset! gen-address))
 
 (define-interface auxiliary-interface
   (export id succ pred
@@ -209,7 +211,9 @@
   (files shift-reset))
 
 (define-structure cogen-residual cogen-residual-interface
-  (open scheme cogen-gensym cogen-specialize)
+  (open scheme
+	auxiliary
+	cogen-gensym cogen-specialize)
   (files cogen-residual))
 
 (define-interface cogen-completers-interface
