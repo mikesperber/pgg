@@ -7,26 +7,28 @@
   (program-point static-skeleton name bts fct server-uid local-id master-entry))
 
 (define *master-pending* #f)
-(define *master-pending-lock* (make-lock))
-(define *master-pending-placeholders*)
-(define *master-pending-placeholders-lock* (make-lock))
+(define *master-pending-lock* #f)
+(define *master-pending-placeholders* #f)
+(define *master-pending-placeholders-lock* #f)
 
 (define (master-pending-initialize!)
   (set! *master-pending* '())
-  (set! *master-pending-placeholders* '()))
+  (set! *master-pending-lock* (make-proxy (make-lock)))
+  (set! *master-pending-placeholders* '())
+  (set! *master-pending-placeholders-lock* (make-proxy (make-lock))))
 
 (define (master-pending-add! key entry)
-  (obtain-lock *master-pending-placeholders-lock*)
+  (obtain-lock (proxy-local-ref *master-pending-placeholders-lock*))
   (if (null? *master-pending-placeholders*)
       (begin
-	(release-lock *master-pending-placeholders-lock*)
+	(release-lock (proxy-local-ref *master-pending-placeholders-lock*))
 	(with-lock
-	 *master-pending-lock*
+	 (proxy-local-ref *master-pending-lock*)
 	 (lambda ()
 	   (set! *master-pending* (cons (cons key entry) *master-pending*)))))
       (let ((placeholder (car *master-pending-placeholders*)))
 	(set! *master-pending-placeholders* (cdr *master-pending-placeholders*))
-	(release-lock *master-pending-placeholders-lock*)
+	(release-lock (proxy-local-ref *master-pending-placeholders-lock*))
 	(placeholder-set! placeholder entry))))
 
 (define (master-pending-advance-no-locking!)
@@ -38,7 +40,7 @@
 
 (define (master-pending-sign-up! placeholder)
   (with-lock
-   *master-pending-placeholders-lock*
+   (proxy-local-ref *master-pending-placeholders-lock*)
    (lambda ()
      (set! *master-pending-placeholders*
 	   (cons placeholder *master-pending-placeholders*)))))
@@ -51,15 +53,21 @@
 
 (define *master-cache* #f)
 (define *master-cache-ids* #f)
-(define *master-cache-lock* (make-lock))
+(define *master-cache-ids-size* 0)
+(define *master-cache-lock* #f)
 
 (define (master-cache-initialize!)
   (set! *master-cache* '())
-  (set! *master-cache-ids* '()))
+  (set! *master-cache-ids-size* 501)
+  (set! *master-cache-ids* (make-vector *master-cache-ids-size* '()))
+  (set! *master-cache-lock* (make-proxy (make-lock))))
 
 (define (master-cache-add-no-locking! key entry local-id)
   (set! *master-cache* (cons (cons key entry) *master-cache*))
-  (set! *master-cache-ids* (cons (cons local-id entry) *master-cache-ids*)))
+  (let ((hash-key (modulo local-id *master-cache-ids-size*)))
+    (vector-set! *master-cache-ids* hash-key
+		 (cons (cons local-id entry)
+		       (vector-ref *master-cache-ids* hash-key)))))
 
 (define (master-cache-lookup key)
   (cond ((assoc key *master-cache*) => cdr)
@@ -72,27 +80,28 @@
 	     (cdar master-cache)
 	     (loop (cdr master-cache))))))
 
-(define (master-cache-lookup-by-local-id local-id final?)
-  (let loop ((master-cache-ids *master-cache-ids*))
-    (and (not (final? master-cache-ids))
-	 (let* ((master-entry (cdar master-cache-ids))
-		(id (caar master-cache-ids)))
-	   (if (eq? local-id id)
-	       master-entry
-	       (loop (cdr master-cache-ids)))))))
+(define (master-cache-lookup-by-local-id local-id)
+  (let* ((hash-key (modulo local-id *master-cache-ids-size*))
+	 (ids+entries (vector-ref *master-cache-ids* hash-key)))
+    (cond ((assq local-id ids+entries)
+	   => cdr)
+	  (else #f))))
 
 (define (master-entry->add-local-id! master-entry local-id uid)
+  ;;(with-lock
+  ;;(master-entry->lock master-entry)
+  ;;(lambda ()
+  ;;(let ((ids+aspaces (master-entry->ids+aspaces master-entry)))
+  ;;(master-entry->ids+aspaces!
+  ;;master-entry
+  ;;(cons (cons local-id uid) ids+aspaces)))))
   (with-lock
-   (master-entry->lock master-entry)
+   (proxy-local-ref *master-cache-lock*)
    (lambda ()
-     (let ((ids+aspaces (master-entry->ids+aspaces master-entry)))
-       (master-entry->ids+aspaces!
-	master-entry
-	(cons (cons local-id uid) ids+aspaces)))))
-  (with-lock
-   *master-cache-lock*
-   (lambda ()
-     (set! *master-cache-ids* (cons (cons local-id master-entry) *master-cache-ids*)))))
+     (let ((hash-key (modulo local-id *master-cache-ids-size*)))
+       (vector-set! *master-cache-ids* hash-key
+		    (cons (cons local-id master-entry)
+			  (vector-ref *master-cache-ids* hash-key)))))))
 
 ;; messages sent from server to master
 
@@ -117,29 +126,27 @@
 (define *servers-placeholders-lock* #f)
 (define (servers-placeholders-initialize!)
   (set! *servers-placeholders* (make-vector (+ 1 *n-servers*) #f))
-  (set! *servers-placeholders-lock* (make-lock))
+  (set! *servers-placeholders-lock* (make-proxy (make-lock)))
   (let loop ((i 1))
     (if (<= i *n-servers*)
 	(begin
 	  (vector-set! *servers-placeholders* i (make-placeholder))
 	  (loop (+ i 1))))))
 
-(define (can-server-work-on? uid local-id)	; sync
-  (let loop ((master-cache-ids *master-cache-ids*) (final? null?))
+(define (can-server-work-on? uid local-id) ; sync
+  (let loop ()
     ;; (display (list "can-server-work-on?" uid local-id)) (newline)
     (let ((placeholder (vector-ref *servers-placeholders* uid)))
       (cond
-       ((master-cache-lookup-by-local-id local-id final?)
+       ((master-cache-lookup-by-local-id local-id)
 	=> (lambda (entry)
 	     (master-entry->add-local-id! entry local-id uid)
 	     (can-I-work-on-master-entry? entry)))
        (else				; wait until local name registered
 	;; (display "Server ") (display uid) (display " suspends on: ")(display (list "can-server-work-on?" local-id)) (newline)
 	(placeholder-value placeholder)
-	;; this assumes *master-cache-ids* gets added to from the front
 	;; (display "Server ") (display uid) (display " again: ")(display (list "can-server-work-on?" local-id)) (newline)
-	(loop *master-cache-ids* (lambda (item) (eq? item master-cache-ids)))
-	)))))
+	(loop))))))
 
 ;;; receives wrapped program-points
 (define (server-registers-memo-point! uid
@@ -153,7 +160,7 @@
 	       (begin
 		 ;; (display (list "Server" uid local-id "setting placeholder")) (newline)
 		 (with-lock
-		  *servers-placeholders-lock*
+		  (proxy-local-ref *servers-placeholders-lock*)
 		  (lambda ()
 		    (let ((placeholder (vector-ref *servers-placeholders* uid)))
 		      (placeholder-set! placeholder #t)
@@ -172,7 +179,7 @@
 	(let* ((master-entry
 		(make-master-entry program-point ; key
 				   local-name ; global name
-				   (list (cons local-id (uid->aspace uid))) ; an alist 
+				   local-id ; previously: (list (cons local-id (uid->aspace uid))) ; an alist 
 				   (make-lock)
 				   #f))
 	       (pending-entry
@@ -184,18 +191,18 @@
 				    uid local-id
 				    master-entry)))
 
-	  (obtain-lock *master-cache-lock*)
+	  (obtain-lock (proxy-local-ref *master-cache-lock*))
 	  (cond ((master-cache-delimited-lookup
 		  static-skeleton
 		  (lambda (item) (eq? item master-cache)))
 		 => (lambda (entry)
-		      (release-lock *master-cache-lock*)
+		      (release-lock (proxy-local-ref *master-cache-lock*))
 		      (master-entry->add-local-id! entry local-id (uid->aspace uid))))
 		(else
 		 ;; we can go ahead
 		 ;; order is important here, no?
 		 (master-cache-add-no-locking! static-skeleton master-entry local-id)
-		 (release-lock *master-cache-lock*)
+		 (release-lock (proxy-local-ref *master-cache-lock*))
 		 (set-placeholders)
 		 (master-pending-add! static-skeleton pending-entry)))))))
 
@@ -207,7 +214,7 @@
   ;; (display "Server ") (display uid) (display " says it's unemployed") (newline)
   (let loop ()
     (let ((entry (with-lock
-		  *master-pending-lock*
+		  (proxy-local-ref *master-pending-lock*)
 		  (lambda ()
 		    (master-pending-advance-no-locking!)))))
       (if entry
@@ -229,7 +236,7 @@
 	      (loop))
 	  (let ((n-unemployed
 		 (with-lock
-		  *n-unemployed-servers-lock*
+		  (proxy-local-ref *n-unemployed-servers-lock*)
 		  (lambda ()
 		    (set! *n-unemployed-servers* (+ 1 *n-unemployed-servers*))
 		    *n-unemployed-servers*))))
@@ -242,7 +249,7 @@
 				 server-kill-local-id!
 				 (pending-entry->local-id entry))
 		    (with-lock
-		     *n-unemployed-servers-lock*
+		     (proxy-local-ref *n-unemployed-servers-lock*)
 		     (lambda ()
 		       (set! *n-unemployed-servers* (- *n-unemployed-servers* 1))))
 		    (remote-run! (uid->aspace uid)
@@ -257,7 +264,7 @@
 (define *server-aspaces* #f)
 (define *n-servers* #f)
 (define *n-unemployed-servers* #f)
-(define *n-unemployed-servers-lock* (make-lock))
+(define *n-unemployed-servers-lock* #f)
 
 (define *finished-placeholder* #f)
 
@@ -266,6 +273,7 @@
     (set! *server-aspaces* (map uid->aspace server-uids))
     (set! *n-servers* (length *server-aspaces*))
     (set! *n-unemployed-servers* 0)
+    (set! *n-unemployed-servers-lock* (make-proxy (make-lock)))
 
     (master-cache-initialize!)
     (master-pending-initialize!)
@@ -274,7 +282,7 @@
     (let* ((program-point (wrap-program-point (cons fname args) bts))
 	   (new-name (gensym fname)))
       (server-registers-memo-point!
-       (car server-uids) program-point new-name #f bts fct))
+       (car server-uids) program-point new-name 0 bts fct))
 
     (set! *finished-placeholder* (make-placeholder))
     (display "starting remote initialization") (newline)
