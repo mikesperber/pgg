@@ -54,8 +54,7 @@
 	     (loop (caddr arg)))
 	    ((and (pair? arg) (eq? (car arg) '_LIFT))
 	     (loop (cadddr arg)))
-	    (else
-	     (error "make-residual-define-data"))))))
+	    (else real-arg)))))
     (add-to-support-code! `(define-data ,@real-arg))
     (if (= lv 0)
 	'pooof				;ignored
