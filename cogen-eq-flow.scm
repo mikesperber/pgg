@@ -138,6 +138,9 @@
 (define type-fetch-btann  type->btann)
 (define type-fetch-stann  type->stann)
 
+(define (ann+>dlist! x ann)
+  (ann->dlist! ann (cons x (ann->dlist ann))))
+
 (define ctor-bot '***bot***)
 (define ctor-top '***top***)
 (define ctor-basic '***basic***)
@@ -354,6 +357,7 @@
 	  (full-equate bodytv proctv)))))
 
 ;;; full-collect returns the type variable of e
+;;; this is ___ONLY___ concerned with type inference
 (define (full-collect e symtab)
   (let loop ((e e))
     ;; (display "full-collect ") (display e) (newline)
@@ -372,18 +376,12 @@
 	  (full-equate phi-3 phi)))
        ((annIsOp? e)
 	(let* ((phi* (map loop (annFetchOpArgs e)))
-	       (property (annFetchOpProperty e))
 	       (type (annFetchOpType e)))
-	  (if property
-	      (property phi phi*)
-	      ;; !!! implement type
-	      ;; standard operator
-	      (begin
-		;(full-make-base phi)
-		;(for-each (lambda (phi-i) (full-make-base phi-i)) phi*)
-		(if (eq? INTERNAL-IDENTITY (annFetchOpName e))
-		    (bta-internal-identity-property phi phi*)
-		    (bta-depend-property phi phi*))))))
+	  ;; !!! implement type
+	  ;(full-make-base phi)
+	  ;(for-each (lambda (phi-i) (full-make-base phi-i)) phi*)
+	  (if (eq? INTERNAL-IDENTITY (annFetchOpName e))
+	      (bta-internal-identity-property phi phi*))))
        ((annIsCall? e)
 	(let ((phi* (map loop (annFetchCallArgs e))))
 	  (full-add-function (cdr (assoc (annFetchCallName e) symtab))
@@ -454,51 +452,12 @@
       phi)))
 
 ;;; property functions for built-in operators
-(define bta-depend-property
-  (lambda (phi phi*)
-    (for-each (lambda (phi-i) (full-make-depend phi-i phi)) phi*)))
-
-(define bta-apply-property
-  (lambda (phi phi*)
-    (display "bta-apply-property") (newline)
-    (bta-depend-property phi phi*)
-    (let ((phi-fun (car phi*))
-	  (phi-args (cdr phi*)))
-      (full-make-depend phi phi-fun)
-      (bta-depend-property phi-fun phi-args))))
-
 (define bta-internal-identity-property
   (lambda (phi phi*)
-    (bta-depend-property phi phi*)
+    (full-make-depend (car phi*) phi)
     (set! full-collect-lift-list
 	  (cons (cons phi (car phi*))
 		full-collect-lift-list))))
-
-(define bta-dynamic-property
-  (lambda (phi phi*)
-    (for-each (lambda (node)
-		(bta-note-dynamic! (type-fetch-btann (node-fetch-type (full-ecr node)))))
-	      (cons phi phi*))))
-
-(define bta-error-property
-  (lambda (phi phi*)
-    (bta-dynamic-property phi '())))
-
-(define (bta-make-memo-property level)
-  (lambda (phi phi*)
-    (for-each (lambda (node)
-		(bta-note-level!
-		 level
-		 (type-fetch-btann (node-fetch-type (full-ecr node)))))
-	      (cons phi phi*))))
-
-(define bta-property-table
-  `((apply   . ,bta-apply-property)
-    (dynamic . ,bta-dynamic-property)
-    (error   . ,bta-error-property)
-    (iiiy    . ,bta-internal-identity-property)
-    (opaque  . ,bta-dynamic-property)))
-
 
 ;;; step 2
 ;;; well-formedness constraints
@@ -526,9 +485,7 @@
 						 (full-ecr node)))) targs))
 		    (let ((arg (node-fetch-type (full-ecr (car args)))))
 		      (let ((arg-stann (type-fetch-stann arg)))
-			(ann->dlist!
-			 arg-stann
-			 (cons stann (ann->dlist arg-stann)))) ; sigma_i <= sigma
+			(ann+>dlist! stann arg-stann)) ; sigma_i <= sigma
 		      (loop (cdr args) (cons (type-fetch-btann arg) dlist))))))))))
 					;beta <= beta_i
 
@@ -559,46 +516,23 @@
 			(bta-note-dynamic! btann)
 			(let ((test-btann (type-fetch-btann test-type))
 			      (test-stann (type-fetch-stann test-type)))
-    			  (ann->dlist!
-			   test-stann
-			   (cons test-btann (ann->dlist test-stann))) ; sigma_1 <= beta_1
-			  (ann->dlist!
-			   test-btann
-			   (cons btann (ann->dlist test-btann))))))))) ; beta_1 <= beta
+			  (ann+>dlist! test-btann test-stann) ; sigma_1 <= beta_1
+			  (ann+>dlist! btann test-btann))))))) ; beta_1 <= beta
        ((annIsOp? e)
-	(let ((op-args (annFetchOpArgs e))
+	(let ((op-arg-types (map loop (annFetchOpArgs e)))
 	      (op-property (annFetchOpProperty e))
 	      (op-name (annFetchOpName e)))
-	  (for-each loop op-args)
-	  (let ((btann (type-fetch-btann type))
-		(stann (type-fetch-stann type)))
-	    (if (eq? op-name INTERNAL-IDENTITY)
-		(let* ((arg-type  (info-fetch-type
-				   (node-fetch-info
-				    (annExprFetchType (car op-args)))))
-		       (arg-btann (type-fetch-btann arg-type))
-		       (arg-stann (type-fetch-stann arg-type)))
-		  (ann->dlist! arg-btann (cons btann (ann->dlist
-						      arg-btann))) 
-		  (ann->dlist! arg-stann (cons stann (ann->dlist
-						      arg-stann))))
-		(begin
-		  (ann->dlist! stann (cons btann (ann->dlist stann)))
-		  ; sigma <= beta 
-		  (for-each
-		   (lambda (arg)
-		     (let ((arg-type (info-fetch-type
-				      (node-fetch-info
-				       (annExprFetchType arg)))))
-		       (let ((arg-btann (type-fetch-btann arg-type))
-			     (arg-stann (type-fetch-stann arg-type)))
-			 (ann->dlist!
-			  arg-stann
-			  (cons arg-btann (ann->dlist arg-stann))) ; sigma_i <= beta_i
-			 (ann->dlist!
-			  arg-btann
-			  (cons btann (ann->dlist arg-btann))))))	; beta_i <= beta
-		   op-args))))))
+	  (cond
+	   ((procedure? op-property)
+	    (op-property type op-arg-types))
+	   ((eq? op-name INTERNAL-IDENTITY)
+	    (let* ((arg-type (car op-arg-types))
+		   (arg-btann (type-fetch-btann arg-type))
+		   (arg-stann (type-fetch-stann arg-type)))
+	      (ann+>dlist! (type-fetch-btann type) arg-btann)
+	      (ann+>dlist! (type-fetch-stann type) arg-stann)))
+	   (else
+	    (wft-depend-property type op-arg-types)))))
        ((annIsCall? e)
 	(for-each loop (annFetchCallArgs e)))
        ((annIsLet? e)
@@ -620,10 +554,11 @@
        ((annIsEval? e)
 	(let ((stann (type-fetch-stann type))
 	      (btann (type-fetch-btann type)))
-	  (ann->dlist! stann (cons btann (ann->dlist stann)))) ; sigma <= beta
+	  (ann+>dlist! btann stann)) ; sigma <= beta
 	(loop (annFetchEvalBody e)))
        (else
-	'nothing-to-do)))))
+	'nothing-to-do))
+      type)))
 
 (define (wft-d* d*)
   (set! wft-visited 0)
@@ -633,7 +568,56 @@
      (wft-e (annDefFetchProcBody d) (annDefFetchProcAutoMemo d)))
    d*))
 
-;;; error
+;;; wft property functions for built-in operators
+;;; each function accepts the result type and the list of argument types
+(define wft-depend-property
+  (lambda (type type*)
+    (let ((btann (type-fetch-btann type))
+	  (stann (type-fetch-stann type)))
+      (ann+>dlist! btann stann)		; sigma <= beta 
+      (for-each
+       (lambda (arg-type)
+	 (let ((arg-btann (type-fetch-btann arg-type))
+	       (arg-stann (type-fetch-stann arg-type)))
+	   (ann+>dlist! arg-btann arg-stann) ; sigma_i <= beta_i
+	   (ann+>dlist! btann arg-btann)))	; beta_i <= beta
+       type*))))
+
+(define wft-apply-property
+  (lambda (type type*)
+    (display "wft-apply-property") (newline)
+    (wft-depend-property type type*)
+    (let ((type-fun (car type*))
+	  (type-args (cdr type*)))
+      (let ((btann (type-fetch-btann type))
+	    (fun-btann (type-fetch-btann type-fun)))
+	(ann+>dlist! fun-btann btann))))) ; btann <= fun-btann
+
+(define wft-dynamic-property
+  (lambda (type type*)
+    (for-each (lambda (type)
+		(bta-note-dynamic! (type-fetch-btann type)))
+	      (cons type type*))))
+
+(define wft-error-property
+  (lambda (type type*)
+    (bta-note-dynamic! (type-fetch-btann type))))
+
+(define (wft-make-memo-property level)
+  (lambda (type type*)
+    (for-each (lambda (type)
+		(bta-note-level!
+		 level
+		 (type-fetch-btann type)))
+	      (cons type type*))))
+
+(define wft-property-table
+  `((apply   . ,wft-apply-property)
+    (dynamic . ,wft-dynamic-property)
+    (error   . ,wft-error-property)
+    (opaque  . ,wft-dynamic-property)))
+
+;;; propagate binding-time constraints
 (define btc-propagate
   (lambda (bt ann)
     (debug-level 3 (display "btc-propagate ") (display bt) (display " ("))

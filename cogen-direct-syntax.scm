@@ -22,7 +22,7 @@
 (define (make-ge-call f args)
   `(,f ,@args))
 (define (make-ge-let l v e body)
-  `(_LET ,l ',v ,e (LAMBDA (,v) ,body)))
+  `(_LET ,l ((,v ,e)) ,body))
 (define (make-ge-lambda-memo l vars btv label fvars bts body)
   `(_LAMBDA_MEMO ',l ',vars ',label (LIST ,@fvars) ',bts
 		 (LAMBDA ,fvars (LAMBDA ,vars ,body))))
@@ -129,7 +129,12 @@
 	fun
 	`(_VLAMBDA ,(pred lv) ',arity ',var ,fun))))
 
-(define (_let lv orig-var e f)
+(define-syntax _let
+  (syntax-rules ()
+    ((_ lv ((?v e)) body)
+     (_let-internal lv '?v e (lambda (?v) body)))))
+
+(define (_let-internal lv orig-var e f)
   (let ((var (gensym-local orig-var)))
     (cond
      ((zero? lv)
@@ -140,10 +145,7 @@
 	  (shift k (make-residual-let var e (reset (k (f var)))))
 	  (f e)))
      (else
-      (shift k
-	     `(_LET ,(pred lv) ',orig-var
-		    ,e (LAMBDA (,var)
-			 ,(reset (k (f var))))))))))
+      (shift k (make-ge-let (pred lv) var e (reset (k (f var)))))))))
 
 (define-syntax _ctor_memo
   (syntax-rules ()
@@ -208,13 +210,28 @@
 		    ,(reset (k e3)))))))
 
 (define-syntax _op
-  (syntax-rules ()
+  (syntax-rules (apply)
     ((_op 0 op arg ...)
      (op arg ...))
+    ((_op 1 apply arg ...)
+     (_apply (list arg ...)))
     ((_op 1 op arg ...)
      `(op ,(maybe-reset arg) ...))
     ((_op lv op arg ...)
      `(_OP ,(pred lv) op ,(maybe-reset arg) ...))))
+
+(define (_apply args)
+  (let ((fn (car args))
+	(fa (cadr args)))
+    (let loop ((fa fa) (acc '()))
+      (if (pair? fa)
+	  (if (equal? (car fa) 'CONS)
+	      (loop (caddr fa) (cons (cadr fa) acc))
+	      (if (and (equal? (car fa) 'QUOTE)
+		       (equal? (cadr fa) '()))
+		  `(,fn ,@(reverse acc))
+		  `(APPLY ,@args)))
+	  `(APPLY ,@args)))))
 
 (define-syntax _lift0
   (syntax-rules ()

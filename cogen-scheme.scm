@@ -40,11 +40,22 @@
 	    (map (lambda (d)
 		   (let ((template (cadr d)))
 		     (if (pair? template)
-			 (list (car template) annMakeCall (length (cdr template)))
-			 (list template annMakeCall -1))))
+			 (list (car template) scheme->abssyn-make-call (length (cdr template)))
+			 (list template scheme->abssyn-make-call -1))))
 		 d*)
 	    ctor-symtab))))
     (map (lambda (d) (scheme->abssyn-one-d symtab d)) d*))) 
+
+(define (scheme->abssyn-make-call fname args)
+  (annMakeCall fname (map scheme->abssyn-maybe-coerce args)))
+
+(define (scheme->abssyn-make-app f args)
+  (annMakeApp f (map scheme->abssyn-maybe-coerce args)))
+
+(define (scheme->abssyn-make-ctor1 desc)
+  (let ((maker (annMakeCtor1 desc)))
+    (lambda (ctor args)
+      (maker ctor (map scheme->abssyn-maybe-coerce args)))))
 
 (define (scheme->abssyn-one-d symtab d)
   (let ((make-def (case (car d)
@@ -87,7 +98,7 @@
 	     (mkproc (assoc tag symtab)))
 	(if mkproc
 	    (apply (cadr mkproc)
-		   (list tag (map scheme->abssyn-maybe-coerce (map loop args))))
+		   (list tag (map loop args)))
 	    (cond
 	     ((equal? tag 'IF)
 	      (annMakeCond (loop (car args))
@@ -201,7 +212,7 @@
 						   (scheme->abssyn-e (cadr args)
 								     symtab)))))))
 	     ((pair? tag)
-	      (annMakeApp (loop tag) (map scheme->abssyn-maybe-coerce (map loop args))))
+	      (scheme->abssyn-make-app (loop tag) (map loop args)))
 	     (else
 	      (annMakeOp tag (map loop args))))))))))
 
@@ -214,7 +225,7 @@
 	  (annMakeLet v (annMakeVar v) (loop (cdr formals)))))))
 
 (define (scheme-make-var-app var rands)
-  (annMakeApp (annMakeVar var) rands))
+  (scheme->abssyn-make-app (annMakeVar var) rands))
 
 ;;; first step: rename variables so that every variable has exactly
 ;;; one binding occurrence, transform LET* and LET into LET with just
@@ -691,7 +702,7 @@
 		    (string-append (symbol->string the-ctor) "?")))
 	 (selectors (cdr ctor)))
   (cons
-   (list the-ctor (annMakeCtor1 desc) (length selectors))
+   (list the-ctor (scheme->abssyn-make-ctor1 desc) (length selectors))
    (cons
     (list the-test (annMakeTest1 the-ctor desc) 1)
     (let loop ((selectors selectors) (i 1))
@@ -704,7 +715,7 @@
 (define (scheme->abssyn-one-deftype dt)
   (let ((template (cadr dt))
 	(result-type (caddr dt)))
-    (list (car template) annMakeCall (length (cdr template)))))
+    (list (car template) scheme->abssyn-make-call (length (cdr template)))))
 
 ;;; process (define-primitive ...)
 ;;; accepts the following syntax for definitions of primitive operators
@@ -714,7 +725,7 @@
 	 (op-type (caddr dt))
 	 (op-optional (cdddr dt))
 	 (op-option (and (pair? op-optional) (car op-optional)))
-	 (op-apair (assoc op-option bta-property-table)) ;defined in cogen-eq-flow
+	 (op-apair (assoc op-option wft-property-table)) ;defined in cogen-eq-flow
 	 (st-entry (list op-name
 			 (annMakeOp1
 			  (not (equal? op-option 'opaque))   ;opacity
@@ -731,7 +742,7 @@
 	 (level (caddr dm)))
     (list memo-name
 	  (annMakeOp1 #t
-		      (bta-make-memo-property level)
+		      (wft-make-memo-property level)
 		      (bta-make-memo-postprocessor level)
 		      (parse-type '(all t t)))
 	  1)))
