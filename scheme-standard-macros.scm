@@ -61,7 +61,7 @@
     ((case "compare" key ())
      #f)
     ((case "compare" key (atom))
-     (eqv? key atom))
+     (eqv? key 'atom))
     ((case "compare" key (atom ...))
      (memv key '(atom ...)))))
 
