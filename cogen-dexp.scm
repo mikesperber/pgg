@@ -56,13 +56,30 @@
 ;;; specialize a continuation-based parser
 ;;;
 (load "examples/direct-lr-support.scm")
+(load "../lr-essence/examples/grammars.scm")
+
 (define *generator* (cogen-driver '("examples/cps-lr.scm") '(do-parse 0 0 1)))
 (writelpp *generator* "examples/cps-lr-d0.scm")
 (load "examples/cps-lr-d0.scm")
 (define level1 (start-memo 2 $goal '(1 1 2) (list 'grammar 'k 'input)))
 (writelpp *residual-program* "examples/cps-lr-d1.scm")
 (load "examples/cps-lr-d1.scm")
-(load "../lr-essence/examples/grammars.scm")
 (define level2 (nextlevel level1 (list g10-attrib 1 'input)))
 (writelpp *residual-program* "examples/cps-lr-d2.scm")
 (load "examples/cps-lr-d2.scm")
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; specialize a direct style parser
+;;;
+(load "examples/direct-lr-support.scm")
+(load "../lr-essence/examples/grammars.scm")
+
+(define *generator* (cogen-driver '("examples/direct-lr-pgg.scm") '(direct-parse-main 0 0 1)))
+(writelpp *generator* "examples/direct-lr-pgg-d0.scm")
+(load "examples/direct-lr-pgg-d0.scm")
+(define level1 (start-memo 2 $goal '(1 1 2) (list 'grammar 'k 'input)))
+(writelpp *residual-program* "examples/direct-lr-pgg-d1.scm")
+(load "examples/direct-lr-pgg-d1.scm")
+(define level2 (nextlevel level1 (list g10-attrib 1 'input)))
+(writelpp *residual-program* "examples/direct-lr-pgg-d2.scm")
+(load "examples/direct-lr-pgg-d2.scm")

@@ -29,6 +29,12 @@
 			      closed-value
 			      (cdr (clone-dynamic ctor-vvs bts))
 			      bts))
+	 ((clone-with)
+	  (lambda (clone-map)
+	    (static-constructor ctor
+				closed-value
+				(cdr (clone-with clone-map ctor-vvs bts))
+				bts)))
 	 (else
 	  (error "static-constructor: bad argument ~a" what)))))) 
 
@@ -101,6 +107,22 @@
 			  (cons (s-value 'CLONE) skeleton)
 			  (cons s-value skeleton)))
 		    (cons (gensym-local 'clone) skeleton)))))))
+
+;;; clone the dynamic parts of a list of values 
+;;; return a value with identical static skeleton, but all dynamic
+;;; parts replaced AS INDICATED BY CLONE-MAP 
+(define (clone-with clone-map value bts)
+  (cons (car value)
+	(let loop ((values (cdr value)) (bts bts))
+	  (if (null? values)
+	      '()
+	      (let ((skeleton (loop (cdr values) (cdr bts))))
+		(let ((value (car values)))
+		(if (= 0 (car bts))
+		    (if (procedure? value)
+			(cons ((value 'CLONE) clone-map) skeleton)
+			(cons value skeleton))
+		    (cons (cdr (assoc value clone-map)) skeleton))))))))
 
 ;;; (multi-append x y) is almost like (map append x y) except when the
 ;;; lists x and y have different lengths in which case the result has

@@ -33,7 +33,7 @@
 	 (def-memo (assoc 'define-memo full-source))
 	 (def-opsig*
 	   (if def-memo
-	       (cons `(DEFINE-OPERATOR ,(cadr def-memo) MEMO) def-typesig*)
+	       (cons `(DEFINE-PRIMITIVE ,(cadr def-memo) MEMO) def-typesig*)
 	       def-opsig*))
 	 (symbol-table
 	  (scheme->abssyn-define-type def-datatype* def-typesig* def-opsig*))

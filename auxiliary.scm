@@ -127,6 +127,15 @@
 	  (cons (car xs) (filter p (cdr xs)))
 	  (filter p (cdr xs))))) 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define (remove-duplicates l)
+  (let loop ((l l) (u '()))
+    (if (null? l)
+	u
+	(let ((e (car l)))
+	  (if (member e u)
+	      (loop (cdr l) u)
+	      (loop (cdr l) (cons e u)))))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define (any? l)
   (and (pair? l)
        (or (car l) (any? (cdr l)))))

@@ -1,6 +1,9 @@
 ;;; skeleton for multi-level cogen
 ;;; $Id$
 ;;; $Log$
+;;; Revision 1.15  1996/08/01 11:53:09  thiemann
+;;; modified bta of operators
+;;;
 ;;; Revision 1.14  1996/08/01 07:07:06  thiemann
 ;;; fixed _lambda_memo
 ;;;
@@ -112,7 +115,7 @@
 	     (memo-level
 	      (ann->bt
 	       (type->memo (node-fetch-type (full-ecr (annExprFetchType e)))))))
-	(if (and memo-optimize (< memo-level level))
+	(if (and memo-optimize (<= memo-level level))
 	    (make-ge-lambda (+ 1 level)
 			    vars btv
 			    (loop body))
@@ -143,7 +146,7 @@
 	     (memo-level
 	      (ann->bt
 	       (type->memo (node-fetch-type (full-ecr (annExprFetchType rator)))))))
-	(if (and memo-optimize (< memo-level level))
+	(if (and memo-optimize (<= memo-level level))
 	    (make-ge-app (+ 1 level)
 			 (loop rator)
 			 (map loop rands))
@@ -158,7 +161,7 @@
 	       (type->memo (node-fetch-type (full-ecr
 					     (annExprFetchType
 					      e)))))))
-	(if (and memo-optimize (< memo-level level))
+	(if (and memo-optimize (<= memo-level level))
 	    (make-ge-ctor (+ 1 level)
 			  (annFetchCtorName e)
 			 (map loop (annFetchCtorArgs e)))
@@ -172,7 +175,7 @@
 	     (memo-level
 	      (ann->bt
 	       (type->memo (node-fetch-type (full-ecr (annExprFetchType arg)))))))
-	((if (and memo-optimize (< memo-level level))
+	((if (and memo-optimize (<= memo-level level))
 	     make-ge-sel make-ge-sel-memo)
 	 (succ level)
 	 (annFetchSelName e)
@@ -183,7 +186,7 @@
 	     (memo-level
 	      (ann->bt
 	       (type->memo (node-fetch-type (full-ecr (annExprFetchType arg)))))))
-	((if (and memo-optimize (< memo-level level))
+	((if (and memo-optimize (<= memo-level level))
 	     make-ge-test make-ge-test-memo)
 	 (succ level)
 	 (annFetchTestName e)

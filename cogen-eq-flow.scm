@@ -385,14 +385,10 @@
 	      ;; standard operator
 	      (begin
 		;(full-make-base phi)
-		(for-each (lambda (phi-i)
-			    ;(full-make-base phi-i)
-			    (full-make-depend phi-i phi))
-			  phi*)
+		;(for-each (lambda (phi-i) (full-make-base phi-i)) phi*)
 		(if (eq? INTERNAL-IDENTITY (annFetchOpName e))
-		    (set! full-collect-lift-list
-			  (cons (cons phi (car phi*))
-				full-collect-lift-list)))))))
+		    (bta-internal-identity-property phi phi*)
+		    (bta-depend-property phi phi*))))))
        ((annIsCall? e)
 	(let ((phi* (map loop (annFetchCallArgs e))))
 	  (full-add-function (cdr (assoc (annFetchCallName e) symtab))
@@ -461,6 +457,44 @@
        (else
 	(error "full-collect: unrecognized syntax")))
       phi)))
+
+;;; property functions for built-in operators
+(define bta-depend-property
+  (lambda (phi phi*)
+    (for-each (lambda (phi-i) (full-make-depend phi-i phi)) phi*)))
+
+(define bta-apply-property
+  (lambda (phi phi*)
+    (display "bta-apply-property") (newline)
+    (bta-depend-property phi phi*)
+    (let ((phi-fun (car phi*))
+	  (phi-args (cdr phi*)))
+      (full-make-depend phi phi-fun)
+      (bta-depend-property phi-fun phi-args))))
+
+(define bta-internal-identity-property
+  (lambda (phi phi*)
+    (bta-depend-property phi phi*)
+    (set! full-collect-lift-list
+	  (cons (cons phi (car phi*))
+		full-collect-lift-list))))
+
+(define bta-dynamic-property
+  (lambda (phi phi*)
+    (for-each (lambda (node)
+		(bta-note-dynamic! (type-fetch-btann (node-fetch-type (full-ecr node)))))
+	      (cons phi phi*))))
+
+(define bta-error-property
+  (lambda (phi phi*)
+    (bta-dynamic-property phi '())))
+
+(define bta-property-table
+  `((apply   . ,bta-apply-property)
+    (dynamic . ,bta-dynamic-property)
+    (error   . ,bta-error-property)
+    (iiiy    . ,bta-internal-identity-property)
+    (opaque  . ,bta-dynamic-property)))
 
 ;;; step 2
 ;;; well-formedness constraints
@@ -545,8 +579,6 @@
 		  (ann->dlist! arg-stann (cons stann (ann->dlist
 						      arg-stann))))
 		(begin
-		  (if (and op-property (equal? op-property 'dynamic))
-		      (bta-note-dynamic! btann))
 		  (ann->dlist! stann (cons btann (ann->dlist stann)))
 		  ; sigma <= beta 
 		  (for-each
@@ -679,7 +711,7 @@
 	(or header body)))
      ((annIsLambda? e)
       (let* ((body (bta-solve (annFetchLambdaBody e)))
-	     (dyn-lambda (< 0 bt)))
+	     (dyn-lambda (or #t (< 0 bt))))
 	(annSetLambdaBTVars! e (map (lambda (node)
 				      (type-fetch-btann (node-fetch-type (full-ecr node))))
 				    (annFetchLambdaBTVars e)))
@@ -688,7 +720,7 @@
       #f)
      ((annIsVLambda? e)
       (let* ((body (bta-solve (annFetchVLambdaBody e)))
-	     (dyn-lambda (< 0 bt)))
+	     (dyn-lambda (or #t (< 0 bt))))
 	(annSetVLambdaBTVars! e (map (lambda (node)
 				       (type-fetch-btann (node-fetch-type (full-ecr node))))
 				    (annFetchVLambdaBTVars e)))

@@ -701,17 +701,20 @@
 ;;; accepts the following syntax for definitions of primitive operators
 ;;; D  ::= (define-primitive O T [dynamic|error|opaque])
 (define (scheme->abssyn-one-defop dt)
-  (let ((op-name (cadr dt))
-	(op-type (caddr dt))
-	(op-optional (cdddr dt)))
-    (list op-name
-	  (annMakeOp1
-	   (not (equal? op-optional '(opaque)))   ;opacity
-	   (and op-optional (car op-optional))    ;property \in d, e, o
-	   (parse-type op-type))	          ;type
-	  -1
-	  ;;(length op-rand-types)
-	  )))
+  (let* ((op-name (cadr dt))
+	 (op-type (caddr dt))
+	 (op-optional (cdddr dt))
+	 (op-option (and (pair? op-optional) (car op-optional)))
+	 (op-apair (assoc op-option bta-property-table)) ;defined in cogen-eq-flow
+	 (st-entry (list op-name
+			 (annMakeOp1
+			  (not (equal? op-option 'opaque))   ;opacity
+			  (and op-apair (cdr op-apair))          ;property (a function)
+			  (parse-type op-type))	          ;type
+			 -1
+			 ;;(length op-rand-types)
+			 )))
+    st-entry))
 
 ;;; T  ::= (all TV T) | (rec TV T) | (TC T*) | TV
 ;;; TV type variable (must be bound by rec or all)

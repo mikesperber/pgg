@@ -3,10 +3,10 @@
 
 ;;; requires direct-lr-support.scm
 
-(deftype (_sim-error d) d)
-(deftype (apply - *) *)
+(define-primitive _sim-error - error)
+(define-primitive apply - apply)
 
-(defdata mylist (mynil) (mycons mycar mycdr))
+(define-data mylist (mynil) (mycons mycar mycdr))
 
 ;;; step 1: plain parser
 ;;; step 2: attribute evaluation
