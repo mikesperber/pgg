@@ -108,6 +108,9 @@
 	  annFetchAssignRef
 	  annFetchAssignArg
 	  annFetchAssignLabel
+	  annMakeCellEq
+	  annIsCellEq?
+	  annFetchCellEqArgs
 	  annMakeEval
 	  annIsEval?
 	  annFetchEvalBody
@@ -152,7 +155,11 @@
 	  make-ge-sel
 	  make-ge-test
 	  make-ge-lift
-	  make-ge-eval))
+	  make-ge-eval
+	  make-ge-make-cell-memo
+	  make-ge-cell-ref-memo
+	  make-ge-cell-set!-memo
+	  make-ge-cell-eq?-memo))
 
 (define-interface cogen-cps-genext-interface
   (export _app
@@ -226,6 +233,9 @@
 	    _lift0
 	    _lift
 	    _eval
+	    _MAKE-CELL_MEMO
+	    _CELL-SET!_MEMO
+	    _CELL-EQ?_MEMO
 	    start-memo)
 	   :syntax)))
 
@@ -327,7 +337,21 @@
 	  clone-dynamic
 	  clone-with
 	  multi-append
+	  static-cell
+	  address-registry-reset!
+	  address-map-reset!
 	  binding-times))
+
+(define-structure cogen-library cogen-library-interface
+  (open scheme signals auxiliary cogen-boxops)
+  (files cogen-library))
+
+(define-interface cogen-boxops-interface
+  (export make-cell cell-ref cell-set!))
+
+(define-structure cogen-boxops cogen-boxops-interface
+  (open scheme)
+  (files cogen-boxops))
 
 (define-interface cogen-oca-interface
   (export oca-d))
@@ -386,7 +410,7 @@
 	  *abssyn-maybe-coerce*
 	  *memo-optimize*
 	  *generating-extension*
-	  set-bta-diplay-level!
+	  set-bta-display-level!
 	  set-effect-display-level!
 	  set-scheme->abssyn-static-references!
 	  set-scheme->abssyn-label-counter!
@@ -427,6 +451,7 @@
 	  labset-elem?
 	  labset-equal?
 	  labset-for-each
+	  labset->list
 	  set-labset-size!))
 
 (define-interface pgg-interface
@@ -441,6 +466,7 @@
 	  gensym-local gensym-local-reset! gensym-local-push!
 	  gensym-local-pop!
 	  any->symbol
+	  gen-address-reset! gen-address
 	  *memolist* *residual-program* *support-code*
 	  add-to-memolist! clear-memolist!
 	  set-residual-program! add-to-residual-program! clear-residual-program!
@@ -471,7 +497,7 @@
 
 (define-structure cogen-labset cogen-labset-interface
   (open scheme signals)
-  (files cogen-labset))
+  (files cogen-labset-bylist))
 
 (define-structure pgg pgg-interface
   (open scheme auxiliary
@@ -484,18 +510,17 @@
   (compound-interface cogen-construct-genext-interface
 		      cogen-residual-interface
 		      cogen-direct-anf-interface)
-  (open scheme escapes signals auxiliary cogen-globals)
+  (open scheme escapes signals auxiliary
+	cogen-boxops cogen-globals cogen-library)
   (files shift-reset
-	 cogen-library
 	 cogen-residual
 	 cogen-direct-anf))
 
 (define-structure pgg-residual
   (export ((start-memo define-data) :syntax)
 	  make-cell cell-ref cell-set!)
-  (open scheme escapes pgg-library)
-  (files cogen-boxops
-	 cogen-ctors))
+  (open scheme escapes pgg-library cogen-boxops)
+  (files cogen-ctors))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define-structure reaching-definitions pgg-interface
@@ -512,12 +537,11 @@
   (compound-interface cogen-construct-genext-interface
 		      anf-specializer-interface
 		      cogen-anf-compile-interface)
-  (open scheme escapes signals auxiliary cogen-globals
+  (open scheme escapes signals auxiliary
+	cogen-globals cogen-library cogen-boxops
 	anf-specializer)
   (files
-	 cogen-boxops
 	 cogen-ctors
-	 cogen-library
 	 shift-reset
 	 cogen-anf-compile
 	 ))

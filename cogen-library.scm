@@ -15,15 +15,12 @@
 ;;; Code) \times 2Value^* \times BT^* -> Value
 (define (static-constructor ctor closed-value vvs bts)
   ;; (let ((closed-value (lambda fvs (lambda (arg) body)))) ...)
-  (let* ((ctor-vvs (cons ctor vvs))
-	 (value   (delay (apply closed-value vvs)))
-	 (static  (delay (project-static ctor-vvs bts)))
-	 (dynamic (delay (project-dynamic ctor-vvs bts))))
+  (let ((ctor-vvs (cons ctor vvs)))
      (lambda (what)
        (case what
-	 ((value)   (force value))
-	 ((static)  (force static))
-	 ((dynamic) (force dynamic))
+	 ((value)   (apply closed-value vvs))
+	 ((static)  (project-static ctor-vvs bts))
+	 ((dynamic) (project-dynamic ctor-vvs bts))
 	 ((clone)
 	  (static-constructor ctor
 			      closed-value
@@ -47,14 +44,15 @@
 		   (bt-args bt-args))
 	  (if (null? values)
 	      '()
-	      (let ((skeleton (loop (cdr values)
-				    (cdr bt-args))))
-		(if (= 0 (car bt-args))
-		    (let ((s-value (car values)))
-		      (if (procedure? s-value)
-			  (append (s-value 'STATIC) skeleton)
-			  (cons s-value skeleton)))
-		    skeleton))))))
+	      (cons (project-one-static (car values) (car bt-args))
+		    (loop (cdr values) (cdr bt-args)))))))
+
+(define (project-one-static value bt)
+  (if (zero? bt)
+      (if (procedure? value)
+	  (value 'STATIC)
+	  value)
+      'DYN))
 
 ;;; extract the dynamic parts of value
 (define (project-dynamic value bt-args)
@@ -64,10 +62,12 @@
 	  (let loop ((values (car values-by-bt)))
 	    (if (null? values)
 		'()
-		(if (procedure? (car values))
-		    (multi-append ((car values) 'DYNAMIC)
-				  (loop (cdr values)))
-		    (loop (cdr values)))))))
+		(let ((value (car values))
+		      (values (cdr values)))
+		  (if (procedure? value)
+		      (let ((this-dynamics (value 'DYNAMIC)))
+			(multi-append this-dynamics (loop values)))
+		      (loop values)))))))
     (multi-append nested-dynamics (cdr values-by-bt)))) 
 
 ;;; return `values' grouped according to `bt-args' starting with `level'
@@ -121,13 +121,15 @@
 	(let loop ((values (cdr value)) (bts bts))
 	  (if (null? values)
 	      '()
-	      (let ((skeleton (loop (cdr values) (cdr bts))))
-		(let ((value (car values)))
-		(if (= 0 (car bts))
-		    (if (procedure? value)
-			(cons ((value 'CLONE-WITH) clone-map) skeleton)
-			(cons value skeleton))
-		    (cons (cdr (assoc value clone-map)) skeleton))))))))
+	      (cons (clone-with-one (car values) (car bts) clone-map)
+		    (loop (cdr values) (cdr bts)))))))
+
+(define (clone-with-one value bt clone-map)
+  (if (zero? bt)
+      (if (procedure? value)
+	  ((value 'CLONE-WITH) clone-map)
+	  value)
+      (cdr (assoc value clone-map))))
 
 ;;; (multi-append x y) is almost like (map append x y) except when the
 ;;; lists x and y have different lengths in which case the result has
@@ -152,3 +154,77 @@
 	      (loop (cdr blocks) (+ i 1))
 	      (cons i (inner-loop (cdr values))))))))
 
+;;; procedures for dealing with references
+(define (static-cell label value bt)
+  (let ((static-address (gen-address label))
+	(the-ref (make-cell value)))
+    (lambda (what)
+      (case what
+	((value) the-ref)
+	((static) (register-address
+		   static-address
+		   (lambda (normalized)
+		     `(pointer ,normalized
+			       ,(project-one-static (cell-ref the-ref) bt)))
+		   (lambda (normalized)
+		     `(back ,normalized))))
+	((dynamic) (register-address
+		    static-address
+		    (lambda (normalized)
+		      (project-dynamic (list 'FOO (cell-ref the-ref))
+				       (list bt)))
+		    (lambda (normalized)
+		      '())))
+	((clone) (register-address
+		  static-address
+		  (lambda (normalized)
+		    (let* ((value (cell-ref the-ref))
+			   (cloned-value (clone-one-dynamic value bt))
+			   (new-cell (static-cell label cloned-value bt)))
+		      (enter-address-map! normalized new-cell the-ref)
+		      new-cell))
+		  (lambda (normalized)
+		    (address-map->new-cell normalized))))
+	((clone-with)
+	 (lambda (clone-map)
+	   (register-address
+	    static-address
+	    (lambda (normalized)
+	      (let* ((value (cell-ref the-ref))
+		     (cloned-value (clone-with-one value bt clone-map))
+		     (new-cell (static-cell label cloned-value bt)))
+		(enter-address-map! normalized new-cell the-ref)
+		new-cell))
+	    (lambda (normalized)
+	      (address-map->new-cell normalized)))))))))
+
+;;; maintain a mapping from global static addresses to local static addresses
+(define *address-registry* 'undefined-address-registry)
+(define *local-address-registry* 'undefined-local-address-registry)
+(define (address-registry-reset!)
+  (set! *address-registry* '())
+  (set! *local-address-registry* 0))
+(define (gen-local-address label)
+  (set! *local-address-registry* (+ 1 *local-address-registry*))
+  (cons label *local-address-registry*))
+(define (register-address static-address first-cont next-cont)
+  (let ((found (assoc static-address *address-registry*)))
+    (if found
+	(next-cont (cdr found))
+	(let ((local-address (gen-local-address (car static-address))))
+	  (set! *address-registry*
+		(cons (cons static-address local-address) *address-registry*))
+	  (first-cont local-address)))))
+
+;;; maintain a mapping from local addresses to new value and old ref
+(define *address-map* 'undefined-address-map)
+(define (address-map-reset!)
+  (set! *address-map* '()))
+(define (enter-address-map! key val1 val2)
+  (set! *address-map*
+	(cons (list key val1 val2) *address-map*)))
+(define (address-map->new-cell key)
+  (let ((found (assoc key *address-map*)))
+    (if found
+	(cadr found)
+	(error "address-map->new-cell" key))))

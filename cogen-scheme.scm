@@ -56,16 +56,20 @@
 				    (scheme->abssyn-static-references-yes!)
 				    (annMakeRef
 				     (scheme->abssyn-make-label)
-				     (car args))) 1)
+				     (ann-maybe-coerce (car args)))) 1)
 		 (list 'CELL-REF (lambda (tag args)
 				   (scheme->abssyn-static-references-yes!)
-				   (annMakeDeref (car args))) 1)
+				   (annMakeDeref
+				    (ann-maybe-coerce (car args)))) 1)
 		 (list 'CELL-SET! (lambda (tag args)
 				    (scheme->abssyn-static-references-yes!)
 				    (annMakeAssign
 				     (scheme->abssyn-make-label)
-				     (car args)
-				     (cadr args))) 2))
+				     (ann-maybe-coerce (car args))
+				     (ann-maybe-coerce (cadr args)))) 2)
+		 (list 'CELL-EQ? (lambda (tag args)
+				   (scheme->abssyn-static-references-yes!)
+				   (annMakeCellEq args)) 2))
 	   ctor-symtab)))
     (map (lambda (d) (scheme->abssyn-one-d symtab d)) d*))) 
 

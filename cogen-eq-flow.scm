@@ -8,7 +8,7 @@
 
 ;;; debugging and trace aids
 ;;; (define *bta-display-level* 1)
-(define-syntax debug-level
+(define-syntax bta-debug-level
   (syntax-rules ()
     ((_ level arg ...)
      (if (>= *bta-display-level* level)
@@ -28,7 +28,7 @@
 ;;; `def-typesig*' is a list of type signatures of defined operations
 ;;; `def-opsig*' is a list of type signature of primitive operators
 (define (bta-run d* symtab skeleton def-datatype* def-typesig* def-opsig*)
-  (debug-level 1 (display "bta-run") (newline))
+  (bta-debug-level 1 (display "bta-run") (newline))
   (set! *bta-max-bt*
 	(apply max (cdr skeleton)))
   (if (zero? *bta-max-bt*)
@@ -348,30 +348,33 @@
     (set! full-collect-lift-list '())))
 
 (define (full-collect-process-lifts)
-  (let loop ((the-lifts full-collect-lift-list)
-	     (cur-lifts full-collect-lift-list)
-	     (remaining-lifts '()))
-    (if (null? cur-lifts)
-	(begin
-	  ;; (display "done?") (newline)
-	(if (and-map2 eq? the-lifts (reverse remaining-lifts))
-	    'DONE
-	    (loop remaining-lifts remaining-lifts '())))
-	(let* ((lift-pair (car cur-lifts))
-	       (node1 (full-ecr (car lift-pair)))
-	       (node2 (full-ecr (cdr lift-pair)))
-	       (ctor1 (type-fetch-ctor (node-fetch-type node1)))
-	       (ctor2 (type-fetch-ctor (node-fetch-type node2))))
-	  ;; (display (list "lift" ctor1 ctor2))
-	  (if (member ctor2 ctor-uninteresting)
-	      (begin
-		;; (display " no") (newline)
-		(loop the-lifts (cdr cur-lifts) (cons lift-pair remaining-lifts)))
-	      (begin
-		(full-equate node1 node2)
-		;; (display (list "yes" (type-fetch-ctor (node-fetch-type (full-ecr node1)))))
-		;; (newline)
-		(loop the-lifts (cdr cur-lifts) remaining-lifts)))))))
+  (let ((changes #f))
+    (let loop ((cur-lifts full-collect-lift-list)
+	       (remaining-lifts '()))
+      (if (null? cur-lifts)
+	  (begin
+	    ;; (display "done?") (newline)
+	    (if (not changes)
+		'DONE
+		(begin
+		  (set! changes #f)
+		  (loop remaining-lifts '()))))
+	  (let* ((lift-pair (car cur-lifts))
+		 (node1 (full-ecr (car lift-pair)))
+		 (node2 (full-ecr (cdr lift-pair)))
+		 (ctor1 (type-fetch-ctor (node-fetch-type node1)))
+		 (ctor2 (type-fetch-ctor (node-fetch-type node2))))
+	    ;; (display (list "lift" ctor1 ctor2))
+	    (if (member ctor2 ctor-uninteresting)
+		(begin
+		  ;; (display " no") (newline)
+		  (loop (cdr cur-lifts) (cons lift-pair remaining-lifts)))
+		(begin
+		  (set! changes #t)
+		  (full-equate node1 node2)
+		  ;; (display (list "yes" (type-fetch-ctor (node-fetch-type (full-ecr node1)))))
+		  ;; (newline)
+		  (loop (cdr cur-lifts) remaining-lifts))))))))
 
 (define (full-collect-d symtab d)
   (let ((formals (annDefFetchProcFormals d)))
@@ -489,6 +492,12 @@
 	      (phi-1 (loop (annFetchAssignArg e))))
 	  (full-add-leq phi-0 ctor-reference (list phi-1))
 	  (full-make-base phi)))
+       ((annIsCellEq? e)
+	(let* ((phi* (map loop (annFetchCellEqArgs e)))
+	       (phi-1 (car phi*))
+	       (phi-2 (cadr phi*)))
+	  (full-add-leq phi-1 ctor-reference (list (new-node)))
+	  (full-equate phi-1 phi-2)))
        (else
 	(error "full-collect: unrecognized syntax")))
       phi)))
@@ -530,6 +539,7 @@
 			      (let ((ctor (type-fetch-ctor type)))
 				(cond
 				 ((eq? ctor ctor-function)
+				  ;; (display (list "effect on function" (display-bts-eff effect))) (newline)
 				  (effect-for-each
 				   (lambda (lab)
 				     (let* ((reftype
@@ -539,6 +549,7 @@
 				       (ann+>dlist! rbtann btann)))
 				   effect))
 				 ((eq? ctor ctor-top)
+				  ;; (display (list "effect on top" (display-bts-eff effect))) (newline)
 				  (effect-for-each
 				   (lambda (lab)
 				     (let* ((reftype
@@ -637,6 +648,8 @@
 	  (loop ref)
 	  (loop (annFetchAssignArg e))
 	  (ann+>dlist! btann ref-btann))) ;beta_ref <= beta
+       ((annIsCellEq? e)
+	(for-each loop (annFetchCellEqArgs e)))
        (else
 	'nothing-to-do))
       type)))
@@ -705,25 +718,26 @@
 ;;; propagate binding-time constraints
 (define btc-propagate
   (lambda (bt ann)
-    (debug-level 3 (display "btc-propagate ") (display bt) (display " ("))
+    (bta-debug-level 3 (display "btc-propagate ") (display bt) (display " ("))
     (let loop ((ann ann))
-      (debug-level 3 (display (ann->visited ann)) (display " "))
+      (bta-debug-level 3 (display (ann->visited ann)) (display " "))
       (if (< (ann->bt ann) bt)
 	  (let ((dlist (ann->dlist ann)))
-	    (debug-level 3 (display (map ann->visited dlist)) (display " "))
+	    (bta-debug-level 3 (display (map ann->visited dlist)) (display " "))
 	    (ann->bt! ann bt)
 	    (if dlist
 		(for-each loop dlist)))))
-    (debug-level 3 (display ")") (newline))))
+    (bta-debug-level 3 (display ")") (newline))))
 
 ;;; step 3
 ;;; bta-solve-d* evaluates the normalized constraint set and inserts
 ;;; memoization points unless manually overridden.
 (define (bta-solve-d* d*)
-  (debug-level 1 (display "bta-solve") (newline))
-  (debug-level 2 (display-bts-d* d*) (newline))
+  (bta-debug-level 1 (display "bta-solve") (newline))
+  (bta-debug-level 2 (with-output-to-file "/tmp/bta-pre-solve.scm"
+		   (lambda () (display-bts-d* d*) (newline))))
   (for-each bta-solve-d d*)
-  (debug-level 1 (display "bta-solve done") (newline))) 
+  (bta-debug-level 1 (display "bta-solve done") (newline))) 
 
 (define (bta-solve-d d)
   (let* ((body (annDefFetchProcBody d))
@@ -826,7 +840,9 @@
        ((annIsAssign? e)
 	(let ((r1 (loop (annFetchAssignRef e)))
 	      (r2 (loop (annFetchAssignArg e))))
-	  (or r1 r2)))))))
+	  (or r1 r2)))
+       ((annIsCellEq? e)
+	(strict-or-map loop (annFetchCellEqArgs e)))))))
 
 (define introduce-lift-if-needed
   (lambda (bt)
@@ -915,6 +931,8 @@
        ((annIsAssign? e)
 	`(CELL-SET! ,(loop (annFetchAssignRef e))
 		    ,(loop (annFetchAssignArg e))))
+       ((annIsCellEq? e)
+	`(CELL-EQ? ,@(map loop (annFetchCellEqArgs e))))
        (else
 	'unknown-expression))))))
 
@@ -933,7 +951,7 @@
 (define (display-bts-t node)
   (if #f
       (let ((effect (type-fetch-effect (node-fetch-type node))))
-	(and effect (effect->labset effect)))
+	(display-bts-eff effect))
       (let loop ((node node) (seenb4 '()))
 	(let ((type (node-fetch-type node)))
 	  (let* ((args (type-fetch-args type))
@@ -942,7 +960,7 @@
 		 (btann (type-fetch-btann type))
 		 (dlist (ann->dlist btann))
 		 (seen (cons node seenb4)))
-	    (if (memq node seenb4)
+	    (if #t ;;(memq node seenb4)
 		`(*** ,ctor ,(ann->visited btann))
 		`(,ctor ,(ann->visited btann)
 			,(ann->bt btann)
@@ -951,6 +969,6 @@
 			,@(map loop args (map (lambda (foo) seen) args)))))))))
 
 (define (display-bts-eff effect)
-  'EFF ;effect
-  )
+  (and effect
+       (labset->list (effect->labset effect))))
 

@@ -93,9 +93,16 @@
 
 (define (labset-for-each proc labset)
   (let loop ((i 0))
-    (if (< *labset-size* i)
+    (if (< i *labset-size*)
 	(begin
 	  (if (eq? (string-ref labset i) #\1)
 	      (proc i))
 	  (loop (+ i 1))))))
 
+(define (labset->list labset)
+  (let loop ((i 0) (result '()))
+    (if (< i *labset-size*)
+	(if (eq? (string-ref labset i) #\1)
+	    (loop (+ i 1) (cons i result))
+	    (loop (+ i 1) result))
+	(reverse result))))

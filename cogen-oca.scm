@@ -74,6 +74,8 @@
      ((annIsAssign? e)
       (oca-add (loop (annFetchAssignRef e))
 	       (loop (annFetchAssignArg e))))
+     ((annIsCellEq? e)
+      (apply oca-add (map loop (annFetchCellEqArgs e))))
      ((annIsEval? e)
       (loop (annFetchEvalBody e)))
      ((annIsMemo? e)

@@ -99,7 +99,7 @@
 	     (body (annFetchLambdaBody e))
 	     (memo-level
 	      (ann->bt
-	       (type->memo (node-fetch-type (full-ecr (annExprFetchType e)))))))
+	       (type->memo (node-fetch-type (annExprFetchType e))))))
 	(if (and *memo-optimize* (<= memo-level level))
 	    (make-ge-lambda level
 			    vars btv
@@ -130,9 +130,7 @@
 	     (level (annExprFetchLevel rator))
 	     (memo-level
 	      (ann->bt
-	       (type->memo (node-fetch-type (full-ecr
-					     (annExprFetchType
-					      rator))))))
+	       (type->memo (node-fetch-type (annExprFetchType rator)))))
 	     (the-rator (loop rator))
 	     (the-rands (map loop rands))
 	     (btv (map annExprFetchLevel rands)))
@@ -143,9 +141,7 @@
       (let* ((level (annExprFetchLevel e))
 	     (memo-level
 	      (ann->bt
-	       (type->memo (node-fetch-type (full-ecr
-					     (annExprFetchType
-					      e)))))))
+	       (type->memo (node-fetch-type (annExprFetchType e))))))
 	(if (and *memo-optimize* (<= memo-level level))
 	    (make-ge-ctor level
 			  (annFetchCtorName e)
@@ -159,7 +155,7 @@
 	     (level (annExprFetchLevel arg))
 	     (memo-level
 	      (ann->bt
-	       (type->memo (node-fetch-type (full-ecr (annExprFetchType arg)))))))
+	       (type->memo (node-fetch-type (annExprFetchType arg))))))
 	((if (and *memo-optimize* (<= memo-level level))
 	     make-ge-sel make-ge-sel-memo)
 	 level
@@ -170,7 +166,7 @@
 	     (level (annExprFetchLevel arg))
 	     (memo-level
 	      (ann->bt
-	       (type->memo (node-fetch-type (full-ecr (annExprFetchType arg)))))))
+	       (type->memo (node-fetch-type (annExprFetchType arg))))))
 	((if (and *memo-optimize* (<= memo-level level))
 	     make-ge-test make-ge-test-memo)
 	 level
@@ -201,18 +197,45 @@
 		     ',bts
 		     (LIST ,@vars))))
      ((annIsRef? e)
-      (make-ge-op (annExprFetchLevel e)
-		  'MAKE-CELL
-		  (list (loop (annFetchRefArg e)))))
+      (let* ((level (annExprFetchLevel e))
+	     (arg (annFetchRefArg e))
+	     (arg-level (annExprFetchLevel arg))
+	     (label (annFetchRefLabel e))
+	     (memo-level
+	      (ann->bt
+	       (type->memo (node-fetch-type (annExprFetchType e))))))
+	(if (and *memo-optimize* (<= memo-level level))
+	    (make-ge-op level 'MAKE-CELL (list (loop arg)))
+	    (make-ge-make-cell-memo level label arg-level (loop arg))))
+      )
      ((annIsDeref? e)
-      (make-ge-op (annExprFetchLevel e)
-		  'CELL-REF
-		  (list (loop (annFetchDerefArg e)))))
+      (let* ((arg  (annFetchDerefArg e))
+	     (level (annExprFetchLevel arg))
+	     (memo-level
+	      (ann->bt
+	       (type->memo (node-fetch-type (annExprFetchType arg))))))
+	(if (and *memo-optimize* (<= memo-level level))
+	    (make-ge-op level 'CELL-REF (list (loop arg)))
+	    (make-ge-cell-ref-memo level (loop arg)))))
      ((annIsAssign? e)
-      (make-ge-op (annExprFetchLevel e)
-		  'CELL-SET!
-		  (list (loop (annFetchAssignRef e))
-			(loop (annFetchAssignArg e)))))
+      (let* ((ref (annFetchAssignRef e))
+	     (arg (annFetchAssignArg e))
+	     (level (annExprFetchLevel ref))
+	     (memo-level
+	      (ann->bt
+	       (type->memo (node-fetch-type (annExprFetchType ref))))))
+	(if (and *memo-optimize* (<= memo-level level))
+	    (make-ge-op level 'CELL-SET! (list (loop ref) (loop arg)))
+	    (make-ge-cell-set!-memo level (loop ref) (loop arg)))))
+     ((annIsCellEq? e)
+      (let* ((args (annFetchCellEqArgs e))
+	     (level (annExprFetchLevel (car args)))
+	     (memo-level
+	      (ann->bt
+	       (type->memo (node-fetch-type (annExprFetchType (car args)))))))
+	(if (and *memo-optimize* (<= memo-level level))
+	    (make-ge-op level 'EQ? (map loop args))
+	    (make-ge-cell-eq?-memo level (map loop args)))))
      (else
       (error "cogen-skeleton:generate unrecognized syntax")))))
 

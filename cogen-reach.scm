@@ -1,5 +1,7 @@
 ;;; reaching definitions analysis
 
+;;; !!!! does not respect cell-eq? everywhere !!!!!
+
 ;;; imports cogen-env cogen-labset
 
 ;;; definition of the abstract domain and its operations
@@ -432,6 +434,8 @@
 	      (vector-set! ps-access-vector
 			   (annFetchAssignLabel e)
 			   (make-access-assign ref arg))))
+	   ((annIsCellEq? e)
+	    (for-each loop (annFetchCellEqArgs e)))
 	   ((annIsEval? e)
 	    (loop (annFetchEvalBody e))))))))
 

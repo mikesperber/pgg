@@ -32,6 +32,13 @@
 		    ((string? arg) arg)
 		    ((number? arg) (number->string arg))))
 		 args)))))
+
+(define *gen-address-counter* 0)
+(define (gen-address-reset!)
+  (set! *gen-address-counter* 0))
+(define (gen-address label)
+  (set! *gen-address-counter* (+ *gen-address-counter* 1))
+  (cons label *gen-address-counter*))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; auxiliary

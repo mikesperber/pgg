@@ -12,7 +12,10 @@
 
 (define (unify-driver s t)
 
-  (let ((ref-s->ref-d (xnil)))
+  (let ((ref-s->ref-d (xnil))
+	(FAIL #f)
+	(SUCCESS #t))
+;; unify returns #f on failure and #t on success
 
     (define (unify s t)
       (cond
@@ -22,7 +25,7 @@
 	      (unify (one (cell-ref ref-maybe-s)) t)
 	      (begin
 		(cell-set! ref-maybe-s (just (make-dyn t)))
-		'SUCCESS))))
+		SUCCESS))))
        ((make-cst? s)
 	(cond ((make-var? t)
 	       (let ((ref-maybe-t (ref t)))
@@ -30,13 +33,11 @@
 		     (unify s (one (cell-ref ref-maybe-t)))
 		     (begin
 		       (cell-set! ref-maybe-t (just (make-cst (num s))))
-		       'SUCCESS))))
+		       SUCCESS))))
 	      ((make-cst? t)
-	       (if (= (num s) (num t))
-		   'SUCCESS
-		   'FAIL))
+	       (= (num s) (num t)))
 	      (else
-	       'FAIL)))
+	       FAIL)))
        ((make-bin? s)
 	(cond ((make-var? t)
 	       (let ((ref-maybe-t (ref t)))
@@ -45,19 +46,16 @@
 		     (begin
 		       (cell-set! ref-maybe-t (just (make-bin (coerce (term1 s))
 							      (coerce (term2 s)))))
-		       'SUCCESS))))
+		       SUCCESS))))
 	      ((make-bin? t)
-	       (let ((r1 (unify (term1 s) (term1 t)))
-		     (r2 (unify (term2 s) (term2 t))))
-		 (if (or (equal? r1 'FAIL) (equal? r2 'FAIL))
-		     'FAIL
-		     'SUCCESS)))
+	       (and (unify (term1 s) (term1 t))
+		    (unify (term2 s) (term2 t))))
 	      (else
-	       'FAIL)))
+	       FAIL)))
        ((make-dyn? s)
 	(dynamic-unify (dynterm s) t))
        (else
-	'FAIL)))
+	FAIL)))
 
     (define (coerce s)			;respects sharing
       (let s->d ((s s))
@@ -89,11 +87,42 @@
       (nothing)
       (let* ((p (xcar l))
 	     (y (xcar p)))
-	(if (eq? x y)
+	(if (cell-eq? x y)
 	    (just (xcdr p))
 	    (xassq-d x (xcdr l))))))
 
-(define (main t)
-  (let* ((x (make-cell (nothing)))
-	 (s (make-bin (make-var x) (make-var x))))
-  (unify-driver s t)))
+;; input syntax
+;; term ::= (var <number>) | (cst <constant>) | (bin <term> <term>)
+
+(define (parse-term s)
+  (letrec ((xlookup
+	    (lambda (key keys refs)
+	      (if (null? keys)
+		  (nothing)
+		  (if (eq? key (car keys))
+		      (just (xcar refs))
+		      (xlookup key (cdr keys) (xcdr refs)))))))
+    (let loop ((s s) (keys '()) (refs (xnil)) (c (lambda (z keys refs) z)))
+      (cond
+       ((eq? (car s) 'VAR)
+	(let* ((n (cadr s))
+	       (maybe-ref (xlookup n keys refs)))
+	  (if (just? maybe-ref)
+	      (c (make-var (one maybe-ref)) keys refs)
+	      (let ((newref (make-cell (nothing))))
+		(c (make-var newref) (cons n keys) (xcons newref refs))))))
+       ((eq? (car s) 'CST)
+	(c (make-cst (cadr s)) keys refs))
+       (else
+	;; assuming (eq? (car s) 'BIN)
+	(let ((s1 (cadr s))
+	      (s2 (caddr s)))
+	  (loop s1 keys refs
+		(lambda (ss1 keys refs)
+		  (loop s2 keys refs
+			(lambda (ss2 keys refs)
+			  (c (make-bin ss1 ss2) keys refs)))))))))))
+
+(define (main s t)
+  (let* ((ss (parse-term s)))
+    (unify-driver ss t)))

@@ -1,3 +1,4 @@
+- implement coarity raising
 - extend the top-level such that arbitrary scheme programs (including
   non-functional definitions) are allowed; use the proposed macro
   mechanism of R4RS to implement non-primitive forms

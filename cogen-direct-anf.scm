@@ -52,7 +52,31 @@
   `(_LIFT ,l ,diff ,a))
 (define (make-ge-eval l diff a)
   `(_EVAL ,l ,diff ,a))
+(define (make-ge-make-cell-memo l label bt a)
+  `(_MAKE-CELL_MEMO ,l ,label ,bt ,a))
+(define (make-ge-cell-ref-memo l a)
+  `(_S_T_MEMO ,l CELL-REF ,a))
+(define (make-ge-cell-set!-memo l r a)
+  `(_CELL-SET!_MEMO ,l ,r ,a))
+(define (make-ge-cell-eq?-memo l args)
+  `(_CELL-EQ?_MEMO ,l ,@args))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; toplevel projection functions
+(define (top-project-static value bts)
+  (address-registry-reset!)
+  (project-static value bts))
+(define (top-project-dynamic value bts)
+  (address-registry-reset!)
+  (project-dynamic value bts))
+(define (top-clone-dynamic value bts)
+  (address-registry-reset!)
+  (address-map-reset!)
+  (clone-dynamic value bts))
+(define (top-clone-with clone-map value bts)
+  (address-registry-reset!)
+  (address-map-reset!)
+  (clone-with clone-map value bts))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; an implementation using macros
 
@@ -106,9 +130,11 @@
      (_lambda_memo-internal arg ...))))
 
 (define (_lambda_memo-internal lv arity label vvs bts f)
+  (address-registry-reset!)
+  (address-map-reset!)
   (let* ((formals (map gensym-local arity))
 	 (lambda-pp (cons label vvs))
-	 (dynamics (project-dynamic lambda-pp bts))
+	 (dynamics (top-project-dynamic lambda-pp bts))
 	 (compressed-dynamics (map remove-duplicates dynamics))
 	 (actual-fvs (apply append compressed-dynamics))
 	 (clone-map (map (lambda (arg)
@@ -116,7 +142,7 @@
 					 (gensym-local arg)
 					 (gensym-local 'clone))))
 			 actual-fvs))
-	 (cloned-pp (clone-with clone-map lambda-pp bts))
+	 (cloned-pp (top-clone-with clone-map lambda-pp bts))
 	 (cloned-vvs (cdr cloned-pp))
 	 (new-bts (binding-times compressed-dynamics))
 	 (formal-fvs (map cdr clone-map)))
@@ -162,6 +188,27 @@
      (sel (v 'VALUE)))
     ((_sel_memo lv sel v)
      (_complete `(_S_T_MEMO ,(pred lv) sel ,v)))))
+
+(define-syntax _make-cell_memo
+  (syntax-rules ()
+    ((_ 0 lab bt arg)
+     (static-cell lab arg bt))
+    ((_ lv lab bt arg)
+     (_complete `(_MAKE-CELL_MEMO ,(pred lv) lab ,(pred bt) ,arg)))))
+
+(define-syntax _cell-set!_memo
+  (syntax-rules ()
+    ((_ 0 ref arg)
+     (cell-set! (ref 'VALUE) arg))
+    ((_ lv ref arg)
+     (_complete `(_CELL-SET!_MEMO ,(pred lv) ,ref ,arg)))))
+
+(define-syntax _cell-eq?_memo
+  (syntax-rules ()
+    ((_ 0 ref1 ref2)
+     (eq? (ref1 'VALUE) (ref2 'VALUE)))
+    ((_ lv ref1 ref2)
+     (_complete `(_CELL-EQ?_MEMO ,(pred lv) ,ref1 ,ref2)))))
 
 (define-syntax _if
   (syntax-rules ()
@@ -247,7 +294,10 @@
   (gensym-local-reset!)
   (gensym-reset!)
   (let* ((initial-scope (gensym-local-push!))
-	 (result (multi-memo level fname fct bts args))
+	 (result (reset (multi-memo level fname fct bts args)))
+	 (result (if (and (pair? result) (eq? (car result) 'LET))
+		     (car (cdaadr result))
+		     result))
 	 (drop-scope (gensym-local-pop!))
 	 (goal-proc (car *residual-program*))
 	 (defn-template (take 2 goal-proc))
@@ -272,8 +322,8 @@
   (let*
       ((enter-scope (gensym-local-push!))
        (full-pp (cons fname args))
-       (pp (project-static full-pp bts))
-       (dynamics (project-dynamic full-pp bts))
+       (pp (top-project-static full-pp bts))
+       (dynamics (top-project-dynamic full-pp bts))
        ; (compressed-dynamics (map remove-duplicates dynamics))
        (actuals (apply append dynamics))
        (found
@@ -285,9 +335,9 @@
 		 ; 				 (gensym-local arg)
 		 ; 				 (gensym-local 'clone))))
 		 ; 		 actuals))
-		 (cloned-pp (clone-dynamic full-pp bts))
+		 (cloned-pp (top-clone-dynamic full-pp bts))
 		 ; (new-formals (map cdr clone-map))
-		 (new-formals (apply append (project-dynamic cloned-pp bts)))
+		 (new-formals (apply append (top-project-dynamic cloned-pp bts)))
 		 (new-entry (add-to-memolist! (cons pp new-name)))
 		 (new-def  (make-residual-definition! new-name
 						      new-formals

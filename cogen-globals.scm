@@ -13,7 +13,7 @@
 
 ;;; setter functions
 
-(define (set-bta-diplay-level! n)
+(define (set-bta-display-level! n)
   (set! *bta-display-level* n))
 (define (set-effect-display-level! n)
   (set! *effect-display-level* n))

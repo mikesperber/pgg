@@ -15,7 +15,8 @@
   (set! *initial-effects* '())
   (allocate-effect-variables-d* d*)
   (debug-level 1 (display " fixpointing"))
-  (effect-fixpoint)
+  (with-output-to-file "/tmp/effect-out.scm"
+    (lambda () (effect-fixpoint)))
   (debug-level 1 (display " done") (newline)))
 
 ;;; need an access vector that maps labels back to expressions
@@ -48,7 +49,7 @@
 
 (define (allocate-effect-variables-e e d*)
   (let loop ((e e))
-    ;;(display (annExprFetchTag e)) (newline)
+    ;; (display (vector-ref e 1)) (newline)
     (let ((evar  (make-effect '() empty-labset)))
       (annExprSetEffect! e evar)
       (allocate-effect-variables-t (annExprFetchType e))
@@ -133,6 +134,10 @@
 	  (effect-add-neighbor! (loop arg) evar)
 	  (let ((eref (node-fetch-effect (annExprFetchType ref))))
 	    (effect-add-neighbor! eref evar))))
+       ((annIsCellEq? e)
+	(for-each (lambda (arg)
+		    (effect-add-neighbor! (loop arg) evar))
+		  (annFetchCellEqArgs e)))
        ((annIsEval? e)
 	(effect-add-neighbor! (loop (annFetchEvalBody e)) evar)))
       ;; (display (annExprFetchTag e)) (newline)
@@ -193,7 +198,11 @@
 		    (if (labset-subset? labs labsb)
 			(recur (cdr n))
 			(begin (set! change? #t)
-			       (debug-level 2 (display (list labs "|||" labsb)) (newline))
+			       (debug-level
+				2 (display (list (labset->list labs)
+						 "|||"
+						 (labset->list labsb)))
+				(newline))
 			       (effect->labset! evarb
 						(labset-union labs labsb))
 			       (recur-a evarb)

@@ -17,6 +17,8 @@
       `(LET* ((,var ,exp) ,@header) ,@bodies)))
    ((and (pair? body) (eq? (car body) 'BEGIN))
     `(LET ((,var ,exp)) ,@(cdr body)))
+   ((eq? var body)
+    exp)
    (else
     `(LET ((,var ,exp)) ,body))))
 
