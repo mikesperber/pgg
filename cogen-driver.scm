@@ -100,6 +100,7 @@
 		       (p
 			`(define-structure ,structure-sym ,interface-sym
 			   (open scheme signals define-data pgg-library
+				 cogen-memo-standard
 				 ,@user-open)
 			   ,@(reverse user-options)
 			   (files ,@user-files ,structure-sym)
