@@ -107,21 +107,30 @@
       exp))
    
 (define (detect-constant-test test)
-  (cond
-   ((not (pair? test))
-    #f)
-   ((not (eq? 'EQV? (car test)))
-    #f)
-   ((constant-expression? (cadr test))
-    (cons 
-     (caddr test)
-     (constant-expression-constant (cadr test))))
-   ((constant-expression? (caddr test))
-    (cons
-     (cadr test)
-     (constant-expression-constant (caddr test))))
-   (else
-    #f)))
+  (and
+   (pair? test)
+   (case (car test)
+     ((EQV?)
+      (cond
+       ((constant-expression? (cadr test))
+	(cons 
+	 (caddr test)
+	 (list (constant-expression-constant (cadr test)))))
+       ((constant-expression? (caddr test))
+	(cons
+	 (cadr test)
+	 (list (constant-expression-constant (caddr test)))))
+       (else #f)))
+     ((MEMV)
+      (cond
+       ((constant-expression? (caddr test))
+	(cons
+	 (cadr test)
+	 (constant-expression-constant (caddr test))))
+       (else
+	#f)))
+     (else
+      #f))))
 
 (define (make-residual-if c t e)
   (cond
@@ -132,14 +141,14 @@
    ((detect-constant-test c)
     => (lambda (stuff)
 	 (let ((exp (car stuff))
-	       (constant (cdr stuff)))
+	       (constants (cdr stuff)))
 	   (if (and (pair? e) (eq? 'CASE (car e))
 		    (equal? (cadr e) exp))
 	       `(CASE ,exp
-		  ,(make-branch `((,constant) ,t))
+		  ,(make-branch `(,constants ,t))
 		  ,@(cddr e))
 	       `(CASE ,exp
-		  ,(make-branch `((,constant) ,t))
+		  ,(make-branch `(,constants ,t))
 		  (else ,e))))))
    ((and (pair? e) (eq? 'IF (car e)))
     `(COND
