@@ -557,7 +557,7 @@
 				       #f))
 				    rules)
 			       symtab*
-			       depth))
+			       0))	;depth!
 		 (fix-symtab* (for-each-env!
 			       (lambda (entry)
 				 (if (macro-binding? entry)
