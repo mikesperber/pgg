@@ -87,32 +87,38 @@
 	`(_LAMBDA ,(pred lv) ',arity ,fun))))
 
 (define (_lambda_memo lv arity label vvs bts f)
-  (let* ((vars (map gensym-local arity))
+  (let* ((formals (map gensym-local arity))
 	 (lambda-pp (cons label vvs))
-	 (cloned-pp (clone-dynamic lambda-pp bts))
-	 (cloned-vvs (cdr cloned-pp))
 	 (dynamics (project-dynamic lambda-pp bts))
-	 (new-vvs (apply append dynamics))
-	 (new-bts (binding-times dynamics))
-	 (freevars (apply append (project-dynamic cloned-pp bts))))
+	 (compressed-dynamics (map remove-duplicates dynamics))
+	 (actual-fvs (apply append compressed-dynamics))
+	 (clone-map (map (lambda (arg)
+			   (cons arg (if (symbol? arg)
+					 (gensym-local arg)
+					 (gensym-local 'clone))))
+			 actual-fvs))
+	 (cloned-pp (clone-with clone-map lambda-pp bts))
+	 (cloned-vvs (cdr cloned-pp))
+	 (new-bts (binding-times compressed-dynamics))
+	 (formal-fvs (map cdr clone-map)))
     (if (= lv 1)
 	`(STATIC-CONSTRUCTOR
 	  ',label
-	  (LAMBDA ,freevars
-	    (LAMBDA ,vars
-	      ,(reset (apply (apply f cloned-vvs) vars))))
-	  (LIST ,@new-vvs)
+	  (LAMBDA ,formal-fvs
+	    (LAMBDA ,formals
+	      ,(reset (apply (apply f cloned-vvs) formals))))
+	  (LIST ,@actual-fvs)
 	  ',new-bts)
 	;; > lv 1
 	`(_LAMBDA_MEMO
 	  ,(- lv 1)
 	  ',arity
 	  ',(gensym 'cls)
-	  (LIST ,@new-vvs)
+	  (LIST ,@actual-fvs)
 	  ',new-bts
-	  (LAMBDA ,freevars
-	    (LAMBDA ,vars
-	      ,(reset (apply (apply f cloned-vvs) vars))))))))
+	  (LAMBDA ,formal-fvs
+	    (LAMBDA ,formals
+	      ,(reset (apply (apply f cloned-vvs) formals))))))))
 
 (define (_vlambda lv arity var f)
   (let* ((vars (map gensym-local arity))
