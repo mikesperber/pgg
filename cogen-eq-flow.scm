@@ -315,7 +315,7 @@
 					    (type-fetch-args old-type)))))))))))
 
 ;;; generate type variables and constraints
-(define full-collect-lift-list)
+(define full-collect-lift-list #f)
 (define (full-collect-d* symtab d*)
   (let ((symtab 
 	 (append
