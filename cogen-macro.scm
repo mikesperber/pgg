@@ -70,7 +70,9 @@
 	       (loop (vector->list pattern) (syntax-vector->list subject))
 	       (fail)))
 	  (else
-	   (or (syntax-eq? pattern subject) (fail)))))))))
+	   (if (syntax-eq? pattern subject)
+	       '()
+	       (fail)))))))))
 
 (define (instantiate template env literals)
 
@@ -155,7 +157,9 @@
 (define (syntax-vector? exp)
   (vector? (syntax-strip exp)))
 (define (syntax-eq? pat exp)
-  (eq? pat (syntax-strip exp)))
+  (let ((stripped-exp (syntax-strip exp)))
+    (or (eq? pat stripped-exp)
+	(equal? pat stripped-exp))))
 (define (syntax-eq-symbol? pat exp symtab*)
   (let loop ((exp exp) (symtab* symtab*))
     (if (syntax-pop-mark? exp)
@@ -219,7 +223,8 @@
       (if (null? rules)
 	  (fail)
 	  (let* ((rule (car rules))
-		 (env (build-env (car rule) exp literals dynamic-symtab*)))
+		 (env (build-env (cdar rule) (syntax-cdr exp)
+				 literals dynamic-symtab*)))
 	    (if env
 		(instantiate (cadr rule) env literals)
 		(loop (cdr rules))))))))

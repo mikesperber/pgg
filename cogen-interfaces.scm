@@ -441,7 +441,7 @@
 	  syntax-rules-transformer))
 
 (define-structure cogen-macro cogen-macro-interface
-  (open scheme signals
+  (open scheme signals auxiliary
 	cogen-env)
   (files cogen-macro))
 
@@ -539,7 +539,7 @@
 	  take
 	  ((load-program) :syntax)
 	  file->list writelpp writel count-cells
-	  display-line spaces))
+	  display-line display-return spaces))
 
 (define-structure auxiliary auxiliary-interface
   (open scheme pretty-print)

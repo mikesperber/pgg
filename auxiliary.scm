@@ -220,5 +220,7 @@
 (define (display-line . objs)
   (for-each display objs)
   (newline))
+(define display-return
+  (lambda (x) (display-line "returning " x) x))
 (define (spaces n)
   (make-string n #\space))
