@@ -5,6 +5,10 @@
 
 ;;; set result to the unit of the identity monad
 (define result id)
+(define-syntax maybe-reset		;exchange if needed
+  (syntax-rules ()
+    ((_ x) x)
+    ((_ x) (reset x))))
 ;;; interface to create generating extensions
 ;;; syntax constructors
 (define (make-ge-var l v)
@@ -38,6 +42,14 @@
 (define (make-ge-eval l diff a)
   `(_EVAL ,l ,diff ,a))
 
+
+(define (make-residual-let var exp body)
+  (if (and (pair? body) (memq (car body) '(LET LET*)))
+      (let ((header (cadr body))
+	    (body (caddr body)))
+	`(LET* ((,var ,exp) ,@header) ,body))
+      `(LET ((,var ,exp)) ,body)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; an implementation using macros
 
@@ -46,14 +58,14 @@
     ((_app 0 f arg ...)
      (f arg ...))
     ((_app lv f arg ...)
-     `(_APP ,(pred lv) ,f ,arg ...))))
+     `(_APP ,(pred lv) ,(maybe-reset f) ,(maybe-reset arg) ...))))
 
 (define-syntax _app_memo
   (syntax-rules ()
     ((_app_memo 0 f arg ...)
      ((f 'VALUE) arg ...))
     ((_app_memo lv f arg ...)
-     `(_APP_MEMO ,(pred lv) ,(reset f) ,(reset arg) ...))))
+     `(_APP_MEMO ,(pred lv) ,(maybe-reset f) ,(maybe-reset arg) ...))))
 
 (define (_lambda lv arity f)
   (let* ((vars (map gensym-local arity))
@@ -106,8 +118,7 @@
      ((= lv 1)
       (if (and (pair? e)
 	       (not (equal? 'QUOTE (car e))))
-	  (shift k `(LET ((,var ,e))
-		      ,(reset (k (f var)))))
+	  (shift k (make-residual-let var e (reset (k (f var)))))
 	  (f e)))
      (else
       (shift k
@@ -118,7 +129,7 @@
 (define-syntax _ctor_memo
   (syntax-rules ()
     ((_ 0 bts ctor arg ...)
-     (static-constructor 'ctor ctor (list ,arg ...) 'bts))
+     (static-constructor 'ctor ctor (list arg ...) 'bts))
     ((_ lv (bt ...) ctor arg ...)
      `(_CTOR_MEMO ,(pred lv) (,(pred bt) ...) ctor ,arg ...))))
 
@@ -127,14 +138,14 @@
     ((_ 0 'sel v)
      (sel (v 'VALUE)))
     ((_sel_memo lv sel v)
-     `(_SEL_MEMO ,(pred lv) ',sel ,(reset v)))))
+     `(_SEL_MEMO ,(pred lv) ',sel ,(maybe-reset v)))))
 
 (define-syntax _test_memo
   (syntax-rules (quote)
     ((_ 0 'ctor-test v)
      (ctor-test (v 'VALUE)))
     ((_ lv ctor-test v)
-     `(_TEST_MEMO ,(pred lv) ',ctor-test ,(reset v)))))
+     `(_TEST_MEMO ,(pred lv) ',ctor-test ,(maybe-reset v)))))
 
 (define-syntax _ctor
   (syntax-rules (quote)
@@ -148,14 +159,14 @@
     ((_ 0 'sel v)
      (sel v))
     ((_ lv sel v)
-     `(_SEL ,(pred lv) ',sel ,(reset v)))))
+     `(_SEL ,(pred lv) ',sel ,(maybe-reset v)))))
 
 (define-syntax _test
   (syntax-rules (quote)
     ((_ 0 'ctor-test v)
      (ctor-test v))
     ((_ lv ctor-test v)
-     `(_TEST ,(pred lv) ',ctor-test ,(reset v)))))
+     `(_TEST ,(pred lv) ',ctor-test ,(maybe-reset v)))))
 
 ;;; needs RESET, somewhere
 ;;; therefore: the arms of the conditional must be thunks, so that we
@@ -171,9 +182,9 @@
 (define-syntax _op
   (syntax-rules ()
     ((_op 1 op arg ...)
-     `(op ,(reset arg) ...))
+     `(op ,(maybe-reset arg) ...))
     ((_op lv op arg ...)
-     `(_OP ,(pred lv) op ,(reset arg) ...))))
+     `(_OP ,(pred lv) op ,(maybe-reset arg) ...))))
 
 (define-syntax _lift0
   (syntax-rules ()
@@ -207,33 +218,55 @@
      `(_EVAL ,(pred lv) ,diff ,body))))
 
 ;;; memo function stuff
-(define (start-memo level fn bts args)
+(define-syntax start-memo
+  (syntax-rules ()
+    ((_ level fn bts args)
+     (start-memo-internal level 'fn fn bts args))))
+
+(define (nextlevel memo-template args)
+  (let ((level (list-ref memo-template 1))
+	(goal-proc (list-ref memo-template 3))
+	(bts (cadr (list-ref memo-template 4))))
+    (start-memo-internal level
+			 goal-proc
+			 (eval goal-proc (interaction-environment))
+			 bts
+			 args)))
+
+(define (start-memo-internal level fname fct bts args)
   (clear-residual-program!) 
   (clear-memolist!)
   (gensym-local-reset!)
-  (multi-memo level fn bts args))
+  (let* ((result (multi-memo level fname fct bts args))
+	 (goal-proc (car *residual-program*))
+	 (defn-template (take 2 goal-proc))
+	 (defn-body (list-tail goal-proc 2)))
+    (set! *residual-program*
+	  (list (append defn-template
+			(cdr *residual-program*)
+			defn-body)))
+    result))
 
 ;;; the memo-function
 ;;; - fn is the name of the function to memoize
 ;;; - args are the free variables of the function's body
 ;;; - bts are their binding times
-(define (multi-memo level fn bts args)
+(define (multi-memo level fname fct bts args)
   (let*
       ((enter-scope (gensym-local-push!))
-       (full-pp (cons fn args))
+       (full-pp (cons fname args))
        (pp (project-static full-pp bts))
        (dynamics (project-dynamic full-pp bts))
        (actuals (apply append dynamics))
        (found
 	(or (assoc pp *memolist*)
 	    (let*
-		((new-name (gensym fn))
+		((new-name (gensym fname))
 		 (cloned-pp (clone-dynamic full-pp bts))
 		 (new-formals (apply append (project-dynamic cloned-pp bts)))
 		 (new-entry (add-to-memolist! (cons pp new-name)))
 		 (new-def  `(DEFINE (,new-name ,@new-formals)
-			      ,(reset (apply (eval fn (interaction-environment))
-					     (cdr cloned-pp))))))
+			      ,(reset (apply fct (cdr cloned-pp))))))
 	      (add-to-residual-program! new-def)
 	      (cons pp new-name))))
        (res-name (cdr found))
@@ -243,7 +276,7 @@
 	`(,res-name ,@actuals)
 	;; reconstruct multi-memo
 	`(MULTI-MEMO ,(- level 1)
-		     ',res-name
+		     ',res-name ,res-name
 		     ',(binding-times dynamics)
 		     (LIST ,@actuals)))))
 

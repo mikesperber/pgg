@@ -1,7 +1,7 @@
 (define (f0 d) (+ (let ((x d)) 1)
 		  (let ((y d)) 2)))
 
-(defdata alist (anil) (acons acar acdr))
+(define-data alist (anil) (acons acar acdr))
 (define (f1 d) (acons (let ((x d)) 'head)
 		      (let ((y d)) 'tail)))
 

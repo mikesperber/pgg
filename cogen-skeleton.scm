@@ -1,6 +1,9 @@
 ;;; skeleton for multi-level cogen
 ;;; $Id$
 ;;; $Log$
+;;; Revision 1.12  1996/07/30 08:56:34  thiemann
+;;; bugfixes in BTA and preprocessor
+;;;
 ;;; Revision 1.11  1996/07/15 14:01:20  thiemann
 ;;; stable version after MBTA
 ;;;
@@ -157,8 +160,8 @@
 	      (cons `(DEFINE (,memo-fname ,@vars)
 		       ,(loop (annFetchMemoBody e)))
 	       *generating-extension*))
-	`(MULTI-MEMO ,(+ 1 (annExprFetchLevel e))
-		     ',memo-fname
+	`(MULTI-MEMO ,(+ 1 (annFetchMemoLevel e))
+		     ',memo-fname ,memo-fname
 		     ',bts
 		     (LIST ,@vars))))
      (else

@@ -137,6 +137,10 @@
 	(reverse acc)
 	(loop (- n 1) (cdr l) (cons (car l) acc)))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define-syntax load-program
+  (syntax-rules ()
+    ((_ prg) (eval `(BEGIN ,@prg) (interaction-environment)))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; I/O: read a list of Scheme objects
 (define (file->list filename)
   (with-input-from-file filename

@@ -15,7 +15,7 @@
 	       (parse grammar k first-map
 		      next-state
 		      (cons shift-nonterminal
-			    (take (- (active next-state) 1)
+			    (chop (- (active next-state) 1)
 				  continuations))
 		      input)))
 	   (lambda ()
@@ -29,7 +29,7 @@
 	       (parse grammar k first-map
 		      next-state
 		      (cons shift-nonterminal
-			    (take (- (active next-state) 1)
+			    (chop (- (active next-state) 1)
 				  continuations))
 		      input)))
 	   fail))
@@ -72,7 +72,7 @@
 	    (loop (cdr set))))))
 
 (define (select-lookahead-item-the-trick item-set k input cont fail)
-  (let ((input-front (take k input)))
+  (let ((input-front (chop k input)))
     (let loop ((item-set item-set))
       (if (null? item-set)
 	  (fail)
@@ -81,7 +81,7 @@
 		(cont item)
 		(loop (cdr item-set))))))))
 
-(define (take n l)
+(define (chop n l)
   (if (zero? n)
       '()
-      (cons (car l) (take (- n 1) (cdr l)))))
+      (cons (car l) (chop (- n 1) (cdr l)))))

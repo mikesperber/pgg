@@ -245,12 +245,12 @@
   (vector-ref e 4))
 ;;; subject to discussion:
 ;;; memoization
-(define (annIntroduceMemo e lv vars)
-  (annIntroduceMemo1 e lv vars (list->vector (vector->list e))))
-(define (annIntroduceMemo1 e lv vars body)    
+(define (annIntroduceMemo e bt lv vars)
+  (annIntroduceMemo1 e bt lv vars (list->vector (vector->list e))))
+(define (annIntroduceMemo1 e bt lv vars body)    
   (vector-set! e 0 'MEMO)
-  (vector-set! e 3 lv)
-  (vector-set! e 2 vars)
+  (vector-set! e 3 bt)
+  (vector-set! e 2 (cons lv vars))
   (vector-set! e 1 body))
 (define (annMakeMemo body)
   (vector 'MEMO body '() 0))
@@ -259,9 +259,11 @@
 (define (annSetMemoVars! e args)
   (vector-set! e 2 args))
 (define (annFetchMemoVars e)
-  (vector-ref e 2))
+  (cdr (vector-ref e 2)))
 (define (annFetchMemoBody e)
   (vector-ref e 1))
+(define (annFetchMemoLevel e)
+  (car (vector-ref e 2)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define (annFreeVars e)

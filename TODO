@@ -1,4 +1,6 @@
-- make a macro out of the (_ i ...) functions
+- analyze which lambdas and ctors are really memoized
+- incorporate the residual program in the goal function
++ make a macro out of the (_ i ...) functions
 - put type annotations to work: enforce types of primitives in bta-eq-flow
 - type annotation for arity of operators
 + inspect the lambda lifter (dependency analysis?)
@@ -7,13 +9,12 @@
 - how many memoization points are really necessary? you may want to
   read Malmkjaer's PEPM'93 paper
 + support for EVAL
-- complete the above (preprocessor, bta, skeleton)
++ complete the above (preprocessor, bta, skeleton)
 + check whether it still performs continuation-based reduction :-)
 + really generate LAMBDA_MEMO and friends
 + control memoization
 + handle (begin ...)
 + handle nested (define ...)
-- analyze which lambdas and ctors are really memoized
 - specialize project-static, project-dynamic, and friends
 + use delay/force in project-* functions
 + write the library functions in direct style using shift/reset to

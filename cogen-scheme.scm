@@ -363,19 +363,20 @@
 	      (let* ((formals (map car (car args)))
 		     (bodies (map cadr (car args)))
 		     (body-list (cdr args))
-		     ;; (new-formals (map scheme-rename-clone formals))
+		     (new-formals (map scheme-rename-clone formals))
 		     ;; assume all bodies are lambdas
 		     (arities (map (lambda (body) (cadr body)) bodies))
-		     (munge (lambda (formal arity) (cons formal `(LAMBDA ,arity (,formal ,@arity)))))
-		     (new-symtab (append (map munge formals arities) symtab))
+		     (munge (lambda (formal new-formal arity)
+			      (cons formal `(LAMBDA ,arity (,new-formal ,@arity)))))
+		     (new-symtab (append (map munge formals new-formals arities) symtab))
 		     (new-bodies (map (lambda (formal body)
 					;;(display "letrec: ") (display formal) (newline)
-					(scheme-rename-variables
-					 new-symtab body)) formals bodies))
+					(scheme-rename-variables new-symtab body))
+				      formals bodies))
 		     (new-body (scheme-rename-variables
 				new-symtab
 				(scheme-body-list->body body-list))))
-		`(LETREC ,(map list formals new-bodies)
+		`(LETREC ,(map list new-formals new-bodies)
 		   ,new-body)))
 	     ;;
 	     ((equal? tag 'LAMBDA)
@@ -399,8 +400,10 @@
 		`(LAMBDA ,new-formals ,new-body)))
 	     (else
 	      (let* ((found (assoc tag symtab))
-		     (new-tag (if (and found (symbol? (cdr found)))
-				  (cdr found)
+		     (new-tag (if found
+				  (if (symbol? (cdr found))
+				      (cdr found)
+				      (caaddr (cdr found)))
 				  tag)))
 		(cons new-tag (map (lambda (e) (scheme-rename-variables
 						symtab e)) args)))))))))
