@@ -9,6 +9,7 @@
 
 (define *local-cache* #f)
 (define *local-pending* #f)
+(define *local-preferred-procedure* #f)
 (define *local-id-shift* 8)
 (define *local-id-count* #f)
 
@@ -65,8 +66,10 @@
 (define (local-cache-advance!)
   (if (queue-empty? *local-pending*)
       #f
-      (let* ((item (dequeue! *local-pending*))
-	     (entry (cdr item)))
+      (let ((item (or (dequeue-first! *local-pending*
+				      (lambda (item)
+					(eq? (caar item) *local-preferred-procedure*)))
+		      (dequeue! *local-pending*))))
 	(set! *local-cache* (cons item *local-cache*))
 	(if (server-entry->killed? entry)
 	    (local-cache-advance!)
@@ -215,6 +218,7 @@
   (local-cache-initialize!)
   (local-pending-initialize!)
   (local-resid-initialize!)
+  (set! *local-preferred-procedure* #f)
   (set! *server-status-lock* (make-lock))
   (I-am-idle async?))
 
@@ -226,6 +230,7 @@
     ;; assume master-cache knows about this specialization
     (let loop ((entry
 		(local-cache-insert! res-name program-point static-skeleton bts fct)))
+      (set! *local-preferred-procedure* (car static-skeleton))
       ;; (display "Specializing ") (display (server-entry->program-point entry)) (newline)
       (specialize-entry entry)
       (let inner-loop ()
@@ -291,6 +296,7 @@
     (with-lock
      *server-status-lock*
      (lambda () (set! *server-current-local-id* #f)))
+    (set! *local-preferred-procedure* (car static-skeleton))
     (specialize-entry entry)
     (server-async-loop)))
 
@@ -303,6 +309,7 @@
 	  (set! *server-current-thread* (current-thread))
 	  (I-am-working-on (server-entry->local-id maybe-entry))
 	  (release-lock *server-status-lock*)
+	  (set! *local-preferred-procedure* (car (server-entry->program-point maybe-entry)))
 	  ;; (display "Specializing local id ") (display (server-entry->local-id maybe-entry)) (display (server-entry->program-point maybe-entry)) (newline)
 	  (specialize-entry maybe-entry)
 	  (server-async-loop))

@@ -24,19 +24,22 @@
   (n-specializations average-elapsed-time lock))
 
 (define *master-pending-by-uid* #f)
+(define *master-preferred-by-uid* #f)
 (define *master-pending-placeholders* #f)
 (define *master-pending-placeholders-lock* #f)
 
 (define (master-pending-initialize!)
-  (set! *master-pending-by-uid*
-	(make-vector (+ 1 (apply max
-				 (map aspace-uid *server-aspaces*)))
-		     #f))
-  (for-each
-   (lambda (aspace)
-     (vector-set! *master-pending-by-uid* (aspace-uid aspace)
-		  (make-pending-root (make-lock) '() '() (make-symbol-table))))
-   *server-aspaces*)
+  (let* ((all-uids (map aspace-uid *server-aspaces*))
+	 (uid-vector-size (+ 1 (apply max all-uids))))
+    (set! *master-pending-by-uid*
+	  (make-vector uid-vector-size #f))
+    (set! *master-preferred-by-uid*
+	  (make-vector uid-vector-size #f))
+    (for-each
+     (lambda (uid)
+       (vector-set! *master-pending-by-uid* uid
+		    (make-pending-root (make-lock) (make-queue) '() (make-symbol-table))))
+     all-uids))
   (set! *master-pending-placeholders* '())
   (set! *master-pending-placeholders-lock* (make-lock)))
 
@@ -49,34 +52,40 @@
 	  (with-lock
 	   (pending-root->lock pending-root)
 	   (lambda ()
-	     (pending-root->entries!
-	      pending-root
-	      (cons entry (pending-root->entries pending-root)))))))
+	     (enqueue! (pending-root->entries pending-root) entry)))))
       (let ((placeholder (car *master-pending-placeholders*)))
 	(set! *master-pending-placeholders* (cdr *master-pending-placeholders*))
 	(set! *n-idle-servers* (- *n-idle-servers* 1))
 	(release-lock *master-pending-placeholders-lock*)
 	(placeholder-set! placeholder entry))))
 
-(define (uid-pending-advance! uid)
+(define (uid-pending-advance! uid hard)
   (let* ((pending-root (vector-ref *master-pending-by-uid* uid))
+	 (uid-preferred-procedure (vector-ref *master-preferred-by-uid* uid))
 	 (lock (pending-root->lock pending-root)))
     (obtain-lock lock)
     (let ((entries (pending-root->entries pending-root)))
-      (if (null? entries)
+      (if (queue-empty? entries)
 	  (begin
 	    (release-lock lock)
 	    #f)
-	  (let ((entry (car entries)))
-	    (pending-root->entries! pending-root (cdr entries))
+	  (let ((entry (or (dequeue-first! entries
+					   (lambda (entry)
+					     (not (eq? (pending-entry->program-point entry)
+						       uid-preferred-procedure))))
+			   (and hard (dequeue! entries)))))
 	    (release-lock lock)
 	    entry)))))
 
 (define (master-pending-advance!)
-  (let loop ((aspaces *server-aspaces*))
-    (and (not (null? aspaces))
-	 (or (uid-pending-advance! (aspace-uid (car aspaces)))
-	     (loop (cdr aspaces))))))
+  (or (let loop ((aspaces *server-aspaces*))
+	(and (not (null? aspaces))
+	     (or (uid-pending-advance! (aspace-uid (car aspaces)) #f)
+		 (loop (cdr aspaces)))))
+      (let loop ((aspaces *server-aspaces*))
+	(and (not (null? aspaces))
+	     (or (uid-pending-advance! (aspace-uid (car aspaces)) 'HARD)
+		 (loop (cdr aspaces)))))))
 
   
 (define (master-pending-sign-up! placeholder)
@@ -192,7 +201,7 @@
 		   (release-lock lock)
 		   (if can-I?
 		       (values can-I? killed)
-		       (values (uid-pending-advance! uid) killed)))))))
+		       (values (uid-pending-advance! uid 'HARD) killed)))))))
 						   
        (else				; wait until local name registered
 	;; (display "Server ") (display uid) (display " suspends on: ")(display (list "can-server-work-on?" local-id)) (newline)
@@ -300,6 +309,8 @@
 		    (lock (pending-root->lock root))
 		    (table (pending-root->run-time-table root))
 		    (memo-point (car (master-entry->program-point entry))))
+	       (vector-set! *master-preferred-by-uid* uid memo-point)
+
 	       (obtain-lock lock)
 	       (let ((time-entry (or (table-ref table memo-point)
 				     (let ((time-entry (make-run-time-entry 0 0 (make-lock))))

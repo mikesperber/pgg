@@ -546,7 +546,8 @@
 (define-structure smurf-queues (compound-interface
 				(interface-of queues)
 				(export queue-assoc
-					queue-any))
+					queue-any
+					dequeue-first!))
   (open scheme-level-1 define-record-types signals small-big-scheme)
   (files ((=scheme48 big) queue)
 	 smurf-queue)
