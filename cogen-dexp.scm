@@ -22,7 +22,7 @@
 ;;;
 ;;; specialize something with partially static stuff
 ;;;
-(define ppp (cogen-driver '("examples/ctors.scm") '(main s d))) 
+(define ppp (cogen-driver '("examples/ctors.scm") '(main 0 1))) 
 (writelpp ppp "examples/ctors-d0.scm")
 (load "examples/ctors-d0.scm")
 (define level1
@@ -38,7 +38,7 @@
 ;;;
 ;;; specialize wrt to a PS function
 ;;;
-(define ppp (cogen-driver '("examples/lambda.scm") '(main s d))) 
+(define ppp (cogen-driver '("examples/lambda.scm") '(main 0 1))) 
 (writelpp ppp "examples/lambda-d0.scm")
 (load "examples/lambda-d0.scm")
 (define level1
