@@ -199,6 +199,14 @@
   (if (syntax-pop-mark? exp)
       (syntax-strip (syntax-marked-exp exp))
       exp))
+(define (syntax-strip-recursively exp)
+  (let loop ((exp exp))
+    (let ((stripped (syntax-strip exp)))
+      (cond
+       ((pair? stripped)
+	(cons (loop (car exp)) (loop (cdr exp))))
+       (else
+	stripped)))))
 
 
 ;;;

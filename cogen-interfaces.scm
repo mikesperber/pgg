@@ -435,6 +435,7 @@
 	  syntax-map
 	  syntax-depth
 	  syntax-strip
+	  syntax-strip-recursively
 	  syntax-eq?
 	  syntax-eq-symbol?
 	  parse-syntax-rules

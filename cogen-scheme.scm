@@ -348,53 +348,7 @@
 	    (cons new-tag new-args)))
 	 ((eq? tag 'QUOTE)
 	  ;;(display "!!!Q1 ") (display e) (newline)
-	  e)
-	 ;;
-;;;	 ((equal? tag 'CASE)
-;;;	  (loop
-;;;	   (let ((var (gensym 'CASE))
-;;;		 (key (car args))
-;;;		 (clauses (cdr args)))
-;;;	     `(LET ((,var ,key))
-;;;		(COND
-;;;		 ,@(let loop ((clauses clauses))
-;;;		     (if (null? clauses)
-;;;			 '()
-;;;			 (let ((clause (car clauses)))
-;;;			   (if (equal? (car clause) 'ELSE)
-;;;			       (list clause)
-;;;			       (let ((data (car clause))
-;;;				     (commands (cdr clause)))
-;;;				 (cons
-;;;				  `((MEMV ,var ',data)
-;;;				    ,@commands)
-;;;				  (loop (cdr clauses)))))))))))))
-;;;;
-;;;	 ((equal? tag 'COND)
-;;;	  (loop
-;;;	   (let loop ((body args))
-;;;	     (cond
-;;;	      ((null? body)
-;;;	       #f)
-;;;	      ((equal? (caar body) 'ELSE)
-;;;	       (scheme-body-list->body (cdar body)))
-;;;	      (else			;general case
-;;;	       `(IF ,(caar body)
-;;;		    ,(scheme-body-list->body (cdar body))
-;;;		    ,(loop (cdr body))))))))
-;;;; I never, never, never wanted this ...
-;;;	 ((equal? tag 'DO)
-;;;	  (let ((name (gensym 'DO))
-;;;		(var/init/step* (syntax-car args))
-;;;		(test/exp* (syntax-car (syntax-cdr args)))
-;;;		(cmd* (syntax-cdr (syntax-cdr args))))
-;;;	    (loop
-;;;	     `(LET ,name ,(map (lambda (vis) (take 2 vis)) var/init/step*)
-;;;		   (IF ,(car test/exp*)
-;;;		       (BEGIN ,@(cdr test/exp*))
-;;;		       (BEGIN ,@cmd*
-;;;			      (,name ,@(map (lambda (vis) (list-ref vis 2))
-;;;					    var/init/step*)))))))) 
+	  (syntax-strip-recursively e))
 	 ;; named let
 	 ((and (equal? tag 'LET)
 	       (not (syntax-pair? (syntax-car args)))
@@ -412,15 +366,7 @@
 					    (lambda () #f))
 		  (syntax-make-pop-mark args)
 		  symtab*)
-		 (error "syntax error in named let" e))
-;;;	   (let* ((name (syntax-car args))
-;;;		  (formals (syntax-map syntax-car (syntax-car (syntax-cdr args))))
-;;;		  (inits (map cadr (cadr args)))
-;;;		  (body-list (cddr args)))
-;;;	     `(LETREC ((,name
-;;;			(LAMBDA ,formals ,@body-list)))
-;;;		(,name ,@inits)))
-	     )))
+		 (error "syntax error in named let" e)))))
 	 ;; !!! need to strip off SCHEME-POP-MARK
 	 ((equal? tag 'LET)
 	  ;;(display-line "let: " args)
@@ -457,29 +403,6 @@
 		  `(LET ((,(car new-formals) ,(car new-bodies)))
 		     ,(loop (cdr new-formals) (cdr
 					       new-bodies)))))))
-	 ;;
-;;;	 ((equal? tag 'LET*)
-;;;	  (let* ((formals (map car (car args)))
-;;;		 (bodies (map cadr (car args)))
-;;;		 (body-list (cdr args))
-;;;		 (new-formals (map scheme-rename-clone formals)))
-;;;	    (let loop ((formals formals)
-;;;		       (new-formals new-formals)
-;;;		       (bodies bodies)
-;;;		       (symtab* symtab*))
-;;;	      (if (null? formals)
-;;;		  (scheme-rename-variables
-;;;		   symtab*
-;;;		   (scheme-body-list->body body-list))
-;;;		  `(LET ((,(car new-formals)
-;;;			  ,(scheme-rename-variables symtab* (car bodies))))
-;;;		     ,(loop (cdr formals)
-;;;			    (cdr new-formals)
-;;;			    (cdr bodies)
-;;;			    (cons (extend-env (car formals)
-;;;					      (car new-formals)
-;;;					      (car symtab*))
-;;;				  (cdr symtab*))))))))
 	 ;;
 	 ((equal? tag 'LETREC)
 	  (let* ((bindings (syntax-car args))
@@ -579,7 +502,7 @@
 	    `(SET! ,@renamed-args)))
 	 (else
 	  ;;(display-line "tag= " tag)
-	  (cons tag (syntax-map loop args)))))))))
+	  (cons (syntax-strip tag) (syntax-map loop args)))))))))
 
 (define (scheme-extend-symtab* key* value* symtab* depth)
   (let loop ((depth depth) (symtab* symtab*))
