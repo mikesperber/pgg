@@ -1,7 +1,10 @@
 ;;; skeleton for multi-level cogen
 ;;; $Id$
 ;;; $Log$
-;;; Revision 1.4  1995/10/23 16:59:13  thiemann
+;;; Revision 1.5  1995/10/27 08:52:27  thiemann
+;;; fixed problem in binding-time analysis
+;;;
+;;; Revision 1.4  1995/10/23  16:59:13  thiemann
 ;;; type annotations (may) work
 ;;; standard memoization may be circumvented
 ;;;
@@ -71,7 +74,7 @@
 	  ',(+ 1 (annExprFetchLevel e))
 	  ',(annFetchLambdaVars e)
 	  ',(annFetchLambdaLabel e)
-	  ',fvars
+	  (LIST ,@fvars)
 	  ',bts
 	  (LAMBDA ,fvars
 	    (LAMBDA ,(annFetchLambdaVars e)

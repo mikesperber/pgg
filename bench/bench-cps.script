@@ -1,0 +1,77 @@
+,open big-scheme 
+(newline)
+(display "loading CPS compiler generator")
+(newline)
+(load "auxiliary.scm")
+(load "cogen-abssyn.scm") 
+(load "cogen-scheme.scm") 
+(load "cogen-skeleton.scm")
+(load "cogen-bta.scm") 
+;;; to run the generating extension
+(load "cogen-ctors.scm")
+(load "cogen-library.scm")
+(load "cogen-cps.scm")		; in cps
+;;; to generate the generating extension
+(load "cogen-driver.scm") 
+
+(define repetitions 100)
+
+(display "----------------------------------------------------------------------") (newline)
+(display "PGG (app) :") (newline)
+
+(display "!!!preprocessing") (newline)
+,time (ntimes (lambda() (cogen-driver '("examples/app.scm") '(app s d)) #f) repetitions)
+
+(display "!!!generating compiler") (newline)
+(define ppp (cogen-driver '("examples/app.scm") '(app s d)))
+(eval `(BEGIN ,@ppp) (interaction-environment))
+,time (ntimes (lambda () (start-memo 2 '$goal '(1 2) (list (result 'XXX) (result 'YYY)))) repetitions)
+
+(display "!!!compiling") (newline)
+(define level1 (start-memo 2 '$goal '(1 2) (list (list 'XXX) (list 'YYY))))
+(eval `(BEGIN ,@*residual-program*) (interaction-environment))
+,time (ntimes (lambda () (start-memo 1
+				     (cadr (list-ref  level1 2))
+				     (cadr (list-ref level1 3))
+				     (list  (result '(a b c)) (result 'YYY)))) repetitions)
+
+;;; second run 
+(display "----------------------------------------------------------------------") (newline)
+(display "PGG (ctors) :") (newline)
+
+(display "!!!preprocessing") (newline)
+,time (ntimes (lambda() (cogen-driver '("examples/ctors.scm") '(main s d)) #f) repetitions)
+
+(display "!!!generating compiler") (newline)
+(define ppp (cogen-driver '("examples/ctors.scm") '(main s d)))
+(eval `(BEGIN ,@ppp) (interaction-environment))
+,time (ntimes (lambda () (start-memo 2 '$goal '(1 2) (list (result 'XXX) (result 'YYY)))) repetitions)
+
+(display "!!!compiling") (newline)
+(define level1 (start-memo 2 '$goal '(1 2) (list (result 'XXX) (result 'YYY))))
+(eval `(BEGIN ,@*residual-program*) (interaction-environment))
+,time (ntimes (lambda () (start-memo 1
+				     (cadr (list-ref  level1 2))
+				     (cadr (list-ref level1 3))
+				     (list (result '(a b c)) (result 'YYY)))) repetitions)
+
+;;; third run
+(display "----------------------------------------------------------------------") (newline)
+(display "PGG (lambda) :") (newline)
+
+(display "!!!preprocessing") (newline)
+,time (ntimes (lambda() (cogen-driver '("examples/lambda.sim") '(main d d)) #f) repetitions)
+
+(display "!!!generating compiler") (newline)
+(define ppp (cogen-driver '("examples/lambda.sim") '(main d d)))
+(eval `(BEGIN ,@ppp) (interaction-environment))
+,time (ntimes (lambda () (start-memo 2 '$goal '(2 2) (list (result 'XXX) (result 'YYY)))) repetitions)
+
+(display "!!!compiling") (newline)
+(define level1 (start-memo 2 '$goal '(2 2) (list (result 'XXX) (result 'YYY))))
+(eval `(BEGIN ,@*residual-program*) (interaction-environment))
+,time (ntimes (lambda () (start-memo 1
+				     (cadr (list-ref  level1 2))
+				     (cadr (list-ref level1 3))
+				     (list (result 'XXX) (result 'YYY)))) repetitions)
+,exit

@@ -21,6 +21,7 @@
 	(+ 1 *scheme->abssyn-label-counter*))
   *scheme->abssyn-label-counter*)
 (define (scheme->abssyn-d d* ctor-symtab)
+  ;;(display "scheme->abssyn") (newline)
   (set! *scheme->abssyn-label-counter* 0)
   (let* ((d* (scheme-rename-variables-d d*))
 	 (d* (scheme-lambda-lift-d d*))
@@ -135,7 +136,7 @@
 	       (let loop ((args args))
 		 (if (= 1 (length args))
 		     (car args)
-		     `(LET ((,(gensym 'BEGIN) (car args)))
+		     `(LET ((,(gensym 'BEGIN) ,(car args)))
 			,(loop (cdr args)))))
 	       symtab))
 	     ((equal? tag 'LAMBDA)
@@ -169,16 +170,22 @@
 ;;; first step: rename variables so that every variable has exactly
 ;;; one binding occurrence, transform LET* and LET into LET with just
 ;;; a single binder, COND into IF, introduce BEGIN
-(define *scheme-rename-counter* 0)
+(define *scheme-rename-counter* '())
 (define (scheme-rename-clone var)
-  (set! *scheme-rename-counter* (+ 1 *scheme-rename-counter*))
-  (string->symbol
-   (string-append
-    (symbol->string var) "_" (number->string *scheme-rename-counter*))))
+  (let* ((var-counter
+	  (or (assoc var *scheme-rename-counter*)
+	      (begin (set! *scheme-rename-counter*
+			   (cons (cons var 0) *scheme-rename-counter*))
+		     (car *scheme-rename-counter*)))))
+    (set-cdr! var-counter (+ 1 (cdr var-counter)))
+    (string->symbol
+     (string-append
+      (symbol->string var) "_" (number->string (cdr var-counter))))))
 (define (scheme-rename-variables-d d*)
-  (set! *scheme-rename-counter* 0)
+  (set! *scheme-rename-counter* '())
   (let ((symtab (map (lambda (d) (cons (caadr d) (caadr d))) d*)))
     (map (lambda (d)
+	   ;;(display "scheme-rename-variables: ") (display (caadr d)) (newline)
 	   (let* ((fname (caadr d))
 		  (formals (cdadr d))
 		  (body-list (cddr d))
@@ -282,9 +289,10 @@
 		     (new-formals (map scheme-rename-clone formals))
 		     (new-symtab (append (map cons formals new-formals)
 				      symtab))
-		     (new-bodies (map (lambda (body)
+		     (new-bodies (map (lambda (formal body)
+					;;(display "letrec: ") (display formal) (newline)
 					(scheme-rename-variables
-					 new-symtab body)) bodies))
+					 new-symtab body)) formals bodies))
 		     (new-body (scheme-rename-variables
 				new-symtab
 				(scheme-body-list->body body-list))))

@@ -1,0 +1,19 @@
++ check whether it still performs continuation-based reduction :-)
++ really generate LAMBDA_MEMO and friends
++ control memoization
++ put type annotations to work
+- type annotation for arity of operators
++ handle (begin ...)
+- analyze which lambdas and ctors are really memoized
+- specialize project-static, project-dynamic, and friends
+- use delay/force in project-* functions
+- parameterize memo-function by unit (so that it can be used for
+  direct style and continuation-passing style stuff at the same time)
++ write the library functions in direct style using shift/reset to
+  achieve continuation-based reduction
++ printout mechanism for bt analyzed program?
+- how many memoization points are really necessary?
+- use introspection/reflective facilities to obtain the values of the
+  free variables
+- support variadic procedures (by considering argument lists as a
+  special partially static datatype)

@@ -1,0 +1,49 @@
+Welcome to Scheme 48 0.39 (Similix 5.1).
+Copyright (c) 1993, 1994 by Richard Kelsey and Jonathan Rees.
+Please report bugs to scheme-48-bugs@martigny.ai.mit.edu.
+Type ,? (comma question-mark) for help.
+> > 
+> loading CPS compiler generator> 
+> auxiliary.scm 
+> cogen-abssyn.scm 
+> cogen-scheme.scm 
+> cogen-skeleton.scm 
+> cogen-bta.scm 
+> > cogen-ctors.scm 
+> cogen-library.scm 
+> cogen-cps.scm 
+> > > cogen-driver.scm 
+> > > > ----------------------------------------------------------------------> 
+> PGG (app) :> 
+> > !!!preprocessing> 
+> Run time: 16.07 seconds
+#f
+> > !!!generating compiler> 
+> > > Run time: 6.24 seconds
+'(multi-memo 1 '$goal-1587 '(0 1) (list xxx yyy))
+> > !!!compiling> 
+> > > Run time: 6.17 seconds
+'($goal-1602-2706 yyy)
+> > > ----------------------------------------------------------------------> 
+> PGG (ctors) :> 
+> > !!!preprocessing> 
+> Run time: 47.32 seconds
+#f
+> > !!!generating compiler> 
+> > > Run time: 12.75 seconds
+'(multi-memo 1 '$goal-5295 '(0 1) (list xxx yyy))
+> > !!!compiling> 
+> > > Run time: 9.36 seconds
+'($goal-5319-6927 yyy)
+> > > ----------------------------------------------------------------------> 
+> PGG (lambda) :> 
+> > !!!preprocessing> 
+> Run time: 42.51 seconds
+#f
+> > !!!generating compiler> 
+> > > Run time: 14.74 seconds
+'(multi-memo 1 '$goal-9816 '(1 1) (list xxx yyy))
+> > !!!compiling> 
+> > > Run time: 3.41 seconds
+'($goal-9844-10664 xxx yyy)
+> 

@@ -1,7 +1,10 @@
 ;;; cogen-bta
 ;;; $Id$
 ;;; $Log$
-;;; Revision 1.4  1995/10/23 16:59:04  thiemann
+;;; Revision 1.5  1995/10/27 08:52:24  thiemann
+;;; fixed problem in binding-time analysis
+;;;
+;;; Revision 1.4  1995/10/23  16:59:04  thiemann
 ;;; type annotations (may) work
 ;;; standard memoization may be circumvented
 ;;;
@@ -15,27 +18,27 @@
 ;;; selectors, and constructor test are defined
 ;;; `skeleton' function call with arguments replaced by binding times
 (define (bta-run d* symtab skeleton def-typesig* def-memo)
-  (begin
-    (set! *bta-user-memoization*
-	  (and def-memo (cadr def-memo)))
-    (set! *bta-dynamic-ops*
-	  (if *bta-user-memoization* (list *bta-user-memoization*) '()))
-    (let* ((goal-proc (car skeleton))
-	   (bts (cdr skeleton))
-	   (d (annDefLookup goal-proc d*))
-	   (formals (annDefFetchProcFormals d))
-	   (d0 (annMakeDef '$goal formals
-			   (annMakeCall goal-proc (map annMakeVar formals))))
-	   (d* (cons d0 d*))
-	   (dummy (bta-collect-d symtab d*))
-	   (proctv (bta-get-ecr (annDefFetchProcBTVar d0)))
-	   (procsig (bta-c-fetch-ctor-args (tv-get-leq-field proctv))))
-      (bta-make-dynamic (car procsig))	;goal-proc returns dynamic
-      (map (bta-assert symtab) bts (cdr procsig))
-      (map (bta-typesig d* symtab) def-typesig*)
+  ;;(display "bta-run") (newline)
+  (set! *bta-user-memoization*
+	(and def-memo (cadr def-memo)))
+  (set! *bta-dynamic-ops*
+	(if *bta-user-memoization* (list *bta-user-memoization*) '()))
+  (let* ((goal-proc (car skeleton))
+	 (bts (cdr skeleton))
+	 (d (annDefLookup goal-proc d*))
+	 (formals (annDefFetchProcFormals d))
+	 (d0 (annMakeDef '$goal formals
+			 (annMakeCall goal-proc (map annMakeVar formals))))
+	 (d* (cons d0 d*))
+	 (dummy (bta-collect-d symtab d*))
+	 (proctv (bta-get-ecr (annDefFetchProcBTVar d0)))
+	 (procsig (bta-c-fetch-ctor-args (tv-get-leq-field proctv))))
+    (bta-make-dynamic (car procsig))	;goal-proc returns dynamic
+    (map (bta-assert symtab) bts (cdr procsig))
+    (map (bta-typesig d* symtab) def-typesig*)
 ;;;    (pp (bta-display-d d*))
-      (bta-solve-d d*)
-      d*)))
+    (bta-solve-d d*)
+    d*))
 ;;; enforce a binding-time type signature
 (define (bta-typesig d* symtab)
   (lambda (typesig)
@@ -44,12 +47,12 @@
 	   (bt-result (caddr typesig))
 	   (d (annDefLookup proc d*)))
       (if d
-	  (let* ((proctv (bta-get-exr (annDefFetchProcBTVar d)))
-		 (procsig (bta-c-fetch-ctor args (tv-get-leq-field proctv))))
+	  (let* ((proctv (bta-get-ecr (annDefFetchProcBTVar d)))
+		 (procsig (bta-c-fetch-ctor-args (tv-get-leq-field proctv))))
 	    ((bta-assert symtab) bt-result (car procsig))
 	    (map (bta-assert symtab) bts (cdr procsig)))
 	  (if (equal? 'D bt-result)
-	      (set! *bta-dynamic-ops* (cons proc *bta-dynamic-ops*))))))
+	      (set! *bta-dynamic-ops* (cons proc *bta-dynamic-ops*)))))))
 ;;; assert binding time `bt' for `tv'
 (define (bta-assert symtab)
   (lambda (bt tv0)
@@ -137,17 +140,19 @@
 
 ;;; always return the old ecr for tv1) (useful to map things to \top)
 (define (bta-equate tv1 tv2)
+  ;;(display (list "bta-equate" (tv-get-counter tv1) (tv-get-counter tv2))) (newline)
   (let ((ecr1 (bta-get-ecr tv1))
 	(ecr2 (bta-get-ecr tv2)))
+    ;;(display (list "[bta-equate" (tv-get-counter ecr1) (tv-get-counter ecr2))) 
     (if (eq? ecr1 ecr2)
 	ecr1
 	(let ((dyn1 (bta-dynamic? ecr1))
 	      (dyn2 (bta-dynamic? ecr2)))
 	  (if (or dyn1 dyn2)
 	      (begin
+		(tv-set-father! ecr2 ecr1)
 		(if (not dyn1) (bta-make-dynamic ecr1))
-		(if (not dyn2) (bta-make-dynamic ecr2))
-		(tv-set-father! ecr2 ecr1))
+		(if (not dyn2) (bta-make-dynamic-internal ecr2)))
 	      ;; only if both are static:
 	      (begin
 		(tv-set-father! ecr2 ecr1)
@@ -200,21 +205,24 @@
   (tv-set-value! tv 1))
 
 (define (bta-make-dynamic tv)
-  ;;(display "[bta-make-dynamic ") (display (tv-get-counter tv)) (newline)
-  (let ((ecr (bta-get-ecr tv)))
-    (if (bta-dynamic? ecr)
-	ecr
-	(begin
-	  (bta-dynamize! ecr)
-	  (map bta-make-dynamic (tv-get-dependents ecr))
-	  (let ((lifts (tv-get-lift-field ecr)))
-	    (tv-set-lift-field! ecr '())
-	    (map (lambda (lift) (bta-equate ecr lift)) lifts))
-	  (if (tv-get-leq-field ecr)
+  ;;(display "bta-make-dynamic ") (display (tv-get-counter tv)) (newline)
+  (bta-make-dynamic-internal (bta-get-ecr tv)))
+(define (bta-make-dynamic-internal ecr)
+  (if (bta-dynamic? ecr)
+      ecr
+      (begin
+	(bta-dynamize! ecr)
+	(let ((dependencies (tv-get-dependents ecr)))
+	  (tv-set-dependents! ecr '())
+	  (map bta-make-dynamic dependencies))
+	(let ((lifts (tv-get-lift-field ecr)))
+	  (tv-set-lift-field! ecr '())
+	  (map (lambda (lift) (bta-equate lift ecr)) lifts))
+	(let ((leq-field (tv-get-leq-field ecr)))
+	  (tv-set-leq-field! ecr #f)
+	  (if leq-field
 	      (map bta-make-dynamic
-		   (bta-c-fetch-ctor-args (tv-get-leq-field ecr)))))))
-  ;;(display "]") (newline)
-  )
+		   (bta-c-fetch-ctor-args leq-field)))))))
 
 ;;; generate type variables and constraints
 (define (bta-collect-d symtab d*)
@@ -342,8 +350,9 @@
 	(begin
 	  (tv-set-leq-field! ecr leq2)
 	  (if (not (equal? ctor '***static***))
-	      (map (lambda (pp) (bta-equate pp ecr))
-		   (tv-get-lift-field ecr)))
+	      (let ((lifts (tv-get-lift-field ecr)))
+		(tv-set-lift-field! ecr '())
+		(map (lambda (pp) (bta-equate pp ecr)) lifts)))
 	  ;; maybe mark all further lifts to become equalities?
 	  )))) 
 
@@ -409,6 +418,7 @@
 
 ;;; bta-solve-d evaluates the normalized constraint set
 (define (bta-solve-d d*)
+  ;;(display "bta-solve") (newline)
   (map (lambda (d)
 	 (bta-solve (annDefFetchProcBody d))
 	 (let ((bt (bta-tv->type (annDefFetchProcBTVar d))))

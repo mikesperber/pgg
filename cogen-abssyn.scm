@@ -172,7 +172,7 @@
   (vector-set! e 0 'MEMO)
   (vector-set! e 3 lv)
   (vector-set! e 2 vars)
-  (vector-set! e 1 body)))
+  (vector-set! e 1 body))
 (define (annMakeMemo body)
   (vector 'MEMO body '() 0))
 (define (annIsMemo? e)

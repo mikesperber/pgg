@@ -2,7 +2,10 @@
 ;;; direct style version of the continuation-based multi-level
 ;;; compiler generator (with control operators)
 ;;; $Log$
-;;; Revision 1.2  1995/10/23 16:59:07  thiemann
+;;; Revision 1.3  1995/10/27 08:52:24  thiemann
+;;; fixed problem in binding-time analysis
+;;;
+;;; Revision 1.2  1995/10/23  16:59:07  thiemann
 ;;; type annotations (may) work
 ;;; standard memoization may be circumvented
 ;;;
@@ -32,13 +35,15 @@
     (let* ((dynamics (project-dynamic (cons label vvs) bts))
 	   (new-vvs (apply append dynamics))
 	   (new-bts (binding-times dynamics))
-	   (freevars (map (lambda (x) (gensym 'var)) new-bts)))
+	   (freevars (map (lambda (bt vv)
+			    (if (zero? bt) vv (gensym 'var)))
+			  new-bts new-vvs)))
       (if (= lv 1)
 	  `(STATIC-CONSTRUCTOR
 	    ',label
 	    (LAMBDA ,freevars
 	      (LAMBDA ,vars
-		,(reset (apply (apply f vvs) vars))))
+		,(reset (apply (apply f freevars) vars))))
 	    (LIST ,@new-vvs)
 	    ',new-bts)
 	  ;; > lv 1
@@ -77,7 +82,7 @@
 (define (_test_memo level ctor-test v)
   (if (= level 1)
       `(,ctor-test (,v 'VALUE))
-      `(_TEST ,(- level 1) ',ctor ,v)))
+      `(_TEST ,(- level 1) ',ctor-test ,v)))
 
 ;;; needs RESET, somewhere
 (define (_If level e1 e2 e3)
