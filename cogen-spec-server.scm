@@ -23,11 +23,11 @@
   (set! *local-cache* '()))
 
 (define (local-pending-initialize!)
-  (set! *local-pending* '()))
+  (set! *local-pending* (make-queue)))
 
 (define (local-cache-enter! pp static-skeleton bts fct)
   (cond ((or (assoc static-skeleton *local-cache*)
-	     (assoc static-skeleton *local-pending*))
+	     (queue-assoc static-skeleton *local-pending*))
 	 => (lambda (p)
 	      (let ((entry (cdr p)))
 		(values (server-entry->name entry)
@@ -36,15 +36,14 @@
 	(else
 	 (let ((name (generate-local-symbol (car pp)))
 	       (local-id (generate-local-id)))
-	   (set!
+	   (enqueue!
 	    *local-pending*
-	    (cons (cons static-skeleton (make-server-entry
-					 pp static-skeleton
-					 name
-					 local-id
-					 bts fct
-					 #f))
-		  *local-pending*))
+	    (cons static-skeleton (make-server-entry
+				   pp static-skeleton
+				   name
+				   local-id
+				   bts fct
+				   #f)))
 	   (values name local-id #f)))))
 
 (define (local-cache-insert! res-name pp static-skeleton bts fct)
@@ -56,24 +55,23 @@
     entry))
 
 (define (local-cache-advance!)
-  (if (null? *local-pending*)
+  (if (queue-empty? *local-pending*)
       #f
-      (let* ((item (car *local-pending*))
+      (let* ((item (dequeue! *local-pending*))
 	     (entry (cdr item)))
-	(set! *local-pending* (cdr *local-pending*))
 	(set! *local-cache* (cons item *local-cache*))
 	(if (server-entry->killed? entry)
 	    (local-cache-advance!)
 	    entry))))
 
 (define (local-pending-lookup local-id)
-  (let loop ((pending *local-pending*))
-    (if (null? pending)
-	#f
-	(let ((entry (cdar pending)))
-	  (if (eqv? local-id (server-entry->local-id entry))
-	      entry
-	      (loop (cdr pending)))))))
+  (cond
+   ((queue-any (lambda (item)
+		 (let ((entry (cdr item)))
+		   (eqv? local-id (server-entry->local-id entry))))
+	       *local-pending*)
+    => cdr)
+   (else #f)))
 
 ;;; residual code
 (define *local-resid* #f)
