@@ -611,7 +611,7 @@
 	    (enter-binding formal
 			   (make-macro-binding
 			    (parse-syntax-rules
-			     (syntax-car (syntax-cdr args))
+			     (syntax-car (syntax-cdr phrase))
 			     symtab*)
 			    (unbox-env symtab*))
 			   symtab*)
