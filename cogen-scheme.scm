@@ -32,7 +32,11 @@
 (define *scheme->abssyn-mutable-variables* '())
 (define (scheme->abssyn-mutable-variable! v)
   (set! *scheme->abssyn-mutable-variables*
-	(cons v *scheme->abssyn-mutable-variables*)))
+	(set-include *scheme->abssyn-mutable-variables* v)))
+(define (mutable-definition? d)
+  (let ((template (cadr d)))
+    (and (not (pair? template))
+	 (memq template *scheme->abssyn-mutable-variables*))))
 (define (scheme->abssyn-d d* def-syntax* ctor-symtab)
   ;;(display-line "scheme->abssyn " ctor-symtab)
   (set-scheme->abssyn-label-counter! 1)
@@ -40,6 +44,10 @@
   (set-scheme->abssyn-static-references! #f)
   (let* ((d* (scheme-rename-variables-d d* def-syntax*))
 	 ;; (dummy (writelpp d* "/tmp/def1.scm"))
+	 (imp-defined-names* (map cadr (filter mutable-definition? d*)))
+	 (dummy (set! *scheme->abssyn-mutable-variables*
+		      (set-difference *scheme->abssyn-mutable-variables*
+				      imp-defined-names*)))
 	 (d* (map scheme-wrap-one-d d*))
 	 ;; (dummy (writelpp d* "/tmp/def2.scm"))
 	 (d* (scheme-lambda-lift-d d*))
@@ -72,7 +80,7 @@
 				   (scheme->abssyn-static-references-yes!)
 				   (annMakeCellEq args)) 2))
 	   ctor-symtab)))
-    (map (lambda (d) (scheme->abssyn-one-d symtab d)) d*))) 
+    (map (lambda (d) (scheme->abssyn-one-d imp-defined-names* symtab d)) d*))) 
 
 (define (scheme->abssyn-make-call fname args)
   (annMakeCall fname (map ann-maybe-coerce args)))
@@ -94,7 +102,7 @@
 			      (loop (cdr args) (cons newvar vars))))))
 	  (annMakeCtor ctor label desc args)))))
 
-(define (scheme->abssyn-one-d symtab d)
+(define (scheme->abssyn-one-d imp-defined-names* symtab d)
   (let ((make-def (case (car d)
 		    ((define) annMakeDef)
 		    ((define-without-memoization) annMakeDefWithoutMemoization)))
@@ -111,7 +119,10 @@
 		       (ann-maybe-coerce 
 			(scheme->abssyn-e (caddr d) symtab)))))
 	  (make-def procname formals body))
-	(make-def template #f (scheme->abssyn-e (caddr d) symtab)))))
+	((if (memq template imp-defined-names*)
+	     annMakeDefMutable
+	     make-def)
+	 template #f (scheme->abssyn-e (caddr d) symtab)))))
 
 (define (scheme->abssyn-e e symtab)
   (let loop ((e e))
@@ -620,8 +631,11 @@
 	  ;;(display "!!!Q2 ") (display e) (newline)
 	  e)
 	 ((equal? tag 'SET!)
-	  `(CELL-SET! ,(car args) ,
-			(scheme-wrap-e (cadr args))))
+	  (let ((var (car args))
+		(exp (scheme-wrap-e (cadr args))))
+	    (if (memq var *scheme->abssyn-mutable-variables*)
+		`(CELL-SET! ,var ,exp)
+		`(SET! ,var ,exp))))
 	 ;; only one binder in a LET
 	 ((equal? tag 'LET)
 	  (let* ((header (caar args))

@@ -1,7 +1,10 @@
 
 (define-interface cogen-abssyn-interface
   (export annMakeDef
+	  annMakeDefMutable
 	  annMakeDefWithoutMemoization
+	  annIsDef?
+	  annIsDefMutable?
 	  annDefFetchProcName
 	  annDefFetchProcFormals
 	  annDefFetchProcBody
@@ -409,6 +412,7 @@
 	  make-residual-begin
 	  make-residual-cons
 	  make-residual-define-data
+	  make-residual-define-mutable
 	  make-residual-if
 	  make-residual-call
 	  make-residual-closed-lambda
@@ -536,7 +540,7 @@
 	  set-residual-program! add-to-residual-program! clear-residual-program!
 	  add-to-support-code! clear-support-code!
 	  nlist
-	  set-union set-intersection set-subtract set-difference set-union* set-equal?
+	  set-include set-union set-intersection set-subtract set-difference set-union* set-equal?
 	  and-map and-map2 strict-and-map
 	  or-map strict-or-map thread-map
 	  generic-sort

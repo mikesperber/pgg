@@ -208,9 +208,11 @@
 		`(_IF ,(pred lv) 0 ,cond-code ,then-code ,else-code))))))
 
 (define-syntax _op
-  (syntax-rules (apply cons _define_data)
+  (syntax-rules (apply cons _define_data _define)
     ((_op lv _define_data arg)
      (make-residual-define-data lv arg))
+    ((_op lv _define var arg)
+     (make-residual-define-mutable lv 'var arg))
     ((_op 0 op arg ...)
      (op arg ...))
     ((_op 1 cons e1 e2)
@@ -251,11 +253,11 @@
 
 (define-syntax _lift
   (syntax-rules ()
-    ((_ 0 diff value)
+    ((_lift 0 diff value)
      (_lift0 diff value))
-    ((_ 1 diff value)
+    ((_lift 1 diff value)
      `(_LIFT0 ,diff ,value))
-    ((_ lv diff value)
+    ((_lift lv diff value)
      `(_LIFT ,(pred lv) ,diff ,value))))
 
 (define-syntax _eval

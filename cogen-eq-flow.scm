@@ -46,9 +46,9 @@
 			 (else
 			  (error "specified goal is not a procedure"))))))
 	 (d0 (annMakeDef '$goal formals
-			 (bta-insert-def-data def-type*
-					      (ann-maybe-coerce
-					       (annMakeCall goal-proc (map annMakeVar formals))))))
+			 (bta-insert-def-mutable
+			  d* (bta-insert-def-data
+			      def-type* (ann-maybe-coerce (annMakeCall goal-proc (map annMakeVar formals)))))))
 	 (d* (cons d0 d*))
 	 (do-type-inference (full-collect-d* d*))
 	 (proc-node (full-ecr (annDefFetchProcBTVar d0)))
@@ -110,6 +110,24 @@
 				   (list (annMakeConst (cdr def))))
 			  (loop (cdr defs)))
 	      (loop (cdr defs))))))))
+
+(define (bta-insert-def-mutable d* body)
+  (let ((make-op (annMakeOp1 #f
+			     wft-define-mutable-property
+			     #f
+			     (parse-type '(all t t)))))
+  (let loop ((d* d*))
+    (if (null? d*)
+	body
+	(let ((def (car d*))
+	      (d* (cdr d*)))
+	  (if (annIsDefMutable? def)
+	      (annMakeLet (gensym 'begin)
+			  (make-op '_DEFINE
+				   (list (annMakeVar (annDefFetchProcName def))
+					 (ann-maybe-coerce (annDefFetchProcBody def))))
+			  (loop d*))
+	      (loop d*)))))))
 
 ;;; step 1
 ;;; type inference
@@ -401,7 +419,9 @@
 	  (full-add-function proctv arg-nodes bodytv))
 	(let ((bodytv (full-collect (annDefFetchProcBody d) symtab))
 	      (proctv (annDefFetchProcBTVar d)))
-	  (full-equate bodytv proctv)))))
+	  (full-equate bodytv proctv)
+	  (if (annIsDefMutable? d)
+	      (full-make-top proctv))))))
 
 ;;; full-collect returns the type variable of e
 ;;; this is ___ONLY___ concerned with type inference
@@ -723,6 +743,13 @@
   (lambda (type type*)
     (bta-note-level! (- *bta-max-bt* 1) (type-fetch-btann type))))
 
+(define wft-define-mutable-property
+  (lambda (type type*)
+    (bta-note-level! (- *bta-max-bt* 1) (type-fetch-btann type))
+    (for-each (lambda (arg-type)
+		(bta-note-level! *bta-max-bt* (type-fetch-btann arg-type)))
+	      type*)))
+
 (define (wft-make-memo-property level)
   (lambda (type type*)
     (for-each (lambda (type)
@@ -873,8 +900,7 @@
     (lambda (e)
       (let ((lv (annExprFetchLevel e)))
 	;; (display (list lv "->" bt))
-	(if (= bt lv)
-	    'nothing-to-do
+	(if (> bt lv)
 	    (annIntroduceLift e lv (- bt lv)))))))
 
 (define bta-memo-var

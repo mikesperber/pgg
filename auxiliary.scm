@@ -76,6 +76,13 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; sets rep. by sets without repeated elements; compared w/ eq?
 
+(define (set-include s e)
+  (if (null? s)
+      (list e)
+      (if (memq e s)
+	  s
+	  (cons e s))))
+
 (define (set-union s1 s2)
   (if (null? s1) s2
       (if (memq (car s1) s2)

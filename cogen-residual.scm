@@ -64,9 +64,15 @@
 	    (else
 	     arg)))))
     (add-to-support-code! `(define-data ,@real-arg))
-    (if (= lv 0)
+    (if (zero? lv)
 	'pooof				;ignored
 	`(_OP ,(- lv 1) _DEFINE_DATA ,arg))))
+
+(define (make-residual-define-mutable lv var arg)
+  (add-to-support-code! `(define ,var ,arg))
+  (if (zero? lv)
+      'pooof				;ignored
+      `(_OP ,(- lv 1) _DEFINE ,var ,arg)))
 
 (define (make-residual-if c t e)
   (cond

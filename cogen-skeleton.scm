@@ -28,14 +28,16 @@
     (let loop ((d* d*))
       (if (null? d*)
 	  *generating-extension*
-	  (let* ((d (car d*))
-		 (fname (annDefFetchProcName d))
-		 (e (annDefFetchProcBody d))
-		 (new-body (generate fname e))
-		 (formals (annDefFetchProcFormals d)))
-	    (set-generating-extension!
-	     (cons (make-define fname formals new-body)
-		   *generating-extension*))
+	  (begin
+	    (let* ((d (car d*)))
+	      (if (annIsDef? d)
+		  (let* ((fname (annDefFetchProcName d))
+			 (e (annDefFetchProcBody d))
+			 (new-body (generate fname e))
+			 (formals (annDefFetchProcFormals d)))
+		    (set-generating-extension!
+		     (cons (make-define fname formals new-body)
+			   *generating-extension*)))))
 	    (loop (cdr d*)))))))
 ;;; transform binding-time annotated expression e 
 ;;; into the generating extension
