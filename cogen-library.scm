@@ -107,7 +107,7 @@
 	  (value 'CLONE)
 	  value)
       (if (symbol? value)
-	  (gensym-local value)
+	  (gensym-local-trimmed value)
 	  (gensym-local 'clone))))
 
 (define (clone-dynamic value bts)

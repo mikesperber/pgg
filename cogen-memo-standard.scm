@@ -77,7 +77,7 @@
        (found
 	(or (lookup-memolist pp)
 	    (let*
-		((new-name (gensym fname))
+		((new-name (gensym-trimmed fname))
 		 ; (clone-map (map (lambda (arg)
 		 ; 		   (cons arg (if (symbol? arg)
 		 ; 				 (gensym-local arg)

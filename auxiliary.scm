@@ -13,14 +13,32 @@
 (define gensym (lambda (sym)
 		 (set! *gensym-counter* (+ *gensym-counter* 1))
 		 (any->symbol sym "-" *gensym-counter*)))
+(define gensym-trimmed
+  (lambda (sym)
+    (gensym (trim-symbol sym))))
 (define *gensym-local* (list 0))
-(define gensym-local-reset! (lambda () (set! *gensym-local* '())))
+(define gensym-local-reset! (lambda () (set! *gensym-local* (list 0))))
 (define gensym-local-push! (lambda () (set! *gensym-local* (cons 0 *gensym-local*))))
 (define gensym-local-pop! (lambda () (set! *gensym-local* (cdr *gensym-local*))))
 (define gensym-local (lambda (sym)
 		       (set-car! *gensym-local* (+ (car *gensym-local*) 1))
 		       (any->symbol sym "-" (car *gensym-local*))))
+(define gensym-local-trimmed
+  (lambda (sym)
+    (gensym-local (trim-symbol sym))))
 (define gencont (lambda () (gensym 'c)))
+(define trim-symbol
+  (lambda (sym)
+    (let ((s (symbol->string sym)))
+      (let loop ((i (- (string-length s) 1)))
+	(if (< i 0)
+	    sym
+	    (let ((c (string-ref s i)))
+	      (case (string-ref s i)
+		((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9 #\- #\_)
+		 (loop (- i 1)))
+		(else
+		 (substring s 0 (+ i 1))))))))))
 
 (define any->symbol			;big-util: concatenate-symbol
   (lambda args

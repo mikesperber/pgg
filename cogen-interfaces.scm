@@ -535,9 +535,9 @@
 
 (define-interface auxiliary-interface
   (export id succ pred
-	  gensym gensym-reset!
-	  gensym-local gensym-local-reset! gensym-local-push!
-	  gensym-local-pop!
+	  gensym gensym-trimmed gensym-reset!
+	  gensym-local gensym-local-trimmed
+	  gensym-local-reset! gensym-local-push! gensym-local-pop!
 	  any->symbol
 	  gen-address-reset! gen-address
 	  *memolist* *residual-program* *support-code*
