@@ -67,7 +67,7 @@
     (and (not (final? master-cache))
 	 (let* ((master-entry (cdar master-cache))
 		(ids+aspaces (master-entry->ids+aspaces master-entry)))
-	   (or (and (assoc local-id ids+aspaces) master-entry)
+	   (or (and (assv local-id ids+aspaces) master-entry)
 	       (loop (cdr master-cache)))))))
 
 (define (master-entry->add-local-id! master-entry local-id uid)
@@ -84,7 +84,7 @@
 (define (server-working-on uid local-id) ; async
   ;; make sure that local-name is already registered with the master
   (if (not (can-server-work-on? uid local-id))
-      (remote-run! (aspace-uid uid) server-kill-specialization local-id)))
+      (remote-run! (uid->aspace uid) server-kill-specialization! local-id)))
 
 ;; this assumes that, if the answer is #t, the caller gets busy on entry!
 
@@ -100,24 +100,23 @@
 
 (define (can-server-work-on? uid local-id)	; sync
     (display "Server ") (display uid) (display " asks if it can work on ") (display local-id) (newline)
-  (let loop ((final? null?))
+  (let loop ((master-cache *master-cache*) (final? null?))
     (cond
      ((master-cache-lookup-by-local-id local-id final?)
       => (lambda (entry)
 	   (master-entry->add-local-id! entry local-id uid)
 	   (can-I-work-on-master-entry? entry)))
      (else				; wait until local name registered
-      (display ".")
-;;      (display "Local id ") (display local-id) (display " wasn't there yet!") (newline)
       (relinquish-timeslice)
       ;; this assumes *master-cache* gets added to from the front
-;;      (loop (lambda (item) (eq? item master-cache)))
-      (loop null?)
+      (loop *master-cache* (lambda (item) (eq? item master-cache)))
       ))))
 
 (define (server-registers-memo-point! uid
 				      program-point local-name local-id bts fct)
-  (display "Server ") (display uid) (display " registers memo point ") (display program-point) (display ", local id ") (display local-id) (newline)
+  (display "Server ") (display uid) (display " registers memo point ")
+  ;; (display program-point)
+  (display ", local id ") (display local-id) (newline)
   (let ((static-skeleton (top-project-static program-point bts)))
     (obtain-lock *master-cache-lock*)
     (cond
@@ -157,7 +156,7 @@
 	    (if (can-I-work-on-master-entry? (pending-entry->master-entry entry))
 		;; we can put it right back to work
 		(remote-run! (uid->aspace uid)
-			     server-specialize
+			     server-specialize ;; -async
 			     (pending-entry->name entry) 
 			     (pending-entry->program-point entry)
 			     (pending-entry->bts entry)
@@ -181,7 +180,7 @@
 		     (lambda ()
 		       (set! *n-unemployed-servers* (- *n-unemployed-servers* 1))))
 		    (remote-run! (uid->aspace uid)
-				 server-specialize
+				 server-specialize ;; -async
 				 (pending-entry->name entry) 
 				 (pending-entry->program-point entry)
 				 (pending-entry->bts entry)
