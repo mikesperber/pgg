@@ -1,0 +1,6 @@
+E ::= K | V | (if E E E) | (O E*) | (P E*) |
+      (let ((V E)*) E) | (let* ((V E)*) E) |
+      (lambda (V*) E) | (E E*) |
+      (C E*) | (Ci E) | (C? E)
+D ::= (define (P V*) E) | (define-type T (C Ci*)+)
+prog ::= D+
