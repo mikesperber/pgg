@@ -57,9 +57,12 @@
 		     (cons (car new-goal) (cdadr defn-template)))))
 	 (defn-body (list-tail goal-proc 2)))
     (set-residual-program!
-	  (list (append defn-template
-			(cdr *residual-program*)
-			defn-body)))
+     (if *generate-flat-program*
+	 (cons (append defn-template defn-body)
+	       (cdr *residual-program*))
+	 (list (append defn-template
+		       (cdr *residual-program*)
+		       defn-body))))
     result))
 
 ;;; the memo-function

@@ -1,3 +1,4 @@
+;;; copyright by Peter Thiemann 1998
 
 (define-interface cogen-abssyn-interface
   (export annMakeDef
@@ -329,7 +330,7 @@
 
 (define-structure cogen-bta cogen-bta-interface
   (open scheme signals auxiliary
-	cogen-globals pretty-print cogen-env
+	cogen-gensym cogen-globals pretty-print cogen-env
 	cogen-typesig cogen-abssyn cogen-abssyn cogen-record cogen-labset)
   (files cogen-eq-flow
 	 cogen-effect))
@@ -382,7 +383,7 @@
 	  binding-times))
 
 (define-structure cogen-library cogen-library-interface
-  (open scheme signals auxiliary cogen-boxops)
+  (open scheme signals auxiliary cogen-gensym cogen-boxops)
   (files cogen-library))
 
 (define-interface cogen-boxops-interface
@@ -468,7 +469,7 @@
 
 (define-structure cogen-scheme cogen-scheme-interface
   (open scheme auxiliary signals
-	cogen-globals cogen-macro
+	cogen-gensym cogen-globals cogen-macro
 	cogen-abssyn cogen-env cogen-record)
   (files cogen-scheme))
 
@@ -482,6 +483,8 @@
 	  *memo-optimize*
 	  *generating-extension*
 	  *termination-analysis*
+	  *generate-flat-program*
+	  set-generate-flat-program!
 	  set-bta-display-level!
 	  set-effect-display-level!
 	  set-scheme->abssyn-static-references!
@@ -503,6 +506,7 @@
 
 (define-structure cogen-skeleton cogen-skeleton-interface
   (open scheme auxiliary signals
+	cogen-gensym
 	cogen-globals
 	cogen-abssyn
 	cogen-oca
@@ -533,11 +537,24 @@
 (define-interface pretty-print-interface
   (export p))
 
+(define-interface cogen-gensym-interface
+  (export gensym-reset!
+	  gensym
+	  gensym-trimmed
+	  gensym-local-reset!
+	  gensym-local-push!
+	  gensym-local-pop!
+	  gensym-local
+	  gensym-local-trimmed
+	  gensym-ignore-name-stubs!
+	  gensym-use-name-stubs!))
+
+(define-structure cogen-gensym cogen-gensym-interface
+  (open scheme auxiliary)
+  (files cogen-gensym))
+
 (define-interface auxiliary-interface
   (export id succ pred
-	  gensym gensym-trimmed gensym-reset!
-	  gensym-local gensym-local-trimmed
-	  gensym-local-reset! gensym-local-push! gensym-local-pop!
 	  any->symbol
 	  gen-address-reset! gen-address
 	  *memolist* *residual-program* *support-code*
@@ -623,7 +640,7 @@
 		      cogen-direct-anf-interface
 		      cogen-memo-interface)
   (open scheme escapes signals auxiliary
-	cogen-boxops cogen-globals cogen-library
+	cogen-gensym cogen-boxops cogen-globals cogen-library
 	shift-reset cogen-completers cogen-memo-standard cogen-residual )
   (files cogen-direct-anf))
 
@@ -639,7 +656,7 @@
 
 (define-structure cogen-completers
   cogen-completers-interface
-  (open scheme shift-reset cogen-residual auxiliary)
+  (open scheme shift-reset cogen-residual cogen-gensym)
   (files cogen-completer))
 
 (define-interface cogen-memo-interface
@@ -650,7 +667,7 @@
 
 (define-structure cogen-memo-standard
   cogen-memo-interface
-  (open scheme auxiliary shift-reset cogen-record
+  (open scheme auxiliary shift-reset cogen-globals cogen-record cogen-gensym
 	cogen-library cogen-completers cogen-residual)
   (files cogen-memo-standard))
 
@@ -721,7 +738,7 @@
 		      anf-specializer-interface
 		      cogen-anf-compile-interface)
   (open scheme escapes signals auxiliary
-	cogen-globals cogen-library cogen-boxops
+	cogen-gensym cogen-globals cogen-library cogen-boxops
 	anf-specializer)
   (files
 	 cogen-ctors

@@ -26,6 +26,7 @@ cogen_base_files = \
 	cogen-effect.scm \
 	cogen-env.scm \
 	cogen-eq-flow.scm \
+	cogen-gensym.scm \
 	cogen-globals.scm \
 	cogen-labset-bylist.scm \
 	cogen-library.scm \

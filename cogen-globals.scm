@@ -13,7 +13,12 @@
 
 (define *termination-analysis* #f)	;do not run termination analysis
 
+(define *generate-flat-program* #f)	;do not create a flat program
+
 ;;; setter functions
+
+(define (set-generate-flat-program! b)
+  (set! *generate-flat-program* b))
 
 (define (set-bta-display-level! n)
   (set! *bta-display-level* n))
