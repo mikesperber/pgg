@@ -36,7 +36,7 @@
 			   (,(car sels) x)
 			   (,%if (,ctor-test x)
 				 (,%list-ref x ,i)
-				 (error "bad selector")))
+				 (error "bad selector ~A applied to ~S" ',(car sels) x)))
 			 (loop (cdr sels) (+ i 1)))))))))
 	       (cddr x)))))))
 ;;;
