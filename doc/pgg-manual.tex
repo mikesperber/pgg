@@ -1180,6 +1180,9 @@ A number of optional parameters may be specified after the
 generating extension as a Scheme48 module. The following options are
 recognized.
 \begin{itemize}
+\item \texttt{(goal SYMBOL)} specifies that \texttt{SYMBOL} will be
+  the name of the specialization entry point (i.e., the first
+  parameter to \texttt{specialize}) of the generating extension.
 \item \texttt{(export SYMBOL ...)} adds the listed \texttt{SYMBOL}s to the
   export list of the generated module.
 \item \texttt{(open SYMBOL ...)} considers the listed \texttt{SYMBOL}s as
