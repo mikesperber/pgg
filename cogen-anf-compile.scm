@@ -6,7 +6,7 @@
 ;;; hence performs full context propagation
 ;;;
 
-(set-scheme->abssyn-let-insertion! #t)
+(set-scheme->abssyn-let-insertion! #f)
 (set-memo-optimize! #f)
 
 ;;; this is vital in order to guarantee that every lambda carries
@@ -15,7 +15,7 @@
 ;;; interface to create generating extensions
 ;;; syntax constructors
 (define (make-ge-var l v)
-  `(_VAR ,l ,v))
+  v)
 (define (make-ge-const c)
   `',c)
 (define (make-ge-cond l lb c t e)
@@ -27,8 +27,7 @@
 (define (make-ge-call f bts args)
   `(,f ,@args))
 (define (make-ge-let hl unf? bl v e body)
-  ;;`(LET ((,v ,e)) ,body)
-  `(_LET ,hl ,unf? ,bl ((,v ,e)) ,body))
+  `(LET ((,v ,e)) ,body))
 (define (make-ge-begin hl prop? e1 e2)
   `(_BEGIN ,hl ,prop? ,e1 ,e2))
 (define (make-ge-lambda-memo l vars btv label fvars bts body)
@@ -63,28 +62,19 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; an implementation using macros
 
-(define-syntax _var
-  (syntax-rules ()
-    ((_ 0 v)
-     v)
-    ((_ 1 v)
-     (if (symbol? v)			;HACK
-	 (make-residual-var v)
-	 v))))
-
 (define-syntax _complete
   (syntax-rules ()
     ((_ body)
      (let ((var (gensym-local 'mlet)))
        (shift k (make-residual-let-trivial
-		 var body (list (k (make-residual-var var)))))))))
+		 var body (list (k var))))))))
 
 (define-syntax _complete-serious
   (syntax-rules ()
     ((_ body)
      (let ((var (gensym-local 'mlet)))
        (shift k (make-residual-let-serious
-		 var body (list (k (make-residual-var var)))))))))
+		 var body (list (k var))))))))
 
 (define-syntax _app
   (syntax-rules ()
@@ -152,17 +142,6 @@
     (if (= lv 1)
 	fun
 	`(_VLAMBDA ,(pred lv) ',arity ',var ,fun))))
-
-(define-syntax _let
-  (syntax-rules ()
-    ((_ 0 u? bl ((?v e)) body)
-     (let ((?v e)) body))
-    ((_ 1 u? bl ((?v e)) body)
-     (_let-internal-1 u? bl '?v (reset e) (lambda (?v) body)))))
-
-(define (_let-internal-1 unf? bl orig-var e f)
-  (let ((var (gensym-local orig-var)))
-    (shift k (make-residual-let-serious var e (list (reset (k (f var)))))))) ;why serious?
 
 (define-syntax _begin
   (syntax-rules ()
@@ -298,8 +277,6 @@
     (if (= level 1)
 	;; generate call to fn with actual arguments
 	(_complete-serious
-	 (apply make-residual-call
-		(make-residual-var res-name)
-		(map (lambda (arg) (_var 1 arg)) actuals)))
+	 (apply make-residual-call res-name actuals))
 	;; reconstruct multi-memo
 	(error "this should not happen"))))
