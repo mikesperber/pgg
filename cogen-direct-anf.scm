@@ -40,7 +40,7 @@
     ((_app_memo 0 f arg ...)
      ((f 'VALUE) arg ...))
     ((_app_memo lv e ...)
-     (_complete (make-residual-generator _APP_MEMO (pred lv) e ...)))))
+     (_complete (make-residual-generator '_APP_MEMO (pred lv) e ...)))))
 
 (define-syntax _lambda
   (syntax-rules ()
