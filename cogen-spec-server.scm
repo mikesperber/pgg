@@ -158,7 +158,8 @@
 	   (let ((wrapped-pp
 		  (wrap-similar-program-point
 		   full-pp bts last-unwrapped-pp last-wrapped-pp)))
-	     (I-register-memo-point! wrapped-pp res-name local-id bts fct)))
+	     ;; ### how do we pass the async option?
+	     (I-register-memo-point! #f wrapped-pp res-name local-id bts fct)))
        (if (= level 1)
 	   ;; generate call to fn with actual arguments
 	   (_complete-serious
@@ -180,16 +181,17 @@
 
 (define *server-master-aspace* #f)
 
-(define (I-am-unemployed)
-  ;; (display "I am unemployed") (newline)
+(define (I-am-idle async?)
+  ;; (display "I am idle") (newline)
   (remote-run! *server-master-aspace*
-	       server-is-unemployed
-	       (local-aspace-uid)))
+	       server-is-idle
+	       (local-aspace-uid)
+	       async?))
 
-(define (I-register-memo-point! program-point name local-id bts fct)
+(define (I-register-memo-point! async? program-point name local-id bts fct)
   (remote-run! *server-master-aspace*
 	       server-registers-memo-point!
-	       (local-aspace-uid) program-point name local-id bts fct))
+	       (local-aspace-uid) async? program-point name local-id bts fct))
 
 (define (can-I-work-on local-id)	; synchronous
   (call-with-values
@@ -204,8 +206,8 @@
   (remote-run! *server-master-aspace*
 	       server-working-on (local-aspace-uid) local-id))
 
-(define (server-initialize! uid)
-  (display "Initializing, uid ") (display uid) (newline)
+(define (server-initialize! uid async?)
+  ;; (display "Initializing, uid ") (display uid) (newline)
   (set! *server-master-aspace* (uid->aspace uid))
   (set! *local-id-count* 0)
   (set! *local-kill-count* 0)
@@ -214,7 +216,7 @@
   (local-pending-initialize!)
   (local-resid-initialize!)
   (set! *server-status-lock* (make-lock))
-  (I-am-unemployed))
+  (I-am-idle async?))
 
 ;;; Specialization work
 ;;; receives wrapped program points
@@ -240,7 +242,7 @@
 			     (loop entry))
 			   (loop maybe-entry))))
 		 (else (inner-loop))))
-	      (I-am-unemployed)))))))
+	      (I-am-idle #f)))))))
 
 (define last-wrapped-pp #f)
 (define last-unwrapped-pp #f)
@@ -307,7 +309,7 @@
 	(begin
 	  (set! *server-current-local-id* #f) 
 	  (release-lock *server-status-lock*)
-	  (I-am-unemployed)))))
+	  (I-am-idle #t)))))
 
 (define (server-kill-specialization! local-id)
   ;; (display "Trying to kill local id ") (display local-id) (newline)
