@@ -1,0 +1,10 @@
+(define (main d y)
+  (let ((f (lambda (z) (+ z y)))
+	(g (lambda (z) (- z y))))
+    (cons (mymap f d)
+	  (mymap g d))))
+
+(define (mymap f l)
+  (if (null? l)
+      '()
+      (cons (f (car l)) (mymap f (cdr l)))))
