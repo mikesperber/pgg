@@ -2,9 +2,10 @@
 
 ;;; binding-time analysis
 ;;; `d*' list of function definitions
-;;; `dt*' list of define-type definitions
+;;; `symtab' is an initial symbol table where only constructors,
+;;; selectors, and constructor test are defined
 ;;; `skeleton' function call with arguments replaced by binding times
-(define (bta-run d* dt* skeleton)
+(define (bta-run d* symtab skeleton)
   (let* ((goal-proc (car skeleton))
 	 (bts (cdr skeleton))
 	 (d (annDefLookup goal-proc d*))
@@ -12,13 +13,13 @@
 	 (d0 (annMakeDef '$goal formals
 			 (annMakeCall goal-proc (map annMakeVar formals))))
 	 (d* (cons d0 d*))
-	 (symtab (scheme->abssyn-define-type dt*))
 	 (dummy (bta-collect-d symtab d*))
 	 (proctv (bta-get-ecr (annDefFetchProcBTVar d0)))
 	 (procsig (bta-c-fetch-ctor-args (tv-get-leq-field proctv))))
     (bta-make-dynamic (car procsig))	;goal-proc returns dynamic
     (map (bta-assert symtab) bts (cdr procsig))
     (bta-solve-d d*)
+    ;;(pp d*);;display
     d*
     ))
 ;;; assert binding time `bt' for `tv'
@@ -204,9 +205,9 @@
 	 d*)))
 
 ;;; bta-collect returns the outer binding-time type variable of e
-;;; ... CONSTRUCTOR SECTION TO BE COMPLETED ...
 (define (bta-collect e symtab)
   (let loop ((e e))
+    ;; (display "bta-collect ") (display e) (newline)
     (let ((pi (tv-make)) (po (tv-make)))
       (annExprSetBTi! e pi)
       (annExprSetBTo! e po)
@@ -277,13 +278,13 @@
 			       (list pi)
 			       (nlist (- nr-arg comp) tv-make)
 			       (nlist nr-post tv-make)))
-	  (bta-add-dependent po pi))
+	  (bta-add-dependent po pi)))
        ((annIsTest? e)
 	(let* ((po (loop (annFetchTestArg e)))
 	       (desc (annFetchTestDesc e)))
 	  (bta-add-leq po (desc-type desc) (nlist (desc-nt desc) tv-make))
 	  (bta-add-leq pi '***static*** '())
-	  (bta-add-dependent po pi)))))
+	  (bta-add-dependent po pi))))
       po)))
 
 (define (bta-add-leq tv ctor args)

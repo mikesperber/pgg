@@ -1,26 +1,39 @@
-(set! *residual-program* '()) 
-(set! *memolist* '()) 
-(define ppp
-  (bta-run (scheme->abssyn-d (file->list "examples/app.scm")) '(app s d)))
-(writelpp (generate-d ppp) "gex.scm")
+;;; specialize append
+(define ppp (cogen-driver '("examples/app.scm") '(app s d)))
+(writelpp ppp "append-gex.scm")
 ;;; load generating extension
-(load "gex.scm")
+(load "append-gex.scm")
 (define level1
-  ((multi-memo 2
+  ((start-memo 2
 	       '$goal
 	       '(1 2)
-	       (list (lambda (k) (k 'XXX)) (lambda (k) (k 'YYY))))
+	       (list (result-c 'XXX) (result-c 'YYY)))
    id))
-(writelpp *residual-program* "resid1.scm") 
-(set! *residual-program* '()) 
-(set! *memolist* '()) 
-(load "resid1.scm")
+(writelpp *residual-program* "append-resid1.scm") 
+(load "append-resid1.scm")
 (define level2
-  ((multi-memo 1
+  ((start-memo 1
 	       (cadr (list-ref level1 2))
 	       (cadr (list-ref level1 3))
-	       (list (lambda (k) (k '(a b c))) (lambda (k) (k 'YYY))))
+	       (list (result-c '(a b c)) (result-c 'YYY)))
    id))
-(writelpp *residual-program* "resid2.scm") 
-(set! *residual-program* '()) 
-(set! *memolist* '()) 
+(writelpp *residual-program* "append-resid2.scm") 
+;;;
+;;; specialize something with partially static stuff
+(define ppp (cogen-driver '("examples/ctors.scm") '(main s d))) 
+(writelpp ppp "ctors-gex.scm")
+(load "ctors-gex.scm")
+(define level1
+  ((start-memo 2
+	       '$goal
+	       '(1 2)
+	       (list (result-c 'XXX) (result-c 'YYY)))
+   id))
+(writelpp *residual-program* "ctors-resid1.scm") 
+(load "ctors-resid1.scm")
+(define level2
+  ((start-memo 1
+	       (cadr (list-ref level1 2))
+	       (cadr (list-ref level1 3))
+	       (list (result-c '(a b c)) (result-c 'YYY)))
+   id))

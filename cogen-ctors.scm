@@ -1,30 +1,41 @@
 ;;; cogen-ctors
 ;;; definitions that implement constructors
 ;;; example:
-;;; (defconstr (nil) (cons car cdr))
+;;; (defdata type-name (nil) (cons car cdr))
 ;;; defines a datatype with two constructors, the nullary "nil" and
 ;;; the binary "cons", the selectors of the latter being "car" and "cdr"
-(define-syntax defconstr
+(define-syntax defdata
   (lambda (x r c)
-    (cons (r 'begin)
+    (let ((%begin (r 'begin))
+	  (%car (r 'car))
+	  (%define (r 'define))
+	  (%equal? (r 'equal?))
+	  (%list (r 'list))
+	  (%list-ref (r 'list-ref)))
+    (cons %begin
+	  (apply append
 	  (map (lambda (ctor-decl)
+		 (let* ((ctor-name (car ctor-decl))
+			(ctor-test (string->symbol (string-append
+						    (symbol->string
+						     ctor-name) "?"))))
 		 (cons
-		  `(,(r 'define)
+		  `(,%define
 		    ,ctor-decl
-		    (,(r 'list) ',(car ctor-decl)
-				,@(cdr ctor-decl)))
+		    (,%list ',(car ctor-decl)
+			    ,@(cdr ctor-decl)))
+		  (cons
+		   `(,%define (,ctor-test arg)
+			      (,%equal? (,%car arg) ',ctor-name))
 		  (let loop ((sels (cdr ctor-decl)) (i 1))
 		    (if (null? sels)
 			'()
 			(cons
-			 `(,(r 'define)
+			 `(,%define
 			   (,(car sels) x)
-			   (,(r 'list-ref) x ,i))
-			 (loop (cdr sels) (+ i 1)))))))
-	       (cdr x)))))
-;;; gives error:
-;;; Error: exception
-;;;        (record-ref ':definition 1)
+			   (,%list-ref x ,i))
+			 (loop (cdr sels) (+ i 1)))))))))
+	       (cddr x)))))))
 ;;;
 ;;;(define-syntax defctor
 ;;;  (lambda (x r c)
@@ -34,6 +45,8 @@
 ;;;
 ;;; define-syntax does not work as a single expression must expand to
 ;;; another single expression
+;;; no there was a format error, furthermore the form (begin <define>
+;;; ...) is explicitly allowed for (essential syntax)!
 
 (define (ctors-generate-define defconstr-clause)
   (map (lambda (ctor-decl)

@@ -2,7 +2,8 @@
 
 ;;; the main entry point
 ;;; `job-file' contains a list of file names which contain the source
-;;; code and declarations for the current project
+;;; code and declarations for the current project (can also be the
+;;; list of filenames itself)
 ;;; `skeleton' is a prototype call with arguments replaced by their
 ;;; binding times 
 ;;; proposal for specifying partially static input: a list containing
@@ -10,21 +11,31 @@
 ;;; '((anil) (acons d *)) means "expect a list with static spine
 ;;; and dynamic elements"; it is a shorthand for the recursive type 
 ;;; \mu \alpha . ANIL + CONS d \alpha.
-(define (cogen-driver job-file skeleton)
+(define (cogen-driver job-file/files skeleton)
   (let* ((source-files
-	  (map symbol->string (file->list job-file)))
+	  (if (string? job-file/files)
+	      (map symbol->string (file->list job-file/files))
+	      job-file/files))
 	 (full-source
 	  (apply append (map file->list source-files)))
 	 (def-function*
 	   (filter (lambda (defn) (equal? (car defn) 'define))
 		   full-source))
 	 (def-datatype*
-	   (filter (lambda (defn) (equal? (car defn) 'define-type))
+	   (filter (lambda (defn) (equal? (car defn) 'defdata))
 		   full-source))
+	 (def-typesig*
+	   (filter (lambda (defn) (equal? (car defn) 'deftype))
+		   full-source))
+	 (symbol-table
+	  (scheme->abssyn-define-type def-datatype*))
 	 (d*
-	  (bta-run (scheme->abssyn-d def-function*) def-datatype* skeleton)))
+	  (bta-run (scheme->abssyn-d def-function* symbol-table)
+		   symbol-table
+		   skeleton)))
     (generate-d d*)
-    *generating-extension*)) 
+    (append def-datatype*
+	    *generating-extension*))) 
 ;;; TO DO:
 ;;; - error recognition & handling
 ;;; - remove Similix dependencies (i.e., file->list, anythingelse?) 

@@ -3,6 +3,7 @@
 (define (id x) x)
 ;;; successor
 (define (succ x) (+ x 1))
+(define (pred x) (- x 1))
 ;;; unit of the continuation monad
 (define (result-c v) (lambda (k) (k v)))
 ;;; symbol generation
@@ -46,6 +47,11 @@
 	(if (member el s2)
 	    rest
 	    (cons el rest))))) 
+
+(define (set-union* . sets)
+  (if (null? sets)
+      '()
+      (set-union (car sets) (apply set-union* (cdr sets)))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define (filter p xs)
   (if (null? xs)
@@ -53,3 +59,12 @@
       (if (p (car xs))
 	  (cons (car xs) (filter p (cdr xs)))
 	  (filter p (cdr xs))))) 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; I/O: read a list of Scheme objects
+(define (file->list filename)
+  (with-input-from-file filename
+    (lambda ()
+      (let loop ((obj (read)))
+	(if (eof-object? obj)
+	    '()
+	    (cons obj (loop (read)))))))) 

@@ -1,6 +1,13 @@
-E ::= K | V | (if E E E) | (O E*) | (P E*) |
-      (let ((V E)*) E) | (let* ((V E)*) E) |
-      (lambda (V*) E) | (E E*) |
-      (C E*) | (Ci E) | (C? E)
-D ::= (define (P V*) E) | (define-type T (C Ci*)+)
-prog ::= D+
+E ::=	K | V | (if E E E) | (cond (E E)* (else E)?) |
+	(O E*) | (P E*) | (begin E*)
+	(let ((V E)*) E*) | (let* ((V E)*) E*) |
+	(letrec ((V (lambda (V*) E*))*) E*) |
+	(let P ((V E)*) E*) |
+	(lambda (V*) E*) | (E E*) |
+	(C E*) | (Ci E) | (C? E)
+D ::=	(define (P V*) E*) |
+	(defdata T (C Ci*)+) |
+	(deftype (P B*) B) |
+	(deftype (O B*) B)
+B ::=	* | d
+prg ::= D+

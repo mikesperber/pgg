@@ -43,20 +43,22 @@
   (lambda (kappa)
     (let ((vars (nlist arity (lambda ()
 			       (let ((var (gensym 'fresh)))
-				 (lambda (kappa) (kappa var)))))))
+				 (lambda (kappa) (kappa var))))))
+	  (bts (map pred bts)))
       (if (= lv 1)
 	  (kappa
-	   (let ((closed-value (gensym 'value)))
-	     `(LET ((,closed-value (LAMBDA ,fvs
-				     (LAMBDA ,(map (lambda (cv) (cv id)) vars)
-				       ,((f vars) id)))))
-		(STATIC-CONSTRUCTOR ',label ,closed-value ,fvs ',bts))))
+	   `(STATIC-CONSTRUCTOR ',label
+			       (LAMBDA ,fvs
+				 (LAMBDA ,(map (lambda (cv) (cv id)) vars)
+				   ,((f vars) id)))
+			       (LIST ,@fvs)
+			       ',bts))
 	  (kappa `(_LAMBDA_MEMO
 		   ,(- lv 1)
 		   ,arity
 		   ',label
 		   ',fvs
-		   ',(map (lambda (y) (- y 1)) bts)
+		   ',bts
 		   (LAMBDA ,vars ,((f vars) id))))))))
 
 ;;; lambdas that are never memoized
@@ -94,17 +96,14 @@
     (lib-arg-list
      argsc
      (lambda (args)
+       (let ((bts (map pred bts)))
        (if (= lv 1)
 	   (kappa
-	    (let ((closed-value (gensym 'value))
-		  (vars (map (lambda (z) (gensym 'arg)) args)))
-	      `(LET ((,closed-value (LAMBDA ,vars
-				      (LIST ',ctor ,@vars))))
-		 (STATIC-CONSTRUCTOR ',ctor ,closed-value ,args ',bts))))
+	    `(STATIC-CONSTRUCTOR ',ctor ,ctor (LIST ,@args) ',bts))
 	   (kappa
 	    `(_CTOR ,(- lv 1)
-		    ,(map (lambda (y) (- y 1)) bts)
-		    ',ctor ,@args)))))))
+		    ',bts
+		    ',ctor ,@args))))))))
 
 ;;; selectors for constructors with memoization
 (define (_sel_memo lv ctor i arg)
@@ -113,8 +112,8 @@
      (lambda (v)
        (if (= lv 1)
 	   (let ((var (gensym 'fresh)))
-	     (kappa `(LET ((,var ,(v 'VALUE)))
-		       (IF (AND (PAIR? ,var) (EQUAL? (CAR ,var) ,ctor))
+	     (kappa `(LET ((,var (,v 'VALUE)))
+		       (IF (AND (PAIR? ,var) (EQUAL? (CAR ,var) ',ctor))
 			   (LIST-REF ,var ,i)
 			   (ERROR)))))
 	   (kappa `(_SEL ,(- lv 1) ',ctor ',i ,v)))))))
@@ -126,9 +125,9 @@
      (lambda (v)
        (if (= level 1)
 	   (let ((var (gensym 'fresh)))
-	     (kappa `(LET ((,var ,(v 'VALUE)))
+	     (kappa `(LET ((,var (,v 'VALUE)))
 		       (AND (PAIR? ,var)
-			    (EQUAL? (CAR ,var) ,ctor)))))
+			    (EQUAL? (CAR ,var) ',ctor)))))
 	   (kappa `(_TEST ,(- level 1) ',ctor ,v)))))))
 
 ;;; conditional
@@ -283,6 +282,11 @@
        (lambda (arg)
 	 (lib-arg-list (cdr argsc)
 		       (lambda (args) (c (cons arg args))))))))
+
+(define (start-memo level fn bts argsc)
+  (set! *residual-program* '()) 
+  (set! *memolist* '())
+  (multi-memo level fn bts argsc))
 
 ;;;
 ;;; the memo-function
