@@ -19,26 +19,29 @@
 	 (full-source
 	  (apply append (map file->list source-files)))
 	 (def-function*
-	   (filter (lambda (defn) (or (equal? (car defn) 'define)
-				      (equal? (car defn) 'define-without-memoization)))
+	   (filter (lambda (defn) (or (eq? (car defn) 'define)
+				      (eq? (car defn) 'define-without-memoization)))
 		   full-source))
 	 (def-datatype*
-	   (filter (lambda (defn) (equal? (car defn) 'define-data))
+	   (filter (lambda (defn) (eq? (car defn) 'define-data))
 		   full-source))
 	 (def-typesig*
-	   (filter (lambda (defn) (equal? (car defn) 'define-type))
+	   (filter (lambda (defn) (eq? (car defn) 'define-type))
 		   full-source))
 	 (def-opsig*
-	   (filter (lambda (defn) (equal? (car defn) 'define-primitive))
+	   (filter (lambda (defn) (eq? (car defn) 'define-primitive))
 		   full-source))
 	 (def-memo*
-	   (filter (lambda (defn) (equal? (car defn) 'define-memo))
+	   (filter (lambda (defn) (eq? (car defn) 'define-memo))
+		   full-source))
+	 (def-syntax*
+	   (filter (lambda (defn) (eq? (car defn) 'define-syntax))
 		   full-source))
 	 (symbol-table
 	  (scheme->abssyn-define-type
 	   def-datatype* def-typesig* def-opsig* def-memo*))
 	 (d*
-	  (bta-run (scheme->abssyn-d def-function* symbol-table)
+	  (bta-run (scheme->abssyn-d def-function* def-syntax* symbol-table)
 		   symbol-table
 		   skeleton
 		   def-datatype*

@@ -34,6 +34,7 @@
 	  (if (equal? (car key*) key)
 	      (car val*)
 	      (loop (cdr key*) (cdr val*)))))))
+
 (define map-ff
   (lambda (fun ff)
     (let loop ((ff ff))
@@ -51,6 +52,21 @@
        (else
 	(error "map-ff: finite function expected"))))))
 
+(define for-each-ff!
+  (lambda (proc! ff)
+    (let loop ((ff ff))
+      (cond
+       ((empty-ff? ff)
+	'done)
+       ((extended-ff? ff)
+	(proc! (extended-ff->val ff))
+	(loop (extended-ff->ff ff)))
+       ((extended-ff*? ff)
+	(for-each proc! (extended-ff*->val* ff))
+	(loop (extended-ff*->ff ff)))
+       (else
+	(error "map-ff: finite function expected"))))))
+
 ;;; environments
 
 (define the-empty-env (new-ff))
@@ -58,3 +74,4 @@
 (define extend-env* extend-ff*)
 (define apply-env apply-ff)
 (define map-env map-ff)
+(define for-each-env! for-each-ff!)

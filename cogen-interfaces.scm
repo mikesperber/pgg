@@ -295,7 +295,8 @@
 	  extend-env
 	  extend-env*
 	  apply-env
-	  map-env))
+	  map-env
+	  for-each-env!))
 
 (define-structure cogen-env cogen-env-interface
   (open scheme signals cogen-record)
@@ -420,14 +421,35 @@
   (open scheme cogen-record cogen-env)
   (files cogen-typesig))
 
+(define-interface cogen-macro-interface
+  (export syntax-make-pop-mark
+	  syntax-marked-exp
+	  syntax-pop-mark?
+	  syntax-null?
+	  syntax-pair?
+	  syntax-car
+	  syntax-cdr
+	  syntax-map
+	  syntax-depth
+	  syntax-strip
+	  syntax-eq?
+	  syntax-eq-symbol?
+	  parse-syntax-rules
+	  syntax-rules-transformer))
+
+(define-structure cogen-macro cogen-macro-interface
+  (open scheme signals
+	cogen-env)
+  (files cogen-macro))
+
 (define-interface cogen-scheme-interface
   (export scheme->abssyn-define-type
 	  scheme->abssyn-d
 	  desc-type desc-np desc-nc desc-nt))
 
 (define-structure cogen-scheme cogen-scheme-interface
-  (open scheme auxiliary
-	cogen-globals cogen-typesig
+  (open scheme auxiliary signals
+	cogen-globals cogen-typesig cogen-macro
 	cogen-abssyn cogen-env cogen-record cogen-bta)
   (files cogen-scheme))
 
@@ -513,7 +535,8 @@
 	  list-or
 	  take
 	  ((load-program) :syntax)
-	  file->list writelpp writel count-cells))
+	  file->list writelpp writel count-cells
+	  display-line spaces))
 
 (define-structure auxiliary auxiliary-interface
   (open scheme pretty-print)

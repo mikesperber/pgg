@@ -216,3 +216,9 @@
   (if (pair? x)
       (+ 1 (count-cells (car x)) (count-cells (cdr x)))
       1))
+;;;
+(define (display-line . objs)
+  (for-each display objs)
+  (newline))
+(define (spaces n)
+  (make-string n #\space))
