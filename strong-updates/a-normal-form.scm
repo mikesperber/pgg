@@ -24,7 +24,9 @@
   nr
   info
   rpass
-  rreturn)
+  rreturn
+  (saved-rpass #f)
+  (saved-rreturn #f))
 (define-record anf-ctor (name actuals))	;values -> comp 
 (define-record anf-sel (name actual))	;value -> comp
 (define-record anf-test (name actual))	;value -> comp

@@ -18,8 +18,8 @@
     (let loop ((commands commands))
       (if (null? commands)
 	  'done
-	  (begin
-	    (case (car commands)
+	  (let ((command (car commands)))
+	    (case command
 	      ((alloc-flowmap)  (set! flowmap (new-flowmap)))
 	      ((alloc-reachmap) (allocate-pass-return! *anf-app-map*))
 	      ((alloc-single)   (allocate-avals-single-astore d* flowmap))
@@ -34,11 +34,25 @@
 	      ((disp-refcardmap) (refcardmap-display))
 	      ((disp-reachmap)  (reachmap-display *anf-app-map*))
 	      ((disp-astore)	(all-astore-display))
+	      ((disp-init)	(all-init-display))
+	      ((disp-ana-var)	(display-analyze-varcardmap))
+	      ((disp-ana-ref)	(display-analyze-refcardmap))
 	      ((latex-def)	(latex-display-anf-d* d*))
 	      ((latex-flowmap)	(latex-display-flowmap flowmap))
 	      ((latex-varcardmap) (latex-display-varcardmap))
 	      ((latex-refcardmap) (latex-display-refcardmap))
 	      ((latex-reachmap) (latex-display-reachmap *anf-app-map*))
-	      ((latex-astore)	(latex-display-all-astore)))
+	      ((latex-astore)	(latex-display-all-astore))
+	      ((latex-init)	(latex-display-all-init))
+	      (else
+	       (if (pair? command)
+		   (case (car command)
+		     ((fix) (save-reachmap! *anf-app-map*)
+			    (loop (cdr command))
+			    (if (equal-reachmap? *anf-app-map*)
+				'fixpoint-reached
+				(loop commands)))
+		     ((begin) (loop (cdr command))
+			      (loop commands))))))
 	    (loop (cdr commands))))))) 
 

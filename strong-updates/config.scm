@@ -68,12 +68,17 @@
 	  collect!
 	  new-flowmap
 	  *anf-app-map*
+	  save-reachmap!
+	  equal-reachmap?
 	  flowmap-display	latex-display-flowmap
 	  anf-display-d*	latex-display-anf-d*
 	  refcardmap-display	latex-display-refcardmap
 	  varcardmap-display	latex-display-varcardmap
 	  reachmap-display	latex-display-reachmap
 	  all-astore-display	latex-display-all-astore
+	  all-init-display	latex-display-all-init
+	  display-analyze-varcardmap
+	  display-analyze-refcardmap
 	  ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -74,10 +74,13 @@
     result))
 
 (define (anf-convert-d d)
-  (make-anf-def (annDefFetchProcName d)
-		(anf-convert-top (annMakeLambda 0
-						(annDefFetchProcFormals d)
-						(annDefFetchProcBody d)))))
+  (let ((name (annDefFetchProcName d))
+	(formals (annDefFetchProcFormals d))
+	(body	(annDefFetchProcBody d)))
+    (if formals
+	(make-anf-def name
+		      (anf-convert-top (annMakeLambda 0 formals body)))
+	(make-anf-def name (anf-convert-top body)))))
 
 (define (anf-convert-e* e* v make-anf c)
   (let rec ((args e*) (conv-args '()))
@@ -201,10 +204,13 @@
 		      (lambda (conv-rands)
 			(make-anf-celleq  conv-rands))
 		      c))
+     ((annIsEval? e)
+      (let ((args (list (annFetchEvalBody e))))
+	(anf-convert-e* args v (lambda (conv-args)
+				 (make-anf-op 'eval conv-args))
+			c)))
      ((annIsLift? e)
       (error "Lift ignored"))
-     ((annIsEval? e)
-      (error "Eval ignored"))
      ((annIsMemo? e)
       (error "Memo ignored"))
      (else
