@@ -21,7 +21,7 @@
 (define (specialize goal-proc memo-template args . new-goal)
   ;; memo-template = (goal-proc-name bt ...)
   (prepare!)
-  (specialize-after-prepare))
+  (apply specialize-after-prepare goal-proc memo-template args new-goal))
 
 (define (specialize-after-prepare goal-proc memo-template args . new-goal)
   (let* ((bts (cdr memo-template))
