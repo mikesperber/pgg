@@ -69,7 +69,7 @@ cogen_examples = \
 	examples/pure-arith.scm \
 	examples/unify-aux.scm \
 	examples/unify.scm
-additional_files = Makefile RUN_ME
+additional_files = Makefile
 
 cogen-load-gambit.scm : Makefile
 	(echo "(load \"$(gambit_shift_reset)\")" ; \
