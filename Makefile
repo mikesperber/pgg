@@ -36,7 +36,8 @@ cogen_base_files = pp.scm \
 	cogen-memo-standard.scm \
 	cogen-skeleton.scm \
 	cogen-terminate.scm \
-	cogen-driver.scm
+	cogen-driver.scm \
+	scheme-standard-macros.scm
 
 cogen_cps_files = cogen-cps.scm
 cogen_ds_files = cogen-direct-anf.scm
