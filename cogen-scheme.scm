@@ -96,6 +96,10 @@
 				     (annMakeVref
 				      (ann-maybe-coerce (car args))
 				      (ann-maybe-coerce (cadr args)))) 2)
+		 (list 'VECTOR-LENGTH (lambda (tag args)
+					(scheme->abssyn-static-references-yes!)
+					(annMakeVlen
+					 (ann-maybe-coerce (car args)))) 1)
 		 (list 'VECTOR-SET! (lambda (tag args)
 				      (scheme->abssyn-static-references-yes!)
 				      (annMakeVset
@@ -103,6 +107,12 @@
 				       (ann-maybe-coerce (car args))
 				       (ann-maybe-coerce (cadr args))
 				       (ann-maybe-coerce (caddr args)))) 3)
+		 (list 'VECTOR-FILL! (lambda (tag args)
+				       (scheme->abssyn-static-references-yes!)
+				       (annMakeVfill
+					(scheme->abssyn-make-label)
+					(ann-maybe-coerce (car args))
+					(ann-maybe-coerce (cadr args)))) 2)
 		 (list 'CELL-EQ? (lambda (tag args)
 				   (scheme->abssyn-static-references-yes!)
 				   (annMakeCellEq args)) 2))

@@ -364,6 +364,15 @@
 	(if (and *memo-optimize* (<= memo-level level))
 	    (make-ge-op level 'VECTOR-REF (list (loop arg) (loop index)))
 	    (make-ge-vector-ref-memo level (loop arg) (loop index)))))
+     ((annIsVlen? e)
+      (let* ((vec   (annFetchVlenVec e))
+	     (level (annExprFetchLevel vec))
+	     (memo-level
+	      (ann->bt
+	       (type->memo (node-fetch-type (annExprFetchType vec))))))
+	(if (and *memo-optimize* (<= memo-level level))
+	    (make-ge-op level 'VECTOR-LENGTH (list (loop vec)))
+	    (make-ge-vector-length-memo level (loop vec)))))
      ((annIsVset? e)
       (let* ((vec (annFetchVsetVec e))
 	     (index (annFetchVsetIndex e))
@@ -375,6 +384,16 @@
 	(if (and *memo-optimize* (<= memo-level level))
 	    (make-ge-op level 'VECTOR-SET! (list (loop vec) (loop index) (loop arg)))
 	    (make-ge-vector-set!-memo level (loop vec) (loop index) (loop arg)))))
+     ((annIsVfill? e)
+      (let* ((vec (annFetchVfillVec e))
+	     (arg (annFetchVfillArg e))
+	     (level (annExprFetchLevel vec))
+	     (memo-level
+	      (ann->bt
+	       (type->memo (node-fetch-type (annExprFetchType vec))))))
+	(if (and *memo-optimize* (<= memo-level level))
+	    (make-ge-op level 'VECTOR-FILL! (list (loop vec) (loop arg)))
+	    (make-ge-vector-fill!-memo level (loop vec) (loop arg)))))
      (else
       (error "cogen-skeleton:generate unrecognized syntax")))))
 

@@ -220,7 +220,7 @@
 	    (lambda (normalized)
 	      (address-map->new-cell normalized)))))))))
 
-;;; procedures for dealing with references
+;;; procedures for dealing with vectors
 (define (static-vector label size value bt)
   (let ((static-address (gen-address label))
 	(the-vector (make-vector size value))
@@ -238,6 +238,15 @@
 	   (reference-log-register static-address the-vector index
 				   (vector-ref the-vector index))
 	   (vector-set! the-vector index arg)))
+	((vector-fill!)
+	 (lambda (arg)
+	   (let loop ((i (- size 1)))
+	     (if (>= i 0)
+		 (begin
+		   (reference-log-register static-address the-vector i
+					   (vector-ref the-vector i))
+		   (loop (- i 1)))))
+	   (vector-fill! the-vector arg)))
 	((static)
 	 (register-address
 	  static-address

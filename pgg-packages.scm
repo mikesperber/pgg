@@ -139,12 +139,20 @@
 	  annIsVref?
 	  annFetchVrefArg
 	  annFetchVrefIndex
+	  annMakeVlen
+	  annIsVlen?
+	  annFetchVlenVec
 	  annMakeVset
 	  annIsVset?
 	  annFetchVsetLabel
 	  annFetchVsetVec
 	  annFetchVsetIndex
 	  annFetchVsetArg
+	  annMakeVfill
+	  annIsVfill?
+	  annFetchVfillLabel
+	  annFetchVfillVec
+	  annFetchVfillArg
 	  annMakeEval
 	  annIsEval?
 	  annFetchEvalBody
@@ -198,7 +206,9 @@
 	  make-ge-eval
 	  make-ge-make-vector-memo
 	  make-ge-vector-ref-memo
+	  make-ge-vector-length-memo
 	  make-ge-vector-set!-memo
+	  make-ge-vector-fill!-memo
 	  make-ge-make-cell-memo
 	  make-ge-cell-ref-memo
 	  make-ge-cell-set!-memo

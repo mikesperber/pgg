@@ -72,8 +72,9 @@
 	    _lift
 	    _eval
 	    _MAKE-CELL_MEMO
-	    _CELL-SET!_MEMO
-	    _CELL-EQ?_MEMO)
+	    _CELL-EQ?_MEMO
+	    _MAKE-VECTOR_MEMO
+	    _MESSAGE!_MEMO)
 	   :syntax)))
 
 (define-interface cogen-anf-compile-interface
@@ -188,6 +189,7 @@
 	  *generating-extension*
 	  *termination-analysis*
 	  *generate-flat-program*
+	  *lambda-is-pure*
 	  set-generate-flat-program!
 	  set-bta-display-level!
 	  set-effect-display-level!
@@ -199,6 +201,7 @@
 	  set-generating-extension!
 	  set-abssyn-maybe-coerce!
 	  set-termination-analysis!
+	  set-lambda-is-pure!
 	  ))
 
 (define-interface cogen-specialize-interface

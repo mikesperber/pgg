@@ -582,12 +582,21 @@
 	      (phi-1 (loop (annFetchVrefIndex e))))
 	  (full-make-base phi-1)
 	  (full-add-leq phi-0 ctor-vector (list phi))))
+       ((annIsVlen? e)
+	(let ((phi-0 (loop (annFetchVlenVec e))))
+	  (full-add-leq phi-0 ctor-vector (list phi))
+	  (full-make-base phi)))
        ((annIsVset? e)
 	(let ((phi-0 (loop (annFetchVsetVec e)))
 	      (phi-1 (loop (annFetchVsetIndex e)))
 	      (phi-2 (loop (annFetchVsetArg e))))
 	  (full-make-base phi-1)
 	  (full-add-leq phi-0 ctor-vector (list phi-2))
+	  (full-make-base phi)))
+       ((annIsVfill? e)
+	(let ((phi-0 (loop (annFetchVfillVec e)))
+	      (phi-1 (loop (annFetchVfillArg e))))
+	  (full-add-leq phi-0 ctor-vector (list phi-1))
 	  (full-make-base phi)))
        (else
 	(error "full-collect: unrecognized syntax")))
@@ -767,6 +776,12 @@
 		 (index-btann (type-fetch-btann index-type)))
 	    (ann+>dlist! index-btann ref-btann)
 	    (ann+>dlist! ref-btann index-btann)))) ;beta_index == beta_ref
+       ((annIsVlen? e)
+	(let ((ref (annFetchVlenVec e)))
+	  (loop ref)
+	  (let* ((ref-type (node-fetch-type (annExprFetchType ref)))
+		 (ref-btann (type-fetch-btann ref-type)))
+	    (ann+>dlist! btann ref-btann)))) ;beta_ref <= beta
        ((annIsVset? e)
 	(let* ((btann (type-fetch-btann type))
 	       (ref (annFetchVsetVec e))
@@ -780,6 +795,14 @@
 		 (index-btann (type-fetch-btann index-type)))
 	    (ann+>dlist! index-btann ref-btann)
 	    (ann+>dlist! ref-btann index-btann)	;beta_index == beta_ref
+	    (ann+>dlist! btann ref-btann)))) ;beta_ref <= beta
+       ((annIsVfill? e)
+	(let* ((btann (type-fetch-btann type))
+	       (ref (annFetchVfillVec e)))
+	  (loop ref)
+	  (loop (annFetchVfillArg e))
+	  (let* ((ref-type (node-fetch-type (annExprFetchType ref)))
+		 (ref-btann (type-fetch-btann ref-type)))
 	    (ann+>dlist! btann ref-btann)))) ;beta_ref <= beta
        (else
 	'nothing-to-do))
@@ -986,10 +1009,15 @@
        ((annIsVref? e)
 	(loop (annFetchVrefArg e))
 	(loop (annFetchVrefIndex e)))
+       ((annIsVlen? e)
+	(loop (annFetchVlenVec e)))
        ((annIsVset? e)
 	(loop (annFetchVsetVec e))
 	(loop (annFetchVsetIndex e))
-	(loop (annFetchVsetArg e)))))))
+	(loop (annFetchVsetArg e)))
+       ((annIsVfill? e)
+	(loop (annFetchVfillVec e))
+	(loop (annFetchVfillArg e)))))))
 
 ;;; bta-introduce-memo returns #t for serious expressions
 ;;; only dynamic ifs and lambdas which guard serious expressions are
@@ -1097,11 +1125,17 @@
 	  (let ((r1 (loop (annFetchVrefArg e)))
 		(r2 (loop (annFetchVrefIndex e))))
 	    (or r1 r2)))
+	 ((annIsVlen? e)
+	  (loop (annFetchVlenVec e)))
 	 ((annIsVset? e)
 	  (let ((r1 (loop (annFetchVsetVec e)))
 		(r2 (loop (annFetchVsetIndex e)))
 		(r3 (loop (annFetchVsetArg e))))
-	    (or r1 r2 r3))))))))
+	    (or r1 r2 r3)))
+	 ((annIsVfill? e)
+	  (let ((r1 (loop (annFetchVfillVec e)))
+		(r2 (loop (annFetchVfillArg e))))
+	    (or r1 r2))))))))
 
 (define introduce-lift-if-needed
   (lambda (bt)
@@ -1201,10 +1235,15 @@
        ((annIsVref? e)
 	`(VECTOR-REF ,(loop (annFetchVrefArg e))
 		     ,(loop (annFetchVrefIndex e))))
+       ((annIsVlen? e)
+	`(VECTOR-LENGTH ,(loop (annFetchVlenVec e))))
        ((annIsVset? e)
 	`(VECTOR-SET! ,(loop (annFetchVsetVec e))
 		      ,(loop (annFetchVsetIndex e))
 		      ,(loop (annFetchVsetArg e))))
+       ((annIsVfill? e)
+	`(VECTOR-FILL! ,(loop (annFetchVfillVec e))
+		       ,(loop (annFetchVfillArg e))))
        (else
 	'unknown-expression))))))
 

@@ -52,11 +52,17 @@
 (define (_lambda-internal lv arity f)
   (let* ((vars (map gensym-local arity))
 	 (body (reset (apply f vars)))
-	 (l (pred lv)))
-    (_complete				;don't duplicate, experimental
-     (if (zero? l)
-	 (make-residual-closed-lambda vars '() body)
-	 `(_LAMBDA ,l ,vars ,body)))))
+	 (l (pred lv))
+	 (generate-lamdba
+	  (if (zero? l)
+	      (lambda ()
+		(make-residual-closed-lambda vars '() body))
+	      (lambda ()
+		`(_LAMBDA ,l ,vars ,body)))))
+    (if *lambda-is-pure*
+	(generate-lamdba)
+	(_complete			;don't duplicate, experimental
+	 (generate-lamdba)))))
 
 (define-syntax _lambda_memo
   (syntax-rules ()
@@ -201,13 +207,6 @@
     ((_make-cell_memo lv lab bt arg)
      (_complete `(_MAKE-CELL_MEMO ,(pred lv) lab ,(pred bt) ,arg)))))
 
-(define-syntax _cell-set!_memo
-  (syntax-rules ()
-    ((_cell-set!_memo 0 ref arg)
-     ((ref 'CELL-SET!) arg))
-    ((_cell-set!_memo lv ref arg)
-     (_complete `(_CELL-SET!_MEMO ,(pred lv) ,ref ,arg)))))
-
 (define-syntax _cell-eq?_memo
   (syntax-rules ()
     ((_cell-eq?_memo 0 ref1 ref2)
@@ -222,12 +221,12 @@
     ((_make-vector_memo lv lab bt size arg)
      (_complete `(_MAKE-VECTOR_MEMO ,(pred lv) lab ,(pred bt) ,size ,arg)))))
 
-(define-syntax _vector-set!_memo
+(define-syntax _message!_memo
   (syntax-rules ()
-    ((_vector-set!_memo 0 v i x)
-     ((v 'VECTOR-SET!) i x))
-    ((_vector-set!_memo lv v i x)
-     (_complete `(_VECTOR-SET!_MEMO ,(pred lv) ,v ,i ,x)))))
+    ((_message!_memo 0 obj msg arg ...)
+     ((obj 'msg) arg ...))
+    ((_message!_memo lv obj msg arg ...)
+     (_complete `(_MESSAGE!_MEMO ,(pred lv) ,obj msg ,arg ...)))))
 
 (define-syntax _if
   (syntax-rules ()

@@ -22,6 +22,8 @@
 
 (define *generate-flat-program* #f)	;do not create a flat program
 
+(define *lambda-is-pure* #t)		;consider lambda as pure
+
 ;;; setter functions
 
 (define (set-generate-flat-program! b)
@@ -52,3 +54,6 @@
 
 (define (set-termination-analysis! v)
   (set! *termination-analysis* v))
+
+(define (set-lambda-is-pure! v)
+  (set! *lambda-is-pure* v))

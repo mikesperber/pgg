@@ -111,7 +111,7 @@ $(BATCH_IMAGE) : $(cogen_files) $(batch_files) cogen-load-s48.scm
 	 echo ",load $(batch_files)"; \
 	 echo ";; ,flush"; \
 	 echo ",collect"; \
-	 echo ",dump $(BATCH_IMAGE) \"(PGG-$(COGEN_VERSION))\""; \
+	 echo ",dump $(BATCH_IMAGE) \"(PGG-$(COGEN_VERSION) made by $$LOGNAME on `date`)\""; \
 	 echo ",exit" ) \
 	| $(SCHEME48) -h $(BATCH_HEAPSIZE)
 
@@ -124,7 +124,7 @@ $(INTERACTIVE_IMAGE) : $(cogen_files) $(config_files)
 	 echo ",open $(cogen_generate_packages)"; \
 	 echo ",open $(cogen_specialize_packages)"; \
 	 echo ",collect"; \
-	 echo ",dump $(INTERACTIVE_IMAGE) \"(PGG-$(COGEN_VERSION))\""; \
+	 echo ",dump $(INTERACTIVE_IMAGE) \"(PGG-$(COGEN_VERSION) made by $$LOGNAME `date`)\""; \
 	 echo ",exit" ) \
 	| $(SCHEME48) -h $(INTERACTIVE_HEAPSIZE)
 
