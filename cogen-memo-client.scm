@@ -25,14 +25,14 @@
   (clear-residual-program!) 
   (clear-memolist!)
   (clear-support-code!)
-  (gensym-local-reset!)
   (gensym-reset!)
-  (let* ((initial-scope (gensym-local-push!))
-	 (result (reset (multi-memo level fname fct bts args)))
+  (let* ((result
+	  (with-fresh-gensym-local
+	   (lambda ()
+	     (reset (multi-memo level fname fct bts args)))))
 	 (result (if (and (pair? result) (eq? (car result) 'LET))
 		     (car (cdaadr result))
 		     result))
-	 (drop-scope (gensym-local-pop!))
 	 (goal-proc (car *residual-program*))
 	 (defn-template (take 2 goal-proc))
 	 ;; kludge alert
@@ -199,19 +199,17 @@
 
 
 (define (specialize-entry entry)
-  (let*
-      ((full-pp (entry->pp entry))
-       (res-name (entry->name entry))
-       (bts (entry->bts entry))
-       (fct (entry->fct entry))
-
-       (enter-scope (gensym-local-push!))
-       (cloned-pp (top-clone-dynamic full-pp bts))
-       (new-formals (apply append (top-project-dynamic cloned-pp bts))))
-    (make-residual-definition! res-name
-			       new-formals
-			       (reset (apply fct (cdr cloned-pp))))
-    (gensym-local-pop!)))
+  (let* ((full-pp (entry->pp entry))
+	 (res-name (entry->name entry))
+	 (bts (entry->bts entry))
+	 (fct (entry->fct entry)))
+    (with-fresh-gensym-local
+     (lambda ()
+       (let* ((cloned-pp (top-clone-dynamic full-pp bts))
+	      (new-formals (apply append (top-project-dynamic cloned-pp bts))))
+	 (make-residual-definition! res-name
+				    new-formals
+				    (reset (apply fct (cdr cloned-pp)))))))))
 
 ;;; cache entries:
 ;;; ->pp	- the full program point

@@ -82,7 +82,8 @@
 
 (define-interface shift-reset-interface
   (export ((shift reset) :syntax)
-	  *shift *reset))
+	  *shift *reset
+	  with-fresh-meta-continuation))
 
 (define-interface define-data-interface
   (export ((define-data) :syntax)))
@@ -138,7 +139,7 @@
 	  ))
 
 (define-interface cogen-specialize-interface
-  (export *memolist* *residual-program* *support-code*
+  (export *memolist* get-residual-program *support-code*
 	  add-to-memolist! clear-memolist! lookup-memolist for-each-memolist
 	  set-residual-program! add-to-residual-program! clear-residual-program!
 	  first-residual-procedure rest-residual-procedures
@@ -170,46 +171,42 @@
   (export gensym-reset!
 	  gensym
 	  gensym-trimmed
-	  gensym-local-reset!
-	  gensym-local-push!
-	  gensym-local-pop!
+	  preserving-gensym-local
+	  with-fresh-gensym-local
+	  with-held-gensym-local
 	  gensym-local-hold
-	  gensym-local-push-old!
 	  gensym-local
 	  gensym-local-trimmed
 	  gensym-ignore-name-stubs!
 	  gensym-use-name-stubs!))
 
 (define-structure cogen-gensym cogen-gensym-interface
-  (open scheme auxiliary)
+  (open scheme
+	fluids
+	cells proposals
+	auxiliary)
   (files cogen-gensym))
-
-(define-interface cogen-boxops-interface
-  (export make-cell cell-ref cell-set!))
 
 (define-structure auxiliary auxiliary-interface
   (open scheme pp)
   (files auxiliary))
 
 (define-structure cogen-specialize cogen-specialize-interface
-  (open scheme cogen-globals)
+  (open scheme
+	cells proposals
+	cogen-globals)
   (files cogen-specialize))
 
 (define-structure define-data define-data-interface
   (open scheme escapes)
   (files cogen-ctors))
 
-(define-structure cogen-boxops cogen-boxops-interface
-  (open scheme)
-  (files cogen-boxops))
-
 (define-structure cogen-globals cogen-globals-interface
   (open scheme)
   (files cogen-globals))
 
-(define-structure shift-reset
-  shift-reset-interface
-  (open scheme signals escapes)
+(define-structure shift-reset shift-reset-interface
+  (open scheme locks tables threads signals escapes)
   (files shift-reset))
 
 (define-structure cogen-residual cogen-residual-interface
@@ -236,10 +233,9 @@
 
 (define-module (make-cogen-library residual completers)
   (structure cogen-library-interface
-    (open scheme signals auxiliary shift-reset threads
+    (open scheme cells signals auxiliary shift-reset threads
 	  completers cogen-specialize
-	  cogen-gensym residual
-	  cogen-boxops)
+	  cogen-gensym residual)
     (files cogen-library)))
 
 (def cogen-library (make-cogen-library cogen-residual 
@@ -265,8 +261,8 @@
 
 (define-module (make-pgg-library residual library completers memo)
   (structure cogen-direct-anf-interface
-    (open scheme escapes signals auxiliary threads placeholders
-	  cogen-gensym cogen-boxops cogen-globals library
+    (open scheme cells escapes signals auxiliary threads placeholders
+	  cogen-gensym cogen-globals library
 	  shift-reset completers memo residual)
     (files cogen-direct-anf)))
 
@@ -279,15 +275,15 @@
   (structure (export ((start-memo define-data) :syntax)
 		     specialize
 		     make-cell cell-ref cell-set!)
-    (open scheme escapes
+    (open scheme cells escapes
 	  define-data
-	  cogen-boxops memo)))
+	  memo)))
 
 (def pgg-residual (make-pgg-residual cogen-memo-standard))
 
 (define-module (make-pgg-specialize memo)
   (structure (export specialize
-		     *residual-program*
+		     get-residual-program
 		     *support-code*)
     (open memo
 	  cogen-specialize)))

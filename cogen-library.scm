@@ -77,39 +77,39 @@
 	 (ctor (gensym 'poly))		;not always correct
 	 (spec-proc
 	  (lambda (pp old-body-statics-boxed value-template-boxed)
-	    (let* ((reinstall (gensym-local-push-old! boxed-gensym-counter))
-		   (cloned (clone-dynamic pp bts))
-		   (dynamics (map car (project-dynamic cloned bts 'dynamic))))
-	      (set-cdr! the-residual-piece (list '***))
-	      (set! the-residual-piece (cdr the-residual-piece))
-	      (let ((my-residual-piece the-residual-piece))
-		(set-car!
-		 my-residual-piece
-		 `(LAMBDA
-		   ,dynamics
-		   ,(reset
-		     (let ((v (apply proc (cdr cloned))))
-		       (if (not (zero? body-level))
-			   v
-			   (let* ((rv `(RETURN ,v))
-				  (body-statics
-				   (top-project-static rv (list body-level)))
-				  (body-dynamics
-				   (top-project-dynamic rv (list body-level)))
-				  (body-actuals
-				   (map car body-dynamics))
-				  (old-body-statics
-				   (car old-body-statics-boxed)))
-			     (if old-body-statics
-				 (if (not (equal? body-statics old-body-statics))
-				     (error "return type mismatch in lambda-poly"))
-				 (begin
-				   (set-car! old-body-statics-boxed body-statics)
-				   (set-car! value-template-boxed rv)))
-			     (if (= 1 (length body-actuals))
-				 (car body-actuals)
-				 `(VALUES ,@body-actuals)))))))))
-	      (gensym-local-pop!))))
+	    (with-held-gensym-local boxed-gensym-counter
+	      (lambda ()
+		(let* ((cloned (clone-dynamic pp bts))
+		       (dynamics (map car (project-dynamic cloned bts 'dynamic))))
+		  (set-cdr! the-residual-piece (list '***))
+		  (set! the-residual-piece (cdr the-residual-piece))
+		  (let ((my-residual-piece the-residual-piece))
+		    (set-car!
+		     my-residual-piece
+		     `(LAMBDA
+		       ,dynamics
+		       ,(reset
+			 (let ((v (apply proc (cdr cloned))))
+			   (if (not (zero? body-level))
+			       v
+			       (let* ((rv `(RETURN ,v))
+				      (body-statics
+				       (top-project-static rv (list body-level)))
+				      (body-dynamics
+				       (top-project-dynamic rv (list body-level)))
+				      (body-actuals
+				       (map car body-dynamics))
+				      (old-body-statics
+				       (car old-body-statics-boxed)))
+				 (if old-body-statics
+				     (if (not (equal? body-statics old-body-statics))
+					 (error "return type mismatch in lambda-poly"))
+				     (begin
+				       (set-car! old-body-statics-boxed body-statics)
+				       (set-car! value-template-boxed rv)))
+				 (if (= 1 (length body-actuals))
+				     (car body-actuals)
+				     `(VALUES ,@body-actuals))))))))))))))
 	 (ctor-entry
 	  (or (assoc ctor *poly-registry*)
 	      (let* ((ctor-entry (list ctor '() '())))

@@ -81,9 +81,10 @@
 	      (if (annIsDef? d)
 		  (let* ((fname (annDefFetchProcName d))
 			 (e (annDefFetchProcBody d))
-			 (xxx (gensym-local-push!))
-			 (new-body (generate fname e))
-			 (xxx (gensym-local-pop!))
+			 (new-body
+			  (with-fresh-gensym-local
+			   (lambda ()
+			     (generate fname e))))
 			 (formals (annDefFetchProcFormals d)))
 		    (set-generating-extension!
 		     (cons (make-define fname formals new-body)

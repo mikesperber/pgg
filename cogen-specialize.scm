@@ -6,7 +6,7 @@
 
 
 (define *memolist* '())
-(define *residual-program* '())
+(define *residual-program* (make-cell '()))
 (define *support-code* '())
 (define *deferred-list* '())
 
@@ -65,18 +65,22 @@
 			  (loop (- n 1) (append prefix (list key)) rest))))
 		  (cdr memolist)))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define (get-residual-program)
+  (cell-ref *residual-program*))
 (define (set-residual-program! prg)
-  (set! *residual-program* prg))
+  (cell-set! *residual-program* prg))
 (define (add-to-residual-program! item)
-  (set! *residual-program* (cons item *residual-program*)))
+  (atomically!
+   (provisional-cell-set! *residual-program*
+			  (cons item (provisional-cell-ref *residual-program*)))))
 (define (first-residual-procedure)
-  (if (pair? *residual-program*)
-      (car *residual-program*)))
+  (if (pair? (get-residual-program))
+      (car (get-residual-program))))
 (define (rest-residual-procedures)
-  (if (pair? *residual-program*)
-      (cdr *residual-program*)))
+  (if (pair? (get-residual-program))
+      (cdr (get-residual-program))))
 (define (clear-residual-program!)
-  (set! *residual-program* '()))
+  (cell-set! *residual-program* '()))
 
 (define (add-to-support-code! item)
   (set! *support-code* (cons item *support-code*)))

@@ -51,20 +51,20 @@
   (clear-memolist!)
   (clear-support-code!)
   (clear-deferred-list!)
-  (gensym-local-reset!)
   (gensym-reset!)
   (creation-log-initialize!)
   (poly-registry-reset!)
   (initialize-static-store!))
 
 (define (start-memo-internal level fname fct bts args . new-goal)
-  (let* ((enter-scope (gensym-local-push!))
-	 (result (reset (multi-memo level level fname fct #f bts args)))
+  (let* ((result
+	  (with-fresh-gensym-local
+	   (lambda ()
+	     (reset (multi-memo level level fname fct #f bts args)))))
 	 ;; ####massive kludge
 	 (result (if (and (pair? result) (eq? (car result) 'LET))
 		     (car (cdaadr result))
 		     result))
-	 (drop-scope (gensym-local-pop!))
 	 (goal-proc
 	  (if (null? new-goal)
 	      (first-residual-procedure)
@@ -184,7 +184,6 @@
   (clear-memolist!)
   (clear-support-code!)
   (clear-deferred-list!)
-  (gensym-local-reset!)
   (gensym-reset!)
   (creation-log-initialize!)
   (with-input-from-file filename
@@ -200,45 +199,45 @@
 	(bt (memolist-entry->bt entry))
 	(full-pp (memolist-entry->pp entry))
 	(fct (memolist-entry->fct entry)))
-    (gensym-local-push!)
-    (creation-log-push!)
-    (let* ((cloned-pp (top-clone-dynamic full-pp bts))
-	   (new-formals (map car (top-project-dynamic cloned-pp bts)))
-	   (old-body-statics #f))
+    (with-fresh-gensym-local
+     (lambda ()
+       (creation-log-push!)
+       (let* ((cloned-pp (top-clone-dynamic full-pp bts))
+	      (new-formals (map car (top-project-dynamic cloned-pp bts)))
+	      (old-body-statics #f))
 
-      (let ((body
-	     (reset
-	      (let* ((v0 (apply fct (cdr cloned-pp)))
-		     (v (if extra-arg (apply v0 extra-arg) v0)))
-		(if (not (zero? bt))
-		    v
-		    (let* ((return-v (list 'return v))
-			   (body-statics
-			    (top-project-static return-v (list bt)))
-			   (body-dynamics
-			    (top-project-dynamic return-v (list bt)))
-			   (body-actuals
-			    (map car body-dynamics)))
-		      (if old-body-statics
-			  (if (not (equal? body-statics old-body-statics))
-			      (error "return type mismatch"))
-			  (set! old-body-statics body-statics))
-		      (memolist-entry->value!
-		       entry
-		       (top-clone-dynamic return-v))
-		      (memolist-entry->bt! entry bt)
-		      (apply make-residual-primop 'VALUES body-actuals)))))))
-	(make-residual-definition!
-	 (memolist-entry->name entry)
-	 new-formals
-	 body))
+	 (let ((body
+		(reset
+		 (let* ((v0 (apply fct (cdr cloned-pp)))
+			(v (if extra-arg (apply v0 extra-arg) v0)))
+		   (if (not (zero? bt))
+		       v
+		       (let* ((return-v (list 'return v))
+			      (body-statics
+			       (top-project-static return-v (list bt)))
+			      (body-dynamics
+			       (top-project-dynamic return-v (list bt)))
+			      (body-actuals
+			       (map car body-dynamics)))
+			 (if old-body-statics
+			     (if (not (equal? body-statics old-body-statics))
+				 (error "return type mismatch"))
+			     (set! old-body-statics body-statics))
+			 (memolist-entry->value!
+			  entry
+			  (top-clone-dynamic return-v))
+			 (memolist-entry->bt! entry bt)
+			 (apply make-residual-primop 'VALUES body-actuals)))))))
+	   (make-residual-definition!
+	    (memolist-entry->name entry)
+	    new-formals
+	    body))
 
 ;;;	    (make-residual-definition! (memolist-entry->name entry)
 ;;;				       new-formals
 ;;;				       (reset (apply fct (cdr cloned-pp))))
 
-      (creation-log-pop!)
-      (gensym-local-pop!))))
+	 (creation-log-pop!))))))
 
 ;;; the memo-function
 ;;; - fn is the name of the function to memoize

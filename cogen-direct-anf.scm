@@ -69,7 +69,7 @@
 						 (make-residual-call 'LIST actual-fvs)
 						 new-bts
 						 body))))))
-    (display-line "_lambda-internal " dynamics)
+    ;; (display-line "_lambda-internal " dynamics)
     (if *lambda-is-pure*
 	(generate-lambda)
 	(_complete			;don't duplicate, experimental
@@ -313,8 +313,20 @@
 	    (let* ((r1 e1)
 		   (p2 (make-placeholder))
 		   (p3 (make-placeholder))
-		   (t2 (spawn (lambda () (placeholder-set! p2 (reset (k e2))))))
-		   (t3 (spawn (lambda () (placeholder-set! p3 (reset (k e3)))))))
+		   (t2 (spawn
+			(preserving-gensym-local
+			 (lambda ()
+			   (placeholder-set! p2
+					     (with-fresh-meta-continuation
+					      (lambda ()
+						(reset (k e2)))))))))
+		   (t3 (spawn
+			(preserving-gensym-local
+			 (lambda ()
+			   (placeholder-set! p3
+					     (with-fresh-meta-continuation
+					      (lambda ()
+						(reset (k e3))))))))))
 	      (make-residual-if r1 (placeholder-value p2) (placeholder-value p3)))))
     ((_if 1 e1 e2 e3)
      (shift k (make-residual-if e1 (reset (k e2)) (reset (k e3)))))
@@ -353,19 +365,19 @@
 
 (define-syntax _op-no-result
   (syntax-rules (apply cons _define_data _define)
-    ((_op lv _define_data arg)
+    ((_op-no-result lv _define_data arg)
      (make-residual-define-data lv arg))
-    ((_op lv _define var arg)
+    ((_op-no-result lv _define var arg)
      (make-residual-define-mutable lv 'var arg))
-    ((_op 0 op arg ...)
+    ((_op-no-result 0 op arg ...)
      (op arg ...))
-    ((_op 1 cons e1 e2)
+    ((_op-no-result 1 cons e1 e2)
      (_complete-no-result (make-residual-cons e1 e2)))
-    ((_op 1 apply f arg)
+    ((_op-no-result 1 apply f arg)
      (_complete-serious-apply-no-result f arg))
-    ((_op 1 op arg ...)
+    ((_op-no-result 1 op arg ...)
      (_complete-no-result (make-residual-primop 'op arg ...)))
-    ((_op lv op arg ...)
+    ((_op-no-result lv op arg ...)
      (_complete-no-result
       (make-residual-generator-vve* '_OP (pred lv) 'op arg ...)))))
 

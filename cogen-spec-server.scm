@@ -125,14 +125,14 @@
   (clear-residual-program!) 
   (clear-memolist!)
   (clear-support-code!)
-  (gensym-local-reset!)
   (gensym-reset!)
-  (let* ((initial-scope (gensym-local-push!))
-	 (result (reset (multi-memo level fname fct bts args)))
+  (let* ((result
+	  (with-fresh-gensym-local
+	   (lambda ()
+	     (reset (multi-memo level fname fct bts args)))))
 	 (result (if (and (pair? result) (eq? (car result) 'LET))
 		     (car (cdaadr result))
 		     result))
-	 (drop-scope (gensym-local-pop!))
 	 (goal-proc (car *residual-program*))
 	 (defn-template (take 2 goal-proc))
 	 ;; kludge alert
@@ -143,9 +143,9 @@
 		     (cons (car new-goal) (cdadr defn-template)))))
 	 (defn-body (list-tail goal-proc 2)))
     (set-residual-program!
-	  (list (append defn-template
-			(cdr *residual-program*)
-			defn-body)))
+     (list (append defn-template
+		   (cdr *residual-program*)
+		   defn-body)))
     result))
 
 ;;; the memo-function
@@ -260,19 +260,19 @@
 	 (pp (unwrap-program-point wrapped-pp))
 	 (res-name (server-entry->name entry))
 	 (bts (server-entry->bts entry))
-	 (fct (server-entry->fct entry))
-	 (enter-scope (gensym-local-push!))
-	 (cloned-pp (top-clone-dynamic pp bts))
-	 (new-formals (apply append (top-project-dynamic cloned-pp
-							 bts))))
-    (set! last-wrapped-pp wrapped-pp)
-    (set! last-unwrapped-pp pp)
-    (make-residual-definition! res-name
-			       new-formals
-			       (reset (apply fct (cdr cloned-pp))))
-    (set! last-wrapped-pp #f)
-    (set! last-unwrapped-pp #f)
-    (gensym-local-pop!)))
+	 (fct (server-entry->fct entry)))
+    (with-fresh-gensym-local
+     (lambda ()
+       (let* ((cloned-pp (top-clone-dynamic pp bts))
+	      (new-formals (apply append (top-project-dynamic cloned-pp
+							      bts))))
+	 (set! last-wrapped-pp wrapped-pp)
+	 (set! last-unwrapped-pp pp)
+	 (make-residual-definition! res-name
+				    new-formals
+				    (reset (apply fct (cdr cloned-pp))))
+	 (set! last-wrapped-pp #f)
+	 (set! last-unwrapped-pp #f))))))
 
 (define (server-kill-local-id! local-id)
   (let ((maybe-entry (local-pending-lookup local-id)))

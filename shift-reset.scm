@@ -31,6 +31,8 @@
 ;register.  Andrzej has programmed this both in SML and in Scheme.  I
 ;only have prettified the Scheme definition a wee bit.
 
+; Thread-local version
+
 (define-syntax reset
   (syntax-rules ()
     ((_ ?e) (*reset (lambda () ?e)))))
@@ -39,38 +41,65 @@
   (syntax-rules ()
     ((_ ?k ?e) (*shift (lambda (?k) ?e)))))
 
-(define *meta-continuation*
+(define initial-meta-continuation
   (lambda (v)
     (error "You forgot the top-level reset...")))
+
+(define *lock* (make-lock))
+
+(define (atomic thunk)
+  (obtain-lock *lock*)
+  (let ((v (thunk)))
+    (release-lock *lock*)
+    v))
+
+; Poor man's thread-local storage ...
+
+(define *meta-continuation-table* (make-integer-table))
+
+(define (get-meta-continuation)
+  (or (atomic
+       (lambda ()
+	 (table-ref *meta-continuation-table* (thread-uid (current-thread)))))
+      initial-meta-continuation))
+
+(define (set-meta-continuation! mc)
+  (atomic
+   (lambda ()
+     (table-set! *meta-continuation-table* (thread-uid (current-thread)) mc))))
+
+(define (with-fresh-meta-continuation thunk)
+  (set-meta-continuation! initial-meta-continuation)
+  (let ((v (thunk)))
+    (set-meta-continuation! #f)
+    v))
 
 (define *abort
   (lambda (thunk)
     (with-continuation null-continuation ;JAR hack
       (lambda ()
 	(let ((val (thunk)))
-	  (*meta-continuation* val))))))
+	  ((get-meta-continuation) val))))))
 
 (define null-continuation #f)
 
 (define *reset
   (lambda (thunk)
-    (let ((mc *meta-continuation*))
+    (let ((mc (get-meta-continuation)))
       (call-with-current-continuation
-        (lambda (k)
-	  (begin
-	    (set! *meta-continuation*
-		  (lambda (v)
-		    (set! *meta-continuation* mc)
-		    (k v)))
-	    (*abort thunk)))))))
+       (lambda (k)
+	 (set-meta-continuation! (lambda (v)
+				   (set-meta-continuation! mc)
+				   (k v)))
+	 (*abort thunk))))))
 
 (define *shift
   (lambda (f)
     (call-with-current-continuation
-      (lambda (k)
-	(*abort (lambda ()
-		  (f (lambda (v)
-		       (reset (k v))))))))))
+     (lambda (k)
+       (*abort (lambda ()
+		 (f (lambda (v)
+		      (reset (k v))))))))))
 
 ;----------
 ;
