@@ -188,7 +188,7 @@
 	 (new-bts (binding-times compressed-dynamics))
 	 (formal-fvs (map cdr clone-map)))
     ;; (> lv 0)
-    (let ((lv (-lv 1)))
+    (let ((lv (- lv 1)))
       (_complete
        `(_VLAMBDA_MEMO
 	 ,lv
