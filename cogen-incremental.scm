@@ -3,15 +3,15 @@
 (define (multi-memo level fn bts args)
   (let*
       ((full-pp (cons fn args))
-       (pp (project-static full-pp bts))
-       (dynamics (project-dynamic full-pp bts))
+       (pp (top-project-static full-pp bts))
+       (dynamics (top-project-dynamic full-pp bts))
        (actuals (apply append dynamics))
        (found
 	(or (assoc pp *memolist*)
 	    (let*
 		((new-name (gensym fn))
-		 (cloned-pp (clone-dynamic full-pp bts))
-		 (new-formals (apply append (project-dynamic cloned-pp bts)))
+		 (cloned-pp (top-clone-dynamic full-pp bts))
+		 (new-formals (apply append (top-project-dynamic cloned-pp bts)))
 		 (new-entry (add-to-memolist! (cons pp new-name)))
 		 (generate
 		  (lambda actuals

@@ -120,6 +120,7 @@
 	  annFetchEvalQuoted
 	  annSetEvalQuoted!
 	  annIntroduceLift
+	  annMakeLift
 	  annIsLift?
 	  annSetLiftDiff!
 	  annFetchLiftDiff
@@ -348,8 +349,13 @@
 	  top-clone-with
 	  multi-append
 	  static-cell
+	  current-static-store!
+	  install-static-store!
 	  address-registry-reset!
 	  address-map-reset!
+	  creation-log-initialize!
+	  creation-log-push!
+	  creation-log-pop!
 	  binding-times))
 
 (define-structure cogen-library cogen-library-interface
@@ -483,12 +489,13 @@
 	  any->symbol
 	  gen-address-reset! gen-address
 	  *memolist* *residual-program* *support-code*
-	  add-to-memolist! clear-memolist!
+	  add-to-memolist! clear-memolist! lookup-memolist
 	  set-residual-program! add-to-residual-program! clear-residual-program!
 	  add-to-support-code! clear-support-code!
 	  nlist
 	  set-union set-subtract set-difference set-union* set-equal?
-	  and-map and-map2 strict-and-map strict-or-map thread-map
+	  and-map and-map2 strict-and-map
+	  or-map strict-or-map thread-map
 	  generic-sort
 	  filter
 	  remove-duplicates
@@ -570,11 +577,13 @@
 
 (define-interface cogen-memo-interface
   (export ((start-memo) :syntax)
-	  nextlevel))
+	  nextlevel
+	  multi-memo))
 
 (define-structure cogen-memo-standard
   cogen-memo-interface
-  (open scheme auxiliary shift-reset cogen-library cogen-completers cogen-residual)
+  (open scheme auxiliary shift-reset cogen-record
+	cogen-library cogen-completers cogen-residual)
   (files cogen-memo-standard))
 
 (define-structure broken-distributed-auxiliary auxiliary-interface

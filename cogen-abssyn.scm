@@ -286,6 +286,8 @@
     (annExprSetTag! e 'LIFT)
     (annExprSetLevel! e lv)
     (annExprSetSubobject! e (vector ld body))))
+(define (annMakeLift ld body)
+  (annMakeExpr 'LIFT (vector ld body)))
 (define (annIsLift? e)
   (equal? 'LIFT (annExprFetchTag e)))
 (define (annSetLiftDiff! e ld)

@@ -116,7 +116,7 @@
 (define (_lambda_memo-internal lv arity label vvs bts f)
   (let* ((formals (map gensym-local arity))
 	 (lambda-pp (cons label vvs))
-	 (dynamics (project-dynamic lambda-pp bts))
+	 (dynamics (top-project-dynamic lambda-pp bts))
 	 (compressed-dynamics (map remove-duplicates dynamics))
 	 (actual-fvs (apply append compressed-dynamics))
 	 (clone-map (map (lambda (arg)

@@ -1,6 +1,8 @@
 ;;; $Id $
 ;;; memo function stuff: standard implementation
 
+(define-record memolist-entry (name))
+
 (define-syntax start-memo
   (syntax-rules ()
     ((_ level fn bts args)
@@ -25,6 +27,7 @@
   (clear-support-code!)
   (gensym-local-reset!)
   (gensym-reset!)
+  (creation-log-initialize!)
   (let* ((initial-scope (gensym-local-push!))
 	 (result (reset (multi-memo level fname fct bts args)))
 	 (result (if (and (pair? result) (eq? (car result) 'LET))
@@ -59,7 +62,7 @@
        ; (compressed-dynamics (map remove-duplicates dynamics))
        (actuals (apply append dynamics))
        (found
-	(or (assoc pp *memolist*)
+	(or (lookup-memolist pp)
 	    (let*
 		((new-name (gensym fname))
 		 ; (clone-map (map (lambda (arg)
@@ -70,12 +73,15 @@
 		 (cloned-pp (top-clone-dynamic full-pp bts))
 		 ; (new-formals (map cdr clone-map))
 		 (new-formals (apply append (top-project-dynamic cloned-pp bts)))
-		 (new-entry (add-to-memolist! (cons pp new-name)))
+		 (new-entry (add-to-memolist! pp (make-memolist-entry
+						  new-name)))
+		 (enter (creation-log-push!))
 		 (new-def  (make-residual-definition! new-name
 						      new-formals
-						      (reset (apply fct (cdr cloned-pp))))))
-	      (cons pp new-name))))
-       (res-name (cdr found))
+						      (reset (apply fct (cdr cloned-pp)))))
+		 (leave (creation-log-pop!)))
+	      (make-memolist-entry new-name))))
+       (res-name (memolist-entry->name found))
        (exit-scope (gensym-local-pop!)))
     (if (= level 1)
 	;; generate call to fn with actual arguments

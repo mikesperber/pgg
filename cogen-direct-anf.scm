@@ -171,7 +171,7 @@
 (define-syntax _cell-set!_memo
   (syntax-rules ()
     ((_ 0 ref arg)
-     (cell-set! (ref 'VALUE) arg))
+     ((ref 'CELL-SET!) arg))
     ((_ lv ref arg)
      (_complete `(_CELL-SET!_MEMO ,(pred lv) ,ref ,arg)))))
 
@@ -188,11 +188,20 @@
      (if e1 e2 e3))
     ((_if 1 bl e1 e2 e3)
      (shift k (make-residual-if e1 (reset (k e2)) (reset (k e3)))))
+    ((_if 1 bl e1 e2 e3)
+     (shift k (let* ((cond-code e1)
+		     (the-store (current-static-store!))
+		     (then-code (reset (k e2)))
+		     (xxxxxxxxx (install-static-store! the-store))
+		     (else-code (reset (k e3))))
+		(make-residual-if cond-code then-code else-code))))
     ((_if lv bl e1 e2 e3)
-     (shift k `(_IF ,(pred lv) 0
-		    ,e1
-		    ,(reset (k e2))
-		    ,(reset (k e3)))))))
+     (shift k (let* ((cond-code e1)
+		     (the-store (current-static-store!))
+		     (then-code (reset (k e2)))
+		     (xxxxxxxxx (install-static-store! the-store))
+		     (else-code (reset (k e3))))
+		`(_IF ,(pred lv) 0 ,cond-code ,then-code ,else-code))))))
 
 (define-syntax _op
   (syntax-rules (apply cons _define_data)

@@ -46,10 +46,13 @@
 (define *residual-program* '())
 (define *support-code* '())
 
-(define (add-to-memolist! item)
-  (set! *memolist* (cons item *memolist*)))
+(define (add-to-memolist! key value)
+  (set! *memolist* (cons (cons key value) *memolist*)))
 (define (clear-memolist!)
   (set! *memolist* '()))
+(define (lookup-memolist key)
+  (cond ((assoc key *memolist*) => cdr)
+	(else #f)))
 
 (define (set-residual-program! prg)
   (set! *residual-program* prg))
@@ -125,6 +128,11 @@
        (let ((h (p? (car xs)))
 	     (t (strict-or-map p? (cdr xs))))
 	 (or h t))))
+
+(define (or-map p? xs)
+  (and (pair? xs)
+       (or (p? (car xs))
+	   (or-map p? (cdr xs)))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define (generic-sort leq x*)
   (let loop ((x* x*) (result '()))

@@ -20,7 +20,7 @@
        (case what
 	 ((value)   (apply closed-value vvs))
 	 ((static)  (project-static ctor-vvs bts))
-	 ((dynamic) (project-dynamic ctor-vvs bts))
+	 ((dynamic dynamic-ref) (project-dynamic ctor-vvs bts what))
 	 ((clone)
 	  (static-constructor ctor
 			      closed-value
@@ -55,20 +55,26 @@
       'DYN))
 
 ;;; extract the dynamic parts of value
-(define (project-dynamic value bt-args)
+(define (project-dynamic value bt-args message)
   (let* ((values-by-bt
 	  (project-dynamic-level (cdr value) bt-args 0))
 	 (nested-dynamics
 	  (let loop ((values (car values-by-bt)))
 	    (if (null? values)
 		'()
-		(let ((value (car values))
-		      (values (cdr values)))
-		  (if (procedure? value)
-		      (let ((this-dynamics (value 'DYNAMIC)))
-			(multi-append this-dynamics (loop values)))
-		      (loop values)))))))
-    (multi-append nested-dynamics (cdr values-by-bt)))) 
+		(multi-append (project-one-dynamic (car values) 0 message)
+			      (loop (cdr values)))))))
+    (multi-append nested-dynamics (cdr values-by-bt))))
+
+(define (project-one-dynamic value bt message)
+  (if (zero? bt)
+      (if (procedure? value)
+	  (value message)
+	  '())
+      (let loop ((i 0))
+	(if (= i bt)
+	    (list (list value))
+	    (cons '() (loop (+ i 1)))))))
 
 ;;; return `values' grouped according to `bt-args' starting with `level'
 (define (project-dynamic-level values bt-args level)
@@ -158,9 +164,14 @@
 (define (static-cell label value bt)
   (let ((static-address (gen-address label))
 	(the-ref (make-cell value)))
+    (creation-log-add! static-address the-ref bt)
     (lambda (what)
       (case what
 	((value) the-ref)
+	((cell-set!) (lambda (arg)
+		       (reference-log-register static-address the-ref
+						(cell-ref the-ref))
+		       (cell-set! the-ref arg)))
 	((static) (register-address
 		   static-address
 		   (lambda (normalized)
@@ -171,17 +182,21 @@
 	((dynamic) (register-address
 		    static-address
 		    (lambda (normalized)
-		      (project-dynamic (list 'FOO (cell-ref the-ref))
-				       (list bt)))
+		      (project-one-dynamic (cell-ref the-ref) bt 'DYNAMIC))
 		    (lambda (normalized)
 		      '())))
+	((dynamic-ref) (register-address static-address
+					 (lambda (normalized) '())
+					 (lambda (normalized) '())))
 	((clone) (register-address
 		  static-address
 		  (lambda (normalized)
-		    (let* ((value (cell-ref the-ref))
-			   (cloned-value (clone-one-dynamic value bt))
-			   (new-cell (static-cell label cloned-value bt)))
-		      (enter-address-map! normalized new-cell the-ref)
+		    (let* ;; ordering is crucial below
+			((value (cell-ref the-ref))
+			 (new-cell (static-cell label 'DUMMY bt))
+			 (new-ref (new-cell 'VALUE)))
+		      (enter-address-map! normalized new-cell bt the-ref)
+		      (cell-set! new-ref (clone-one-dynamic value bt))
 		      new-cell))
 		  (lambda (normalized)
 		    (address-map->new-cell normalized))))
@@ -191,9 +206,10 @@
 	    static-address
 	    (lambda (normalized)
 	      (let* ((value (cell-ref the-ref))
-		     (cloned-value (clone-with-one value bt clone-map))
-		     (new-cell (static-cell label cloned-value bt)))
-		(enter-address-map! normalized new-cell the-ref)
+		     (new-cell (static-cell label 'DUMMY bt))
+		     (new-ref (new-cell 'VALUE)))
+		(enter-address-map! normalized new-cell bt the-ref)
+		(cell-set! new-ref (clone-with-one value bt clone-map))
 		new-cell))
 	    (lambda (normalized)
 	      (address-map->new-cell normalized)))))))))
@@ -209,6 +225,7 @@
   (cons label *local-address-registry*))
 (define (register-address static-address first-cont next-cont)
   (let ((found (assoc static-address *address-registry*)))
+    ;;(display found) (newline)
     (if found
 	(next-cont (cdr found))
 	(let ((local-address (gen-local-address (car static-address))))
@@ -220,23 +237,86 @@
 (define *address-map* 'undefined-address-map)
 (define (address-map-reset!)
   (set! *address-map* '()))
-(define (enter-address-map! key val1 val2)
+(define (enter-address-map! key ref1 bt ref2)
   (set! *address-map*
-	(cons (list key val1 val2) *address-map*)))
+	(cons (list key ref1 ref2) *address-map*)))
 (define (address-map->new-cell key)
   (let ((found (assoc key *address-map*)))
     (if found
 	(cadr found)
 	(error "address-map->new-cell" key))))
 
+(define *creation-log* #f)
+(define (creation-log-initialize!)
+  (set! *creation-log* '()))
+(define (creation-log-push!)
+  (set! *creation-log* (cons '() *creation-log*)))
+(define (creation-log-pop!)
+  (set! *creation-log* (cdr *creation-log*)))
+(define (creation-log-add! static-address new-ref bt)
+  (set-car! *creation-log* (cons (list static-address new-ref bt)
+				 (car *creation-log*))))
+(define (creation-log-top)
+  (car *creation-log*))
+
+;;; extract dynamic components from the static store
+;;; assumes that creation-log is already restricted to the static effects
+(define (project-dynamic-creation-log creation-log)
+  ;; some initialization goes here
+  (let loop ((creation-log creation-log))
+    (if (null? creation-log)
+	'()
+	(let* ((entry (car creation-log))
+	       (creation-log (cdr creation-log))
+	       (static-address (car entry)))
+	  (multi-append (project-one-dynamic (cell-ref (cadr entry))
+					     (caddr entry)
+					     'DYNAMIC-REF)
+			(loop creation-log))))))
+;;; the memolist needs to contain a copy of the restricted creation
+;;; log. This must then be cloned in a special way.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define *reference-log* #f)
+(define (reference-log-initialize!)
+  (set! *reference-log* (list '())))
+(define (reference-log-push!)
+  (let ((checkpoint *reference-log*))
+    (set! *reference-log* (cons '() *reference-log*))
+    checkpoint))
+(define (reference-log-pop!)
+  (let ((entry (car *reference-log*)))
+    (set! *reference-log* (cdr *reference-log*))
+    entry))
+(define (reference-log-register static-address the-ref value)
+  (set-car! *reference-log*
+	    (cons (cons the-ref value) (car *reference-log*))))
+(define (reference-log-rollback! checkpoint)
+  (let loop ()
+    (cond
+     ((eq? *reference-log* checkpoint) #t)
+     ((null? *reference-log*)
+      (error "reference-log-rollback! reached end of log"))
+     (else
+      (let inner-loop ((ref+values (reference-log-pop!)))
+	(if (null? ref+values)
+	    (loop)
+	    (let ((ref+value (car ref+values))
+		  (ref+values (cdr ref+values)))
+	      (cell-set! (car ref+value) (cdr ref+value))
+	      (inner-loop ref+values))))))))
+
+(define current-static-store! reference-log-push!)
+(define install-static-store! reference-log-rollback!)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; toplevel projection functions
 (define (top-project-static value bts)
   (address-registry-reset!)
+  (reference-log-initialize!)
   (project-static value bts))
 (define (top-project-dynamic value bts)
   (address-registry-reset!)
-  (project-dynamic value bts))
+  (project-dynamic value bts 'DYNAMIC))
 (define (top-clone-dynamic value bts)
   (address-registry-reset!)
   (address-map-reset!)
