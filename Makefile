@@ -28,6 +28,8 @@ cogen_cps_files = cogen-cps.scm
 cogen_ds_files = cogen-direct-syntax.scm
 cogen_combinator_files = $(cogen_ds_files)
 
+cogen_files = $(cogen_control) $(cogen_base_files) $(cogen_combinator_files)
+
 batch_files = tiny-format.scm fname.scm command-line.scm cogen-batch.scm
 
 gambit_shift_reset = shift-reset-r4rs.scm
