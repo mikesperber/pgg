@@ -1,7 +1,12 @@
-;; Sample pgg session for separate compilation
+;; Sample PGG session for separate compilation
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; see ICFP-submitted paper
 
-;; simple case
+,open signals
+,open pgg-residual
+,open pp
+
+;; naive approach
 (define genext (cogen-driver '("modint-base.scm" "modint-standard.scm") '(main 1 0 0 1)))
 (writelpp genext "regcompiler1.scm")
 (load "regcompiler1.scm")
@@ -14,7 +19,7 @@
 (continue 'mod1 module1)
 (writelpp *residual-program* "example1_mod1_1.scm")
 
-;; improved interpreter 
+;; first improvement 
 (define genext (cogen-driver '("modint-base.scm" "modint-mutual.scm") '(main 0 1 0 1)))
 (writelpp genext "regcompiler2.scm")
 (load "regcompiler2.scm")
@@ -25,7 +30,7 @@
 (continue 'mod2 module2)
 (writelpp *residual-program* "example2_mod2.scm")
 
-;; best interpreter 
+;; second improvement 
 (define genext (cogen-driver '("modint-base.scm" "modint-dynamic.scm") '(main 1 1 0 1)))
 (writelpp genext "regcompiler3.scm")
 (load "regcompiler3.scm")

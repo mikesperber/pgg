@@ -3,26 +3,17 @@
 
 ;;; (load "modint-base.scm")
 
-;;; jump-global : 0 0 0 [1]0
-(define (jump-global mod-body)
-  (lambda (name args)
-    (cond
-     ((pair? name)
-      (let ((req-modname (car name)) (req-name (cdr name)))
-	(_load req-modname
-	       (lambda (this-modname this-body)
-		 (let ((found (assoc req-name this-body)))
-		   (exec (jump-global this-body)
-			 (cdr found)
-			 args))))))
-     ((assoc name mod-body)
-      => (lambda (found)
-	   (_memo (exec (jump-global mod-body)
-			(cdr found)
-			args))))
-     (else
-      (error "Undefined label")))))
-
+;;; jump : 0 0 1
+(define (jump mod+name args)
+  (if (pair? mod+name)
+      (_load (car mod+name)
+	     (lambda (this-modname this-mod)
+	       (let ((found (assoc (cdr mod+name) this-mod)))
+		 (if found 
+		     (exec jump (cdr found) args)
+		     (error "Undefined name")))))
+      (error "Unqualified name")))
+ 
 ;;; jump-initial: 1 1 1
 (define-without-memoization (jump-initial modulename name args)
   (_load 
@@ -35,7 +26,7 @@
 	       (jump-initial modulename name args)
 	       (let ((this-name (car names)))
 		 (if (eqv? name this-name)
-		     ((jump-global mod-body) this-name args)
+		     (jump  (cons mod-name this-name) args)
 		     (loop (cdr names))))))))))
 
 ;;; main : 1 1 0 1
