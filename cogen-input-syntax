@@ -4,10 +4,12 @@ E ::=	K | V | (if E E E) | (cond (E E)* (else E)?) |
 	(letrec ((V (lambda (V*) E*))*) E*) |
 	(let P ((V E)*) E*) |
 	(lambda (V*) E*) | (E E*) |
-	(C E*) | (Ci E) | (C? E)
+	(C E*) | (Ci E) | (C? E) |
+	(M B E)		% a memoization point
 D ::=	(define (P V*) E*) |
 	(defdata T (C Ci*)+) |
 	(deftype (P B*) B) |
-	(deftype (O B*) B)
+	(deftype (O B*) B) |
+	(defmemo M)
 B ::=	* | d
 prg ::= D+

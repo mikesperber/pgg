@@ -14,10 +14,11 @@
   (vector-ref d 4))
 (define (annDefLookup name d*)
   (let loop ((d* d*))
-    (let ((d (car d*)))
-      (if (equal? (annDefFetchProcName d) name)
-	  d
-	  (loop (cdr d*))))))
+    (and (not (null? d*))
+	 (let ((d (car d*)))
+	   (if (equal? (annDefFetchProcName d) name)
+	       d
+	       (loop (cdr d*)))))))
 ;;; expressions
 (define (annExprFetchBTi e)
   (vector-ref e 1))
@@ -166,11 +167,12 @@
 ;;; subject to discussion:
 ;;; memoization
 (define (annIntroduceMemo e lv vars)
-  (let ((body (list->vector (vector->list e))))
-    (vector-set! e 0 'MEMO)
-    (vector-set! e 3 lv)
-    (vector-set! e 2 vars)
-    (vector-set! e 1 body)))
+  (annIntroduceMemo1 e lv vars (list->vector (vector->list e))))
+(define (annIntroduceMemo1 e lv vars body)    
+  (vector-set! e 0 'MEMO)
+  (vector-set! e 3 lv)
+  (vector-set! e 2 vars)
+  (vector-set! e 1 body)))
 (define (annMakeMemo body)
   (vector 'MEMO body '() 0))
 (define (annIsMemo? e)

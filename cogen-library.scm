@@ -2,8 +2,9 @@
 ;;; projection functions for memoization
 ;;; parameterized over `result'
 ;;; $Log$
-;;; Revision 1.3  1995/10/23 16:52:57  thiemann
-;;; continuation based reduction works
+;;; Revision 1.4  1995/10/23 16:59:11  thiemann
+;;; type annotations (may) work
+;;; standard memoization may be circumvented
 ;;;
 
 

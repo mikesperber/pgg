@@ -27,19 +27,22 @@
 	 (def-typesig*
 	   (filter (lambda (defn) (equal? (car defn) 'deftype))
 		   full-source))
+	 (def-memo (assoc 'defmemo full-source))
 	 (symbol-table
 	  (scheme->abssyn-define-type def-datatype*))
 	 (d*
 	  (bta-run (scheme->abssyn-d def-function* symbol-table)
 		   symbol-table
-		   skeleton)))
+		   skeleton
+		   def-typesig*
+		   def-memo)))
     (generate-d d*)
     (append def-datatype*
 	    *generating-extension*))) 
 ;;; TO DO:
 ;;; - error recognition & handling
-;;; - remove Similix dependencies (i.e., file->list, anythingelse?) 
-;;; - some support to run generating extensions, such as not having to
+;;; + remove Similix dependencies (i.e., file->list, anythingelse?) 
+;;; + some support to run generating extensions, such as not having to
 ;;;   write (lambda (k) (k 5)) in place of 5 and avoiding awkwardness
 ;;;   when entering partially static data (it should be possible to
 ;;;   use (_CTOR_MEMO 1 'CTOR ...) in place of (CTOR ...) but this is

@@ -4,8 +4,9 @@
 ;;; presence of dynamic free variables
 ;;; $Id$
 ;;; $Log$
-;;; Revision 1.2  1995/10/23 16:52:50  thiemann
-;;; continuation based reduction works
+;;; Revision 1.3  1995/10/23 16:59:06  thiemann
+;;; type annotations (may) work
+;;; standard memoization may be circumvented
 ;;;
 ;;; Revision 1.1  1995/10/13  16:13:17  thiemann
 ;;; *** empty log message ***
@@ -31,10 +32,8 @@
 	  (lib-arg-list
 	   argsc
 	   (lambda (args)
-	     (if (= lv 1)
-		 (let ((w (gensym 'tmp)))
-		   `((,f ,@args)
-		     (lambda (,w) ,(kappa w))))
+	     (if (zero? lv)
+		 ((apply f args) kappa)
 		 (kappa `(_APP ,(- lv 1) ,f ,@args)))))))))
 
 ;;; dito for memoized functions
@@ -45,10 +44,8 @@
 	  (lib-arg-list
 	   argsc
 	   (lambda (args)
-	     (if (= lv 1)
-		 (let ((w (gensym 'tmp)))
-		   `(((,f 'VALUE) ,@args)
-		     (lambda (,w) ,(kappa w))))
+	     (if (zero? lv)
+		 ((apply (f 'value) args) kappa)
 		 (kappa `(_APP_MEMO ,(- lv 1) ,f ,@args)))))))))
 
 ;;; lambda abstraction with arbitrary arity
@@ -243,10 +240,14 @@
 	     (lib-arg-list-bts (cdr argsc) (cdr bts)
 			       (lambda (args) (c (cons arg args)))))))))
 
-(define (start-memo level fn bts argsc)
+;;; transform the arguments to CPS, if necessary
+(define (start-memo level fn bts args)
   (clear-residual-program!) 
   (clear-memolist!)
-  ((multi-memo level fn bts argsc) id))
+  ((multi-memo level fn bts
+	       (map (lambda (arg)
+		      (if (procedure? arg) arg (result arg))) args))
+   id))
 
 ;;;
 ;;; the memo-function

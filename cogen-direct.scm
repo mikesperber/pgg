@@ -2,8 +2,9 @@
 ;;; direct style version of the continuation-based multi-level
 ;;; compiler generator (with control operators)
 ;;; $Log$
-;;; Revision 1.1  1995/10/23 16:52:54  thiemann
-;;; continuation based reduction works
+;;; Revision 1.2  1995/10/23 16:59:07  thiemann
+;;; type annotations (may) work
+;;; standard memoization may be circumvented
 ;;;
 
 ;;; set result to the unit of the identity monad

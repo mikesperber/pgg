@@ -1,8 +1,9 @@
 ;;; skeleton for multi-level cogen
 ;;; $Id$
 ;;; $Log$
-;;; Revision 1.3  1995/10/23 16:53:03  thiemann
-;;; continuation based reduction works
+;;; Revision 1.4  1995/10/23 16:59:13  thiemann
+;;; type annotations (may) work
+;;; standard memoization may be circumvented
 ;;;
 
 ;;; idea: generate new procedure names for the "copies" of the old

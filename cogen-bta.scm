@@ -1,32 +1,55 @@
 ;;; cogen-bta
 ;;; $Id$
 ;;; $Log$
-;;; Revision 1.3  1995/10/23 16:52:48  thiemann
-;;; continuation based reduction works
+;;; Revision 1.4  1995/10/23 16:59:04  thiemann
+;;; type annotations (may) work
+;;; standard memoization may be circumvented
 ;;;
+
+(define *bta-user-memoization* #f)
+(define *bta-dynamic-ops* '())
 
 ;;; binding-time analysis
 ;;; `d*' list of function definitions
 ;;; `symtab' is an initial symbol table where only constructors,
 ;;; selectors, and constructor test are defined
 ;;; `skeleton' function call with arguments replaced by binding times
-(define (bta-run d* symtab skeleton)
-  (let* ((goal-proc (car skeleton))
-	 (bts (cdr skeleton))
-	 (d (annDefLookup goal-proc d*))
-	 (formals (annDefFetchProcFormals d))
-	 (d0 (annMakeDef '$goal formals
-			 (annMakeCall goal-proc (map annMakeVar formals))))
-	 (d* (cons d0 d*))
-	 (dummy (bta-collect-d symtab d*))
-	 (proctv (bta-get-ecr (annDefFetchProcBTVar d0)))
-	 (procsig (bta-c-fetch-ctor-args (tv-get-leq-field proctv))))
-    (bta-make-dynamic (car procsig))	;goal-proc returns dynamic
-    (map (bta-assert symtab) bts (cdr procsig))
+(define (bta-run d* symtab skeleton def-typesig* def-memo)
+  (begin
+    (set! *bta-user-memoization*
+	  (and def-memo (cadr def-memo)))
+    (set! *bta-dynamic-ops*
+	  (if *bta-user-memoization* (list *bta-user-memoization*) '()))
+    (let* ((goal-proc (car skeleton))
+	   (bts (cdr skeleton))
+	   (d (annDefLookup goal-proc d*))
+	   (formals (annDefFetchProcFormals d))
+	   (d0 (annMakeDef '$goal formals
+			   (annMakeCall goal-proc (map annMakeVar formals))))
+	   (d* (cons d0 d*))
+	   (dummy (bta-collect-d symtab d*))
+	   (proctv (bta-get-ecr (annDefFetchProcBTVar d0)))
+	   (procsig (bta-c-fetch-ctor-args (tv-get-leq-field proctv))))
+      (bta-make-dynamic (car procsig))	;goal-proc returns dynamic
+      (map (bta-assert symtab) bts (cdr procsig))
+      (map (bta-typesig d* symtab) def-typesig*)
 ;;;    (pp (bta-display-d d*))
-    (bta-solve-d d*)
-    d*
-    ))
+      (bta-solve-d d*)
+      d*)))
+;;; enforce a binding-time type signature
+(define (bta-typesig d* symtab)
+  (lambda (typesig)
+    (let* ((proc (caadr typesig))
+	   (bts (cdadr typesig))
+	   (bt-result (caddr typesig))
+	   (d (annDefLookup proc d*)))
+      (if d
+	  (let* ((proctv (bta-get-exr (annDefFetchProcBTVar d)))
+		 (procsig (bta-c-fetch-ctor args (tv-get-leq-field proctv))))
+	    ((bta-assert symtab) bt-result (car procsig))
+	    (map (bta-assert symtab) bts (cdr procsig)))
+	  (if (equal? 'D bt-result)
+	      (set! *bta-dynamic-ops* (cons proc *bta-dynamic-ops*))))))
 ;;; assert binding time `bt' for `tv'
 (define (bta-assert symtab)
   (lambda (bt tv0)
@@ -112,7 +135,6 @@
 	    (map (lambda (tvd) (tv-set-father! tvd tv)) descendants)
 	    tv)))))
 
-;;; SOMETHING GOES WRONG HERE WHILE PROCESSING LIFT CONSTRAINTS
 ;;; always return the old ecr for tv1) (useful to map things to \top)
 (define (bta-equate tv1 tv2)
   (let ((ecr1 (bta-get-ecr tv1))
@@ -236,13 +258,16 @@
 	(let ((po1 (loop (annFetchCondTest e)))
 	      (po2 (loop (annFetchCondThen e)))
 	      (po3 (loop (annFetchCondElse e))))
-	  (bta-add-dependent po1 pi)
+	  (if (not *bta-user-memoization*)
+	      (bta-add-dependent po1 pi))
 	  (bta-equate pi po2)
 	  (bta-equate pi po3)))
        ((annIsOp? e)
 	(let ((pos (map loop (annFetchOpArgs e))))
 	  (map (lambda (po) (bta-equate pi po)) pos)
-	  (bta-add-leq pi '***static*** '())))
+	  (if (member (annFetchOpName e) *bta-dynamic-ops*)
+	      (bta-make-dynamic pi)
+	      (bta-add-leq pi '***static*** '()))))
        ((annIsCall? e)
 	(let ((pos (map loop (annFetchCallArgs e))))
 	  (bta-add-leq (cdr (assoc (annFetchCallName e) symtab))
@@ -415,14 +440,20 @@
 	      (bta-solve e-test)
 	      (bta-solve (annFetchCondThen e))
 	      (bta-solve (annFetchCondElse e))
-	      ;;(if dyn-test
-	      (annIntroduceMemo e
-				(annExprFetchLevel e-test)
-				(annFreeVars e))
-	      ;;)
-	      ))
+	      ;;(and dyn-test
+	      (if (not *bta-user-memoization*)
+		  (annIntroduceMemo e
+				    (annExprFetchLevel e-test)
+				    (annFreeVars e)))))
 	   ((annIsOp? e)
-	    (map bta-solve (annFetchOpArgs e)))
+	    (map bta-solve (annFetchOpArgs e))
+	    (if (and *bta-user-memoization*
+		     (equal? *bta-user-memoization* (annFetchOpName
+						     e)))
+		(let* ((args (annFetchOpArgs e))
+		       (lv (annFetchConst (car args)))
+		       (body (cadr args)))
+		  (annIntroduceMemo1 e lv (annFreeVars body) body))))
 	   ((annIsCall? e)
 	    (map bta-solve (annFetchCallArgs e)))
 	   ((annIsLet? e)
