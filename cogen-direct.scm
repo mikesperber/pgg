@@ -2,7 +2,10 @@
 ;;; direct style version of the continuation-based multi-level
 ;;; compiler generator (with control operators)
 ;;; $Log$
-;;; Revision 1.7  1995/11/10 15:30:22  thiemann
+;;; Revision 1.8  1995/12/08 10:50:27  sperber
+;;; Fixed trivial bug wrt. lambda labels.
+;;;
+;;; Revision 1.7  1995/11/10  15:30:22  thiemann
 ;;; improved unfolding and gensym
 ;;;
 ;;; Revision 1.6  1995/11/09  16:48:02  thiemann
@@ -67,7 +70,7 @@
 	  `(_LAMBDA_MEMO
 	    ,(- lv 1)
 	    ',arity
-	    ',(gensym-local label)
+	    ',(gensym-local 'closure-label)
 	    (LIST ,@new-vvs)
 	    ',new-bts
 	    (LAMBDA ,freevars
