@@ -20,32 +20,32 @@
 	      fail)))))
 
 (define  ;;; Cont = (List(Nam) x List(Val) -> Ans)
-  ((fail ln lv)
-    #f))
+  (fail ln lv)
+    (#f))
 
 (define  ;;; Val x Cont -> Val -> Cont
-  ((test-and-jump d k)
-    (lambda (v)
+  (test-and-jump d k)
+    ((lambda (v)
       (if (equal? d v)
 	  k
 	  fail))))
 
 (define  ;;; Nam x Val x Cont -> Cont
-  ((extend n d k)
-    (lambda (ln lv)
+  (extend n d k)
+    ((lambda (ln lv)
       (k (cons n ln) (cons d lv)))))
 
 (define  ;;; Nam x (Val -> Cont) x Cont -> Cont
-  ((assoc-c n s f)
-    (lambda (ln lv)
+  (assoc-c n s f)
+    ((lambda (ln lv)
       (let ((offset (index n ln)))
 	(if (negative? offset)
 	    (f ln lv)
 	    ((s (list-ref lv offset)) ln lv))))))
 
 (define  ;;; Nam x List(Nam) -> Nat + {-1}
-  ((index e l)
-    ((let loop ((n 0) (l l)
+  (index e l)
+    (((let loop ((n 0) (l l)
 		 (cond
 		  ((null? l)
 		   -1)
