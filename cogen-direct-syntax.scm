@@ -302,9 +302,9 @@
 		 ; (new-formals (map cdr clone-map))
 		 (new-formals (apply append (project-dynamic cloned-pp bts)))
 		 (new-entry (add-to-memolist! (cons pp new-name)))
-		 (new-def  `(DEFINE (,new-name ,@new-formals)
-			      ,(old-reset (apply fct (cdr cloned-pp))))))
-	      (add-to-residual-program! new-def)
+		 (new-def  (make-residual-definition! new-name
+						      new-formals
+						      (reset (apply fct (cdr cloned-pp))))))
 	      (cons pp new-name))))
        (res-name (cdr found))
        (exit-scope (gensym-local-pop!)))

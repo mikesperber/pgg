@@ -45,7 +45,11 @@
 					      (ann-maybe-coerce
 					       (annMakeCall goal-proc (map annMakeVar formals))))))
 	 (d* (cons d0 d*))
-	 (do-type-inference (full-collect-d* symtab d*))
+	 (do-type-inference
+	  (with-output-to-file "/tmp/display-types.scm"
+	    (lambda ()
+	      (full-collect-d* d*)
+	      (p (display-bts-d* d*)))))
 	 (proc-node (full-ecr (annDefFetchProcBTVar d0)))
 	 (proc-type (node-fetch-type proc-node))
 	 (proc-type-tcargs (type-fetch-args proc-type))
@@ -66,6 +70,10 @@
 	  (if *scheme->abssyn-static-references*
 	      (effect-analysis d* (+ *scheme->abssyn-label-counter* 1)))) 
 	 (construct-bt-constraints (wft-d* d*))
+	 (SHOW-BT_CONSTRAINTS
+	  (with-output-to-file "/tmp/display-bt-constraints.scm"
+	    (lambda ()
+	      (p (display-bts-d* d*)))))
 	 (bt-ann* (bt-ann-sort
 		   (append (map (lambda (bt type)
 				  (cons bt (type-fetch-btann type)))
@@ -327,16 +335,18 @@
 
 ;;; generate type variables and constraints
 (define full-collect-lift-list #f)
-(define (full-collect-d* symtab d*)
+(define (full-collect-d* d*)
   (let ((symtab 
-	 (append
+	 (extend-env*
+	  (map annDefFetchProcName d*)
 	  (map (lambda (d)
-		 (annDefSetProcBTVar! d (new-node))
-		 (cons (annDefFetchProcName d) (annDefFetchProcBTVar d)))
+		 (let ((node (new-node)))
+		   (annDefSetProcBTVar! d node)
+		   node))
 	       d*)
-	  symtab)))
+	  the-empty-env)))
     (set! full-collect-lift-list '())
-    (map (lambda (d) (full-collect-d symtab d)) d*)
+    (for-each (lambda (d) (full-collect-d symtab d)) d*)
     (full-collect-process-lifts)
     ;; (display "lift-list processed") (newline)
     (set! full-collect-lift-list '())))
@@ -371,12 +381,14 @@
 
 (define (full-collect-d symtab d)
   (let ((formals (annDefFetchProcFormals d)))
+;;    (display (list 'full-collect-d (annDefFetchProcName d)
+;;		   (annDefFetchProcFormals d))) (newline)
     (if formals
-	(let* ((argtvs (map (lambda (v) (cons v (new-node))) formals))
+	(let* ((arg-nodes (map (lambda (v) (new-node)) formals))
 	       (bodytv (full-collect (annDefFetchProcBody d)
-				     (append argtvs symtab)))
+				     (extend-env* formals arg-nodes symtab)))
 	       (proctv (annDefFetchProcBTVar d)))
-	  (full-add-function proctv (map cdr argtvs) bodytv))
+	  (full-add-function proctv arg-nodes bodytv))
 	(let ((bodytv (full-collect (annDefFetchProcBody d) symtab))
 	      (proctv (annDefFetchProcBTVar d)))
 	  (full-equate bodytv proctv)))))
@@ -385,12 +397,12 @@
 ;;; this is ___ONLY___ concerned with type inference
 (define (full-collect e symtab)
   (let loop ((e e))
-    ;; (display "full-collect ") (display e) (newline)
+    (display (list "full-collect" (vector-ref e 0))) (newline)
     (let ((phi (new-node)))
       (annExprSetType! e phi)
       (cond
        ((annIsVar? e)
-	(full-equate phi (cdr (assoc (annFetchVar e) symtab))))
+	(full-equate phi (apply-env symtab (annFetchVar e) (lambda () (error "unknown var")))))
        ((annIsConst? e)
 	(full-make-base phi))
        ((annIsCond? e)
@@ -409,13 +421,13 @@
 	      (bta-internal-identity-property phi phi*))))
        ((annIsCall? e)
 	(let ((phi* (map loop (annFetchCallArgs e))))
-	  (full-add-function (cdr (assoc (annFetchCallName e) symtab))
+	  (full-add-function
+	   (apply-env symtab (annFetchCallName e) (lambda () (error "unknown proc")))
 			     phi* phi)))
        ((annIsLet? e)
 	(let* ((phi-1 (loop (annFetchLetHeader e)))
 	       (phi-2 (full-collect (annFetchLetBody e)
-				    (cons (cons (annFetchLetVar e) phi-1)
-					  symtab))))
+				    (extend-env (annFetchLetVar e) phi-1 symtab))))
 	  (full-equate phi phi-2)))
        ((annIsVLambda? e)
 	(let* ((fixed-formals (annFetchVLambdaFixedVars e))
@@ -424,7 +436,7 @@
 	       (pvs (map (lambda (v) (new-node)) vars))
 	       ;(fvs (map (lambda (v) (cdr (assoc (annFetchVar v) symtab))) (annFreeVars e)))
 	       (phi-0 (full-collect (annFetchVLambdaBody e)
-				    (append (map cons vars pvs) symtab))))
+				    (extend-env* vars pvs symtab))))
 	  (annSetVLambdaBTVars! e pvs)
 	  (full-add-vfunction phi (cdr pvs) (car pvs) phi-0)))
        ((annIsLambda? e)
@@ -432,7 +444,7 @@
 	       (pvs (map (lambda (v) (new-node)) vars))
 	       (fvs (annFreeVars e))
 	       (phi-0 (full-collect (annFetchLambdaBody e)
-				    (append (map cons vars pvs) symtab))))
+				    (extend-env* vars pvs symtab))))
 	  (annSetLambdaBTVars! e pvs)
 	  (full-add-function phi pvs phi-0)
 	  (full-add-fvs phi fvs)))
@@ -925,7 +937,7 @@
    d*))
 
 (define (display-bts-t node)
-  (if #t
+  (if #f
       (let ((effect (type-fetch-effect (node-fetch-type node))))
 	(and effect (effect->labset effect)))
       (let loop ((node node) (seenb4 '()))
@@ -941,9 +953,10 @@
 		`(,ctor ,(ann->visited btann)
 			,(ann->bt btann)
 			,(map ann->visited dlist)
-			,(or effect (effect->labset effect))
+			,(display-bts-eff effect)
 			,@(map loop args (map (lambda (foo) seen) args)))))))))
 
 (define (display-bts-eff effect)
-  effect)
+  'EFF ;effect
+  )
 

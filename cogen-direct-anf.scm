@@ -95,7 +95,7 @@
   (let* ((vars (map gensym-local arity))
 	 (body (reset (apply f vars))))
     (if (= lv 1)
-	(make-residual-closed-lambda vars 'FREE body)
+	`(LAMBDA ,vars ,body)
 	(make-ge-lambda (pred lv) vars #f body))))
 
 (define-syntax _lambda_memo

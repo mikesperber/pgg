@@ -117,7 +117,7 @@
 	    (let* ((arity (caddr syminfo))
 		   (newvars (nlist arity (lambda () (gensym 'XXX)))))
 	      (loop `(LAMBDA (,@newvars) (,e ,@newvars))))
-	    (ann-maybe-coerce (annMakeVar e)))))
+	    (annMakeVar e))))
      ((not (pair? e))
       (annMakeConst e))
      ((equal? (car e) 'QUOTE)
@@ -244,7 +244,7 @@
 	     ((pair? tag)
 	      (scheme->abssyn-make-app (loop tag) (map loop args)))
 	     (else
-	      (annMakeOp tag (map loop args))))))))))
+	      (annMakeOp tag (map (lambda (arg) (ann-maybe-coerce (loop arg))) args))))))))))
 
 ;;; wrap the formal parameters in let-binders around a procedure body 
 (define (scheme->abssyn-wrap-in-let formals body)
@@ -802,7 +802,7 @@
 	  (let* ((ctor (car ctors))
 		 (nc (scheme->abssyn-nc ctor)))
 	    (append (scheme->abssyn-one-ctor
-		     (list type-name np nc nt) ctor)
+		     (list type-name (car ctor) np nc nt) ctor)
 		    (loop (cdr ctors) (+ np nc))))))))
 (define (scheme->abssyn-one-ctor desc ctor)
   (let* ((the-ctor (car ctor))

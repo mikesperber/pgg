@@ -35,11 +35,12 @@
 
 
 ;;; a constructor description for ci is a list
-;;; (t np nc nt)
+;;; (t ctor np nc nt)
 ;;; where np = sum of # args of c[1] ... c[i-1]
 ;;;       nc = # args of c[i]
 ;;;       nt = sum of # args of c[1] ... c[m]
 (define (desc-type desc) (list-ref desc 0))
-(define (desc-np desc) (list-ref desc 1))
-(define (desc-nc desc) (list-ref desc 2))
-(define (desc-nt desc) (list-ref desc 3))
+(define (desc-ctor desc) (list-ref desc 1))
+(define (desc-np desc) (list-ref desc 2))
+(define (desc-nc desc) (list-ref desc 3))
+(define (desc-nt desc) (list-ref desc 4))

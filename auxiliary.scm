@@ -156,6 +156,12 @@
 	(reverse acc)
 	(loop (- n 1) (cdr l) (cons (car l) acc)))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define (thread-map f in xs)
+  (if (null? xs)
+      in
+      (let ((out (f (car xs) in)))
+	(thread-map f out (cdr xs)))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define-syntax load-program
   (syntax-rules ()
     ((_ prg) (eval `(BEGIN ,@prg) (interaction-environment)))))

@@ -6,7 +6,9 @@
 ;;; hence performs full context propagation
 ;;;
 
+(set-scheme->abssyn-let-insertion! #f)
 (set-memo-optimize! #f)
+
 ;;; this is vital in order to guarantee that every lambda carries
 ;;; information about its free variables
 
@@ -65,19 +67,23 @@
     ((_ 0 v)
      v)
     ((_ 1 v)
-     (make-residual-var v))))
+     (if (symbol? v)			;HACK
+	 (make-residual-var v)
+	 v))))
 
 (define-syntax _complete
   (syntax-rules ()
     ((_ body)
      (let ((var (gensym-local 'mlet)))
-       (shift k (make-residual-let-trivial var body (list (k (_var 1 var)))))))))
+       (shift k (make-residual-let-trivial
+		 var body (list (k (make-residual-var var)))))))))
 
 (define-syntax _complete-serious
   (syntax-rules ()
     ((_ body)
      (let ((var (gensym-local 'mlet)))
-       (shift k (make-residual-let-serious var body (list (k (_var 1 var)))))))))
+       (shift k (make-residual-let-serious
+		 var body (list (k (make-residual-var var)))))))))
 
 (define-syntax _app
   (syntax-rules ()
@@ -92,8 +98,8 @@
   (syntax-rules ()
     ((_app_memo 0 f arg ...)
      ((f 'VALUE) arg ...))
-    ((_app_memo lv e ...)
-     (_complete `(_APP_MEMO ,(pred lv) ,e ...)))))
+    ((_app_memo 1 e ...)
+     (_complete-serious (make-residual-call e ...)))))
 
 (define-syntax _lambda
   (syntax-rules ()
@@ -106,7 +112,7 @@
   (let* ((vars (map gensym-local arity))
 	 (body (reset (apply f vars))))
     (if (= lv 1)
-	(make-residual-closed-lambda vars 'FREE body)
+	(make-residual-closed-lambda vars 'FREE (list body))
 	(make-ge-lambda (pred lv) vars #f body))))
 
 (define-syntax _lambda_memo
@@ -134,7 +140,7 @@
     ;; this only works in the two-level case for (= lv 1)
     (make-residual-closed-lambda formals
 				 actual-fvs
-				 (reset (apply (apply f cloned-vvs) formals)))))
+				 (list (reset (apply (apply f vvs) formals))))))
 
 (define (_vlambda lv arity var f)
   (let* ((vars (map gensym-local arity))
@@ -198,7 +204,7 @@
     ((_ 0 op arg ...)
      (op arg ...))
     ((_ 1 op arg ...)
-     (_complete-serious (make-residual-call op arg ...)))
+     (_complete-serious (make-residual-call (make-residual-var 'op) arg ...)))
     ((_ lv op arg ...)
      (_complete `(_OP_SERIOUS ,(pred lv) op ,arg ...)))))
 
@@ -277,6 +283,8 @@
     (if (= level 1)
 	;; generate call to fn with actual arguments
 	(_complete-serious
-	 (apply make-residual-call res-name actuals))
+	 (apply make-residual-call
+		(make-residual-var res-name)
+		(map (lambda (arg) (_var 1 arg)) actuals)))
 	;; reconstruct multi-memo
 	(error "this should not happen"))))

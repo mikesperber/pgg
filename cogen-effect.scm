@@ -10,15 +10,14 @@
 
 (define (effect-analysis d* nr-of-ref-labels)
   (debug-level 1 (display "effect analysis:"))
-  (set! *effect-vector-size* nr-of-ref-labels)
-  (set! *access-vector* (make-vector nr-of-ref-labels #f))
+  (set-labset-size! (+ 1 nr-of-ref-labels))
+  (set! *access-vector* (make-vector (+ 1 nr-of-ref-labels) #f))
   (set! *initial-effects* '())
   (allocate-effect-variables-d* d*)
   (debug-level 1 (display " fixpointing"))
   (effect-fixpoint)
   (debug-level 1 (display " done") (newline)))
 
-(define *effect-vector-size* 'undefined-effect-vector-size)
 ;;; need an access vector that maps labels back to expressions
 (define *access-vector* 'undefined-access-vector)
 (define (effect-label->type label)

@@ -210,6 +210,25 @@
 	  start-memo
 	  multi-memo))
 
+(define-interface cogen-direct-anf-interface
+  (export _vlambda
+	  start-memo-internal
+	  multi-memo
+	  ((_app
+	    _app_memo
+	    _lambda
+	    _lambda_memo
+	    _begin
+	    _ctor_memo
+	    _s_t_memo
+	    _if
+	    _op
+	    _lift0
+	    _lift
+	    _eval
+	    start-memo)
+	   :syntax)))
+
 (define-interface cogen-anf-compile-interface
   (export _vlambda
 	  start-memo-internal
@@ -223,6 +242,7 @@
 	    _s_t_memo
 	    _if
 	    _op
+	    _op_serious
 	    _lift0
 	    _lift
 	    _eval
@@ -263,7 +283,7 @@
 
 (define-structure cogen-bta cogen-bta-interface
   (open scheme signals auxiliary
-	cogen-globals 
+	cogen-globals pretty-print cogen-env
 	cogen-typesig cogen-abssyn cogen-abssyn cogen-record cogen-labset)
   (files cogen-eq-flow
 	 cogen-effect))
@@ -396,12 +416,14 @@
 	  labset-singleton
 	  labset-intersection
 	  labset-remove
+	  labset-add
 	  labset-union
 	  labset-union*
 	  labset-subtract
 	  labset-subset?
 	  labset-equal?
-	  labset-for-each))
+	  labset-for-each
+	  set-labset-size!))
 
 (define-interface pgg-interface
   (export cogen-driver))
@@ -456,7 +478,7 @@
 (define-structure pgg-library
   (compound-interface cogen-construct-genext-interface
 		      cogen-residual-interface
-		      cogen-direct-syntax-interface)
+		      cogen-direct-anf-interface)
   (open scheme escapes signals auxiliary cogen-globals)
   (files shift-reset
 	 cogen-library
@@ -507,9 +529,6 @@
 	 cogen-effect
 	 cogen-eq-flow
 	 ;; to run the generating extension
-	 cogen-boxops
-	 cogen-ctors
-	 cogen-library
 	 shift-reset
 	 cogen-anf-compile
 	 cogen-driver
