@@ -50,13 +50,16 @@
   (program-point name ids+aspaces lock mark))
 
 (define *master-cache* #f)
+(define *master-cache-ids* #f)
 (define *master-cache-lock* (make-lock))
 
 (define (master-cache-initialize!)
-  (set! *master-cache* '()))
+  (set! *master-cache* '())
+  (set! *master-cache-ids* '()))
 
-(define (master-cache-add-no-locking! key entry)
-  (set! *master-cache* (cons (cons key entry) *master-cache*)))
+(define (master-cache-add-no-locking! key entry local-id)
+  (set! *master-cache* (cons (cons key entry) *master-cache*))
+  (set! *master-cache-ids* (cons (cons local-id entry) *master-cache-ids*)))
 
 (define (master-cache-lookup key)
   (cond ((assoc key *master-cache*) => cdr)
@@ -70,12 +73,13 @@
 	     (loop (cdr master-cache))))))
 
 (define (master-cache-lookup-by-local-id local-id final?)
-  (let loop ((master-cache *master-cache*))
-    (and (not (final? master-cache))
-	 (let* ((master-entry (cdar master-cache))
-		(ids+aspaces (master-entry->ids+aspaces master-entry)))
-	   (or (and (assv local-id ids+aspaces) master-entry)
-	       (loop (cdr master-cache)))))))
+  (let loop ((master-cache-ids *master-cache-ids*))
+    (and (not (final? master-cache-ids))
+	 (let* ((master-entry (cdar master-cache-ids))
+		(id (caar master-cache-ids)))
+	   (if (eq? local-id id)
+	       master-entry
+	       (loop (cdr master-cache-ids)))))))
 
 (define (master-entry->add-local-id! master-entry local-id uid)
   (with-lock
@@ -84,7 +88,11 @@
      (let ((ids+aspaces (master-entry->ids+aspaces master-entry)))
        (master-entry->ids+aspaces!
 	master-entry
-	(cons (cons local-id uid) ids+aspaces))))))
+	(cons (cons local-id uid) ids+aspaces)))))
+  (with-lock
+   *master-cache-lock*
+   (lambda ()
+     (set! *master-cache-ids* (cons (cons local-id master-entry) *master-cache-ids*)))))
 
 ;; messages sent from server to master
 
@@ -105,30 +113,61 @@
 	   (master-entry->mark! entry #t)
 	   #t)))))
 
+(define *servers-placeholders* #f)
+(define *servers-placeholders-lock* #f)
+(define (servers-placeholders-initialize!)
+  (set! *servers-placeholders* (make-vector (+ 1 *n-servers*) #f))
+  (set! *servers-placeholders-lock* (make-lock))
+  (let loop ((i 1))
+    (if (<= i *n-servers*)
+	(begin
+	  (vector-set! *servers-placeholders* i (make-placeholder))
+	  (loop (+ i 1))))))
+
 (define (can-server-work-on? uid local-id)	; sync
-  ;; (display "Server ") (display uid) (display " asks if it can work on ") (display local-id) (newline)
-  (let loop ((master-cache *master-cache*) (final? null?))
-    (cond
-     ((master-cache-lookup-by-local-id local-id final?)
-      => (lambda (entry)
-	   (master-entry->add-local-id! entry local-id uid)
-	   (can-I-work-on-master-entry? entry)))
-     (else				; wait until local name registered
-      (relinquish-timeslice)
-      ;; this assumes *master-cache* gets added to from the front
-      (loop *master-cache* (lambda (item) (eq? item master-cache)))
-      ))))
+  (let loop ((master-cache-ids *master-cache-ids*) (final? null?))
+    ;; (display (list "can-server-work-on?" uid local-id)) (newline)
+    (let ((placeholder (vector-ref *servers-placeholders* uid)))
+      (cond
+       ((master-cache-lookup-by-local-id local-id final?)
+	=> (lambda (entry)
+	     (master-entry->add-local-id! entry local-id uid)
+	     (can-I-work-on-master-entry? entry)))
+       (else				; wait until local name registered
+	;; (display "Server ") (display uid) (display " suspends on: ")(display (list "can-server-work-on?" local-id)) (newline)
+	(placeholder-value placeholder)
+	;; this assumes *master-cache-ids* gets added to from the front
+	;; (display "Server ") (display uid) (display " again: ")(display (list "can-server-work-on?" local-id)) (newline)
+	(loop *master-cache-ids* (lambda (item) (eq? item master-cache-ids)))
+	)))))
 
 ;;; receives wrapped program-points
 (define (server-registers-memo-point! uid
 				      program-point local-name local-id bts fct)
-  ;; (display "Server ") (display uid) (display " registers memo point ") (display program-point)  (display ", local id ") (display local-id) (newline)
-  (let ((static-skeleton (top-project-static (unwrap-program-point program-point) bts))
+  ;; (display "Server ") (display uid) (display " registers memo point ")
+  ;; (display program-point)
+  ;; (display ", local id ") (display local-id) (newline)
+  (let ((set-placeholders
+	 (lambda ()
+	   (if uid
+	       (begin
+		 ;; (display (list "Server" uid local-id "setting placeholder")) (newline)
+		 (with-lock
+		  *servers-placeholders-lock*
+		  (lambda ()
+		    (let ((placeholder (vector-ref *servers-placeholders* uid)))
+		      (placeholder-set! placeholder #t)
+		      (vector-set! *servers-placeholders* uid (make-placeholder)))))
+		 ;; (display (list "Server" uid local-id "setting placeholder done")) (newline)
+		 ))))
+	(static-skeleton (top-project-static (unwrap-program-point program-point) bts))
 	(master-cache *master-cache*))
       (cond
        ((master-cache-lookup static-skeleton)
 	=> (lambda (entry)
-	     (master-entry->add-local-id! entry local-id (uid->aspace uid))))
+	     ;; (display (list "Server" uid "found memo point" local-id)) (newline)
+	     (master-entry->add-local-id! entry local-id (uid->aspace uid))
+	     (set-placeholders)))
        (else
 	(let* ((master-entry
 		(make-master-entry program-point ; key
@@ -155,8 +194,9 @@
 		(else
 		 ;; we can go ahead
 		 ;; order is important here, no?
-		 (master-cache-add-no-locking! static-skeleton master-entry)
+		 (master-cache-add-no-locking! static-skeleton master-entry local-id)
 		 (release-lock *master-cache-lock*)
+		 (set-placeholders)
 		 (master-pending-add! static-skeleton pending-entry)))))))
 
   ;; (display "Registration of local id ") (display local-id) (display " complete") (newline)
@@ -223,12 +263,13 @@
 
 (define (start-specialization server-uids
 			      level fname fct bts args)
-    (master-cache-initialize!)
-    (master-pending-initialize!)
-
     (set! *server-aspaces* (map uid->aspace server-uids))
     (set! *n-servers* (length *server-aspaces*))
     (set! *n-unemployed-servers* 0)
+
+    (master-cache-initialize!)
+    (master-pending-initialize!)
+    (servers-placeholders-initialize!)
 
     (let* ((program-point (wrap-program-point (cons fname args) bts))
 	   (new-name (gensym fname)))
