@@ -1,0 +1,10 @@
+#!/bin/sh
+cogen_image=$HOME/soft/pe/cps-mcogen/batch.image
+(echo ",batch on";
+ echo "(cogen-main '("\\c
+ while test "x$1" != "x"; do
+  echo \"$1\" \\c
+  shift
+ done;
+ echo "))") | scheme48 -i $cogen_image
+exit $?
