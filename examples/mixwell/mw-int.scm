@@ -19,10 +19,6 @@
 
 (define-primitive _error - error)
 
-(define-primitive dynamize - dynamic)
-
-(define (generalize x)
-  (if #t x (dynamize x)))
 ;-----------------------------------------------------------------------------
 
 ;------------------------------------------------------------------------------
@@ -37,7 +33,7 @@
 		(init-env)
 		(upd-env (list-ref vs i)
 			 (list-ref vals i)
-			 (loop (generalize (+ 1 i)))))))
+			 (loop (+ 1 i))))))
 	p)))
 
 (define (ev e r p)
