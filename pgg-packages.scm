@@ -421,25 +421,3 @@
 	cogen-scheme)
   (files cogen-reach))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(define-structure pgg-compiler
-  (export cogen-driver)
-  (open scheme filenames source-file-names auxiliary signals
-	cogen-scheme cogen-bta
-	cogen-compile-skeleton
-	)
-  (files cogen-driver))
-
-;;; this is really a case for a higher-order module,
-;;; parameterized over the pgg-compiler-library
-(define-structure cogen-compile-skeleton cogen-skeleton-interface
-  (open scheme auxiliary signals
-	cogen-globals
-	cogen-abssyn
-	cogen-oca
-	cogen-bta
-	cogen-typesig
-;;	cogen-construct-genext
-	pgg-compiler-library)
-  (files cogen-skeleton))
