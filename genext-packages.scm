@@ -331,6 +331,9 @@
   (files cogen-completer))
 
 (define-structure pgg-specialize
-  (export specialize)
-  (open cogen-memo-standard))
+  (export specialize
+	  *residual-program*
+	  *support-code*)
+  (open cogen-memo-standard
+	cogen-specialize))
 
