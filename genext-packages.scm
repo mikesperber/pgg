@@ -260,14 +260,22 @@
 (define-structure pgg-compiler-library cogen-anf-compile-interface
   (open scheme escapes signals auxiliary
 	cogen-gensym cogen-boxops cogen-globals cogen-library
-	shift-reset cogen-completers cogen-memo-standard cogen-residual)
+	shift-reset cogen-completers cogen-memo-standard anf-specializer)
   (files cogen-anf-compile))
 
-(define-structure pgg-residual
-  (export ((start-memo define-data) :syntax)
-	  specialize
-	  make-cell cell-ref cell-set!)
-  (open scheme escapes pgg-library cogen-boxops define-data))
+(define-module (make-pgg-residual pgg-library)
+  (define-structure pgg-residual
+    (export ((start-memo define-data) :syntax)
+	    specialize
+	    make-cell cell-ref cell-set!)
+    (open scheme escapes
+	  define-data
+	  pgg-library
+	  cogen-boxops cogen-memo-standard))
+  pgg-residual)
+
+(define pgg-residual (make-pgg-residual pgg-library))
+(define pgg-compiler-residual (make-pgg-residual pgg-compiler-library))
 
 (define-structure cogen-completers
   cogen-completers-interface
