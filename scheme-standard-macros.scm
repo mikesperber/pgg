@@ -13,9 +13,11 @@
      #f)
     ((or e)
      e)
-    ((or e1 e2 ...)
-     (let ((t e1))
-       (if t t (or e2 ...))))))
+    ((or (f ...) e ...)
+     (let ((t (f ...)))
+       (or t e ...)))
+    ((or t e ...)
+     (if t t (or e ...)))))
 
 (define-syntax cond
   (syntax-rules (else =>)

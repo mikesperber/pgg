@@ -1,4 +1,9 @@
+;;; cogen-driver
 ;;; driver for the compiler generator
+
+;;; copyright © 1996, 1997, 1998 by Peter Thiemann
+;;; non-commercial use is free as long as the original copright notice
+;;; remains intact
 
 ;;; the main entry point
 ;;; `job-file' contains a list of file names which contain the source

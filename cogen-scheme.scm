@@ -1,10 +1,10 @@
 ;;; cogen-scheme
 
-;;; copyright 1996, 1997, 1998 by Peter Thiemann
+;;; copyright © 1996, 1997, 1998 by Peter Thiemann
 ;;; non-commercial use is free as long as the original copright notice
 ;;; remains intact
 
-;;; convert side-effect free scheme to abstract syntax
+;;; convert Scheme to abstract syntax
 ;;; + translate and, or to if
 ;;; + simplify let to (let ((V E)) E) 
 ;;; + eta-expand procedures and
@@ -37,6 +37,10 @@
   (let ((template (cadr d)))
     (and (not (pair? template))
 	 (memq template *scheme->abssyn-mutable-variables*))))
+(define (scheme-desugar d*)
+  (gensym-reset!)
+  (set! *scheme->abssyn-mutable-variables* '())
+  (scheme-rename-variables-d '() '() d*))
 (define (scheme->abssyn-d d* def-syntax* other* ctor-symtab)
   ;; (display-line "scheme->abssyn " ctor-symtab)
   (gensym-reset!)
@@ -272,7 +276,8 @@
 ;;; a single binder, COND into IF, introduce BEGIN
 (define *scheme-rename-counter* '())
 (define (scheme-rename-clone var)
-  (let* ((var-counter
+  (let* ((var (syntax-strip var))
+	 (var-counter
 	  (or (assoc var *scheme-rename-counter*)
 	      (begin (set! *scheme-rename-counter*
 			   (cons (cons var 0) *scheme-rename-counter*))
@@ -283,30 +288,35 @@
       (symbol->string var) "_" (number->string (cdr var-counter))))))
 
 (define-record macro-binding (transformer env))
+; the env part contains a *reference* to the environment!
+(define-record arity-binding (name eta))
+; used for procs with known arity, eta is their eta expansion
 
-(define (scheme-rename-variables-d d* def-syntax* other*)
-  (let ((macro-symtab (extend-env* (map cadr def-syntax*)
-				   (map (lambda (def-syntax)
-					  (make-macro-binding
-					   (parse-syntax-rules (caddr def-syntax))
-					   the-empty-env))
-					def-syntax*)
-				   the-empty-env)))
-    (let loop ((other* other*)
-	       (count (length other*))
-	       (reset (+ (length other*) 1)))
+(define (scheme-rename-variables-d d* def-syntax* not-recognized*)
+  (let* ((start (empty-boxed-env))
+	 (top-level-box (extend-boxed-env*
+			 (map cadr def-syntax*)
+			 (map (lambda (def-syntax)
+				(make-macro-binding
+				 (parse-syntax-rules (caddr def-syntax) start)
+				 #f))	;should never be accessed
+			      def-syntax*)
+			 start)))
+    (let loop ((other* not-recognized*)
+	       (count (length not-recognized*))
+	       (reset (+ (length not-recognized*) 1)))
       (if (pair? other*)
 	  (let ((other (car other*))
 		(other* (cdr other*)))
 	    (if (list? other)
 		(let ((tag (car other)))
 		  (cond
-		   ((apply-env macro-symtab (car other) (lambda () #f))
+		   ((apply-boxed-env top-level-box (car other) (lambda () #f))
 		    =>
 		    (lambda (found)
 		      (let ((expansion
 			     ((macro-binding->transformer found)
-			      other (list macro-symtab))))
+			      other top-level-box))) ;!!! PJT: CHANGED !!!
 			(loop (cons expansion other*) reset reset))))
 		   (else
 		    (case tag
@@ -314,12 +324,14 @@
 		       (set! d* (cons other d*))
 		       (loop other* (- reset 1) (- reset 1)))
 		      ((define-syntax)
-		       (set! macro-symtab
-			     (extend-env (cadr other)
-					 (make-macro-binding
-					  (parse-syntax-rules (caddr other))
-					  the-empty-env)
-					 macro-symtab))
+		       (set! top-level-box
+			     (extend-boxed-env (cadr other)
+					       (make-macro-binding
+						(parse-syntax-rules
+						 (caddr other)
+						 top-level-box)
+						#f) ;should never be accessed
+					       top-level-box))
 		       (loop other* (- reset 1) (- reset 1)))
 		      ((begin)
 		       (let* ((new-other* (append (cdr other) other*))
@@ -331,14 +343,21 @@
 			 (loop new-other* reset reset)))
 		      (else
 		       (if (zero? count)
-			   (error "cannot resolve toplevel expressions"
-				  other*)
+			   (begin
+			     (set! not-recognized* other*)
+			     (display "Warning: cannot resolve toplevel expressions")
+			     (newline)
+			     (display not-recognized*)
+			     (newline))
 			   (loop (append other* (list other))
 				 (- count 1) reset)))))))
 		(error "bad toplevel expression" other)))))
-    (for-each-env! (lambda (entry)
-		     (macro-binding->env! entry macro-symtab))
-		   macro-symtab)
+    ;; bind the macros
+    (let ((macro-symtab (unbox-env top-level-box)))
+      (for-each-env! (lambda (entry)
+		       (macro-binding->env! entry macro-symtab))
+		     macro-symtab))
+    ;; start renaming
     (set! *scheme-rename-counter* '())
     (map (lambda (d)
 	   ;;(display "scheme-rename-variables: ") (display (caadr d)) (newline)
@@ -348,10 +367,11 @@
 		  (fname (if is-proc-def (car template) template))
 		  (formals (if is-proc-def (cdr template) '()))
 		  (new-formals (map scheme-rename-clone formals))
-		  (symtab* (list (extend-env* formals new-formals macro-symtab)))
+		  (current-box
+		   (fresh-boxed-env* formals new-formals top-level-box))
 		  (body-list (cddr d))
-		  (body (scheme-body-list->body body-list symtab*))
-		  (new-body (scheme-rename-variables symtab* body))
+		  (body (scheme-body-list->body body-list current-box))
+		  (new-body (scheme-rename-variables current-box body))
 		  (new-template (if is-proc-def (cons fname new-formals) fname)))
 	     `(,definer ,new-template ,new-body)))
 	 d*)))
@@ -360,31 +380,47 @@
   (let loop ((symtab* symtab*) (tag tag))
     (cond
      ((syntax-pop-mark? tag)
-      (loop (cdr symtab*) (syntax-marked-exp tag)))
+      (loop (syntax-marked-env tag) (syntax-marked-exp tag)))
      ((symbol? tag)
-      (apply-env (car symtab*) tag (lambda () #f)))
+      (apply-boxed-env symtab* tag (lambda () #f)))
      (else
       #f))))
 
+(define (enter-binding key val env)
+  (if (syntax-pop-mark? key)
+      (extend-boxed-env
+       (syntax-marked-exp key)
+       val
+       (syntax-marked-env key))
+      (extend-boxed-env
+       key
+       val
+       env)))
+
+(define (remove-binding key env)
+  (if (syntax-pop-mark? key)
+      (shrink-boxed-env (syntax-marked-env key))
+      (shrink-boxed-env env)))
+
 (define (scheme-rename-variables symtab* e)
-  ;; (display-line (spaces (length symtab*)) "scheme-rename-variables: " (length symtab*) " " (syntax-depth e))
   (let loop ((e e))
+    ;; (display-line "loop: " e)
     (cond
      ((syntax-pop-mark? e)
-      (scheme-rename-variables (cdr symtab*) (syntax-marked-exp e)))
+      (scheme-rename-variables (syntax-marked-env e) (syntax-marked-exp e)))
      ((symbol? e)
-      (let ((found (apply-env (car symtab*) e (lambda () #f))))
+      (let ((found (apply-boxed-env symtab* e (lambda () #f))))
 	;;(display-line "symbol-e= " e " found= "
 	;; (map (lambda (symtab) (apply-env symtab e (lambda () #f))) symtab*))
-	(if found
-	    (cond
-	     ((symbol? found)
-	      found)
-	     ((macro-binding? found)
-	      (error "macro binding used as variable"))
-	     (else
-	      (loop found)))
-	    e)))
+	(cond
+	 ((symbol? found)
+	  found)
+	 ((macro-binding? found)
+	  (error "macro binding used as variable"))
+	 ((arity-binding? found)
+	  (loop (arity-binding->eta found)))
+	 (else				;not found
+	  e))))
      ((not (pair? e))			;some unquoted literal
       e)
      (else				;at this point all marks are stripped? no...
@@ -393,26 +429,27 @@
 	     (found (scheme-lookup-tag symtab* tag)))
 	(cond
 	 ((macro-binding? found)
-	  (let* ((new-symtab* (cons (macro-binding->env found) symtab*))
-		 (expansion ((macro-binding->transformer found) (syntax-make-pop-mark e)
-								new-symtab*)))
-	    (scheme-rename-variables new-symtab* expansion))) ;in the current environment
+	  (let* ((macro-symtab* (make-boxed-env (macro-binding->env found)))
+		 (expansion ((macro-binding->transformer found)
+			     (syntax-make-env-mark e symtab*)
+			     macro-symtab*)))
+	    (scheme-rename-variables macro-symtab* expansion))) ;in the current environment
+	 ((arity-binding? found)
+	  (cons (arity-binding->name found) (syntax-map loop args)))
 	 (found
-	  (if (and (pair? found) (eq? (car found) 'lambda))
-	      (cons (caaddr found) (syntax-map loop args))
-	      (cons found (syntax-map loop args))))
+	  (cons found (syntax-map loop args)))
 	 ;;; need to strip the tag here
 	 ((syntax-pair? tag)
 	  (let ((new-tag (loop tag))
 		(new-args (syntax-map loop args)))
 	    (cons new-tag new-args)))
-	 ((eq? tag 'QUOTE)
+	 ((syntax-eq-symbol? 'QUOTE tag symtab*)
 	  ;;(display "!!!Q1 ") (display e) (newline)
 	  (syntax-strip-recursively e))
-	 ((eq? tag 'BACKQUOTE)
+	 ((syntax-eq-symbol? 'BACKQUOTE tag symtab*)
 	  (loop (backquote-expander 0 e)))
 	 ;; named let
-	 ((and (eq? tag 'LET)
+	 ((and (syntax-eq-symbol? 'LET tag symtab*)
 	       (not (syntax-pair? (syntax-car args)))
 	       (not (syntax-null? (syntax-car args))))
 	  ;;(display-line "named-let: " args)
@@ -420,58 +457,49 @@
 					      (car l)
 					      (list-last (cdr l))))))
 	    (scheme-rename-variables
-	     (cons (list-last symtab*) symtab*)
-	     (or ((syntax-rules-transformer '()
-					    '(((let name ((v e) ...) body ...)
-					       (letrec ((name (lambda (v ...) body ...)))
-						 (name e ...))))
-					    (lambda () #f))
-		  (syntax-make-pop-mark (cons tag args))
+	     (empty-boxed-env)
+	     (or ((syntax-rules-transformer
+		   '()
+		   '(((let name ((v e) ...) body ...)
+		      (letrec ((name (lambda (v ...) body ...)))
+			(name e ...))))
+		   (lambda () #f))
+		  (syntax-make-env-mark (cons tag args) symtab*)
 		  symtab*)
 		 (error "syntax error in named let" e)))))
 	 ;; !!! need to strip off SCHEME-POP-MARK
-	 ((eq? tag 'LET)
+	 ((syntax-eq-symbol? 'LET tag symtab*)
 	  ;;(display-line "let: " args)
 	  (let* ((bindings (syntax-car args))
-		 (formals (syntax-map (lambda (binding) (syntax-strip (syntax-car binding)))
+		 (formals (syntax-map (lambda (binding) (syntax-car binding))
 				      bindings))
-		 (depths (syntax-map (lambda (binding)
-				       (syntax-depth (syntax-car binding))) bindings))
-		 (bodies (syntax-map (lambda (x) (syntax-car (syntax-cdr x))) bindings))
+		 (bodies (syntax-map (lambda (x) (syntax-car (syntax-cdr x)))
+				     bindings))
 		 (body-list (syntax-cdr args))
-		 (new-formals (map scheme-rename-clone formals))
-		 (new-bodies (map loop bodies))
-		 (new-symtab*
-		  (let rec ((formals formals)
-			    (new-formals new-formals)
-			    (depths depths)
-			    (symtab* symtab*))
-		    (if (null? formals)
-			symtab*
-			(rec (cdr formals)
-			     (cdr new-formals)
-			     (cdr depths)
-			     (scheme-extend-symtab* (list (car formals))
-						    (list (car new-formals))
-						    symtab*
-						    (car depths))))))
-		 (new-body (scheme-rename-variables
-			    new-symtab*
-			    (scheme-body-list->body body-list new-symtab*))))
-	    (let loop ((new-formals new-formals)
-		       (new-bodies new-bodies))
-	      (if (null? new-formals)
-		  new-body
-		  `(LET ((,(car new-formals) ,(car new-bodies)))
-		     ,(loop (cdr new-formals) (cdr
-					       new-bodies)))))))
+		 (renamed-formals (map scheme-rename-clone formals))
+		 (new-bodies (map loop bodies)))
+	    ;; bind each variable in its own env
+	    (for-each (lambda (formal renamed-formal)
+			(enter-binding formal renamed-formal symtab*))
+		      formals renamed-formals)
+	    (let ((new-body (loop (scheme-body-list->body body-list symtab*))))
+	      ;; leaving scope: unbind variables
+	      (for-each (lambda (formal)
+			  (remove-binding formal symtab*))
+			formals)
+	      ;; build expression
+	      (let loop ((new-formals renamed-formals)
+			 (new-bodies new-bodies))
+		(if (null? new-formals)
+		    new-body
+		    `(LET ((,(car new-formals) ,(car new-bodies)))
+		       ,(loop (cdr new-formals) (cdr
+						 new-bodies))))))))
 	 ;;
-	 ((eq? tag 'LETREC)
+	 ((syntax-eq-symbol? 'LETREC tag symtab*)
 	  (let* ((bindings (syntax-car args))
-		 (formals (syntax-map (lambda (binding) (syntax-strip (syntax-car binding)))
+		 (formals (syntax-map (lambda (binding) (syntax-car binding))
 				      bindings))
-		 (depths (syntax-map (lambda (binding)
-				       (syntax-depth (syntax-car binding))) bindings))
 		 (bodies (syntax-map (lambda (x) (syntax-car (syntax-cdr x))) bindings))
 		 (body-list (syntax-cdr args))
 		 (new-formals (map scheme-rename-clone formals))
@@ -488,154 +516,147 @@
 			   bodies))
 		 (munge (lambda (new-formal arity)
 			  (if arity
-			      (let ((arity (syntax-strip arity)))
-				`(LAMBDA ,arity (,new-formal ,@arity)))
-			      new-formal)))
-		 (new-symtab*
-		  (let rec ((formals formals)
-			    (new-formals (map munge new-formals arities))
-			    (depths depths)
-			    (symtab* symtab*))
-		    (if (null? formals)
-			symtab*
-			(rec (cdr formals)
-			     (cdr new-formals)
-			     (cdr depths)
-			     (scheme-extend-symtab* (list (car formals))
-						    (list (car new-formals))
-						    symtab*
-						    (car depths))))))
-		 (new-bodies (map (lambda (formal body)
-				    (scheme-rename-variables new-symtab* body))
-				  formals bodies))
-		 (new-body (scheme-rename-variables
-			    new-symtab*
-			    (scheme-body-list->body body-list new-symtab*))))
-;;;	    (display (list "new-symtab*" depth (map (lambda (symtab)
-;;;						      (apply-env symtab 'input (lambda () #f)))
-;;;						    new-symtab*)))
-;;;	    (newline) (display (list "body-list=" body-list)) (newline)
-	    (let loop ((new-formals new-formals)
-		       (arities arities)
-		       (new-bodies new-bodies)
-		       (new-headers '())
-		       (final-body new-body))
-	      (if (null? new-formals)
-		  `(LETREC ,(reverse new-headers) ,final-body)
-		  (let ((new-formal (car new-formals))
-			(arity (car arities))
-			(new-body (car new-bodies)))
-		    (if arity
-			(loop (cdr new-formals)
-			      (cdr arities)
-			      (cdr new-bodies)
-			      (cons (list new-formal new-body) new-headers)
-			      final-body)
-			(begin
-			  (scheme->abssyn-mutable-variable! new-formal)
-			  `(LET ((,new-formal #f))
-			     ,(loop (cdr new-formals)
-				    (cdr arities)
-				    (cdr new-bodies)
-				    new-headers
-				    `(BEGIN (SET! ,new-formal ,new-body)
-					    ,final-body))))))))))
+			      (make-arity-binding
+			       new-formal
+			       (let ((arity (syntax-strip arity)))
+				 `(,(syntax-make-env-mark 'LAMBDA (empty-boxed-env))
+				   ,arity (,new-formal ,@arity))))
+			      new-formal))))
+	    ;;(display-line "letrec: " formals)
+	    ;; bind each variable in its own env
+	    (for-each (lambda (formal renamed-formal arity)
+			(enter-binding formal (munge renamed-formal arity) symtab*))
+		      formals new-formals arities)
+	    ;; construct bodies
+	    (let ((new-bodies (map loop bodies))
+		  (new-body (loop (scheme-body-list->body body-list symtab*))))
+	      ;; unbind variables
+	      (for-each (lambda (formal)
+			  (remove-binding formal symtab*))
+			formals)
+	      ;; build result
+	      (let loop ((new-formals new-formals)
+			 (arities arities)
+			 (new-bodies new-bodies)
+			 (new-headers '())
+			 (final-body new-body))
+		(if (null? new-formals)
+		    `(LETREC ,(reverse new-headers) ,final-body)
+		    (let ((new-formal (car new-formals))
+			  (arity (car arities))
+			  (new-body (car new-bodies)))
+		      (if arity
+			  (loop (cdr new-formals)
+				(cdr arities)
+				(cdr new-bodies)
+				(cons (list new-formal new-body) new-headers)
+				final-body)
+			  (begin
+			    (scheme->abssyn-mutable-variable! new-formal)
+			    `(LET ((,new-formal #f))
+			       ,(loop (cdr new-formals)
+				      (cdr arities)
+				      (cdr new-bodies)
+				      new-headers
+				      `(BEGIN (SET! ,new-formal ,new-body)
+					      ,final-body)))))))))))
 	 ;;
-	 ((or (eq? tag 'LAMBDA) (eq? tag 'LAMBDA-WITHOUT-MEMOIZATION))
-	  ;;(display-line "lambda: " args)
-	  (let* ((depth (syntax-depth args))
-		 (formals (syntax-car args))
+	 ((or (syntax-eq-symbol? 'LAMBDA tag symtab*)
+	      (syntax-eq-symbol? 'LAMBDA-WITHOUT-MEMOIZATION tag symtab*))
+	  (let* ((formals (syntax-car args))
 		 (new-formals (let loop ((formals formals))
 				(cond
 				 ((syntax-pair? formals)
-				  (cons (scheme-rename-clone (syntax-strip (syntax-car formals)))
+				  (cons (scheme-rename-clone (syntax-car formals))
 					(loop (syntax-cdr formals))))
 				 ((syntax-null? formals)
 				  '())
 				 (else
-				  (scheme-rename-clone (syntax-strip formals))))))
-		 (new-symtab* (scheme-extend-symtab* (scheme-formals->vars formals)
-						     (scheme-formals->vars new-formals)
-						     symtab*
-						     depth))
-		 (body-list (syntax-cdr args))
-		 (body (scheme-body-list->body body-list new-symtab*))
-		 (new-body (scheme-rename-variables new-symtab* body)))
-	    `(,tag ,new-formals ,new-body)))
-	 ((eq? tag 'SET!)
+				  (scheme-rename-clone formals))))))
+	    ;;(display-line "lambda: " formals)
+	    (let loop ((formals formals) (new-formals new-formals))
+	      (cond
+	       ((pair? new-formals)
+		(enter-binding (syntax-car formals)
+			       (car new-formals)
+			       symtab*)
+		(loop (syntax-cdr formals) (cdr new-formals)))
+	       ((null? new-formals))
+	       (else
+		(enter-binding formals new-formals symtab*))))
+	    (let* ((body-list (syntax-cdr args))
+		   (body (scheme-body-list->body body-list symtab*))
+		   (new-body (loop body)))
+	      ;; unbind
+	      (let loop ((formals formals))
+		(cond
+		 ((syntax-pair? formals)
+		  (remove-binding (syntax-car formals) symtab*)
+		  (loop (syntax-cdr formals)))
+		 ((syntax-null? formals))
+		 (else
+		  (remove-binding formals symtab*))))
+	      ;; result
+	      ;;(display-line "lambda returns: " `(,tag ,new-formals ,new-body))
+	      `(,(syntax-strip tag) ,new-formals ,new-body))))
+	 ((syntax-eq-symbol? 'SET! tag symtab*)
 	  ;;(display-line "set!: " args)
 	  (let ((renamed-args (syntax-map loop args)))
 	    (scheme->abssyn-mutable-variable! (syntax-strip (syntax-car renamed-args)))
 	    `(SET! ,@renamed-args)))
 	 ;; local macros
 	 ;; (let-syntax ((v syntax-rules)) body)
-	 ((eq? tag 'LET-SYNTAX)
-	  (if (> (length symtab*) 1)
-	      (error "let-syntax generated by macro:" e))
-	  (let* ((depth (syntax-depth args))
-		 (phrase (syntax-car (syntax-car args)))
-		 (formal (syntax-car phrase))
-		 (new-symtab* (scheme-extend-symtab*
-			       (list formal)
-			       (list (make-macro-binding
-				      (parse-syntax-rules
-				       (syntax-car (syntax-cdr args)))
-				      (car symtab*)))
-			       symtab*
-			       depth))
-		 (body-list (syntax-cdr args))
-		 (body (scheme-body-list->body body-list new-symtab*))
-		 (new-body (scheme-rename-variables new-symtab* body)))
-	    new-body))
+	 ((syntax-eq-symbol? 'LET-SYNTAX tag symtab*)
+	  (let* ((phrase (syntax-car (syntax-car args)))
+		 (formal (syntax-car phrase)))
+	    ;; bind macro
+	    (enter-binding formal
+			   (make-macro-binding
+			    (parse-syntax-rules
+			     (syntax-car (syntax-cdr args))
+			     symtab*)
+			    (unbox-env symtab*))
+			   symtab*)
+	    (let* ((body-list (syntax-cdr args))
+		   (body (scheme-body-list->body body-list symtab*))
+		   (new-body (loop body)))
+	      ;; unbind macro
+	      (remove-binding formal symtab*)
+	    new-body)))
 	 ;;(letrec-syntax ((...)...) body)
-	 ((eq? tag 'LETREC-SYNTAX)
-	  (if (> (length symtab*) 1)
-	      (error "letrec-syntax generated by macro:" e))
+	 ((syntax-eq-symbol? 'LETREC-SYNTAX tag symtab*)
 	  (let* ((bindings (syntax-car args))
-		 (formals (syntax-map
-			   (lambda (binding)
-			     (syntax-strip (syntax-car binding)))
-			   bindings))
-		 (depths (syntax-map
-			  (lambda (binding)
-			    (syntax-depth (syntax-car binding)))
-			  bindings))
+		 (formals (syntax-map (lambda (x) x) bindings))
 		 (rules (syntax-map (lambda (x) (syntax-car (syntax-cdr x)))
 				    bindings))
-		 (new-symtab* (scheme-extend-symtab*
-			       formals
-			       (map (lambda (rule-set)
-				      (make-macro-binding
-				       (parse-syntax-rules
-					rule-set)
-				       #f))
-				    rules)
-			       symtab*
-			       0))	;depth!
-		 (fix-symtab* (for-each-env!
-			       (lambda (entry)
-				 (if (macro-binding? entry)
-				     (macro-binding->env! entry
-							  (car new-symtab*))))
-			       (car new-symtab*)))
-		 (body-list (syntax-cdr args))
-		 (new-body (scheme-rename-variables
-			    new-symtab*
-			    (scheme-body-list->body body-list new-symtab*))))
-	    new-body))
+		 (macro-expanders (map (lambda (rule-set)
+					 (make-macro-binding
+					  (parse-syntax-rules
+					   rule-set
+					   symtab*)
+					  #f))
+				       rules)))
+	    ;; bind the macros
+	    (for-each (lambda (formal macro-expander)
+			(enter-binding formal macro-expander symtab*))
+		      formals macro-expanders)
+	    ;; tie the recursive knot
+	    (for-each (lambda (macro-expander)
+			(macro-binding->env! macro-expander (unbox-env symtab*)))
+		      macro-expanders)
+	    (let* ((body-list (syntax-cdr args))
+		   (new-body (loop (scheme-body-list->body body-list symtab*))))
+	      ;; unbind
+	      (for-each (lambda (formal)
+			  (remove-binding formal symtab*))
+			formals)
+	      new-body)))
 	 (else
 	  ;;(display-line "tag= " tag)
-	  (cons (syntax-strip tag) (syntax-map loop args)))))))))
-
-(define (scheme-extend-symtab* key* value* symtab* depth)
-  (let loop ((depth depth) (symtab* symtab*))
-    (if (zero? depth)
-	(cons (extend-env* key*
-			   value*
-			   (car symtab*))
-	      (cdr symtab*))
-	(cons (car symtab*)
-	      (loop (- depth 1) (cdr symtab*))))))
+	  (let ((result (cons (syntax-strip tag)
+			      (syntax-map loop args))))
+	    ;;(display-line "function call: " result)
+	    result))))))))
 
 (define (scheme-formals->vars formals)
   (let loop ((formals formals) (acc '()))
@@ -650,8 +671,7 @@
 ;;; attention: inner definitions must have form (define (P V*) D0* E) 
 (define (scheme-body-list->body body-list symtab*)
   ;;(display (list "body-list:" body-list)) (newline)
-  (let* ((depth (syntax-depth body-list))
-	 (wrapper (lambda (x) x)))	;should really refer to the standard env
+  (let ((wrapper (lambda (x) (syntax-make-env-mark x (empty-boxed-env)))))
     (if (= 1 (length (syntax-strip body-list)))
 	(syntax-car body-list)
 	(let loop ((body-list body-list) (definitions '()))

@@ -1,12 +1,20 @@
+;;; cogen-macro
 ;;; macro expansion using syntax-rules
+
+;;; copyright © 1997, 1998 by Peter Thiemann
+;;; non-commercial use is free as long as the original copright notice
+;;; remains intact
 
 (define repeated?
   (lambda (pattern)
-    (and (pair? (cdr pattern)) (eq? '... (cadr pattern)))))
+    (and (syntax-pair? (syntax-cdr pattern))
+	 (syntax-eq-symbol? '... (cadr pattern) (empty-boxed-env)))))
 
 ;;; an environment maps a pattern variable to (multiplicity value)
 ;;; where multiplicity indicates the nesting depth of list constructors
 ;;; in value, i.e., value = list^multiplicity (primitive value)
+
+;;; ATTENTION: pattern and template may also contain marks!
 
 ;;; match <pattern> against <subject>
 ;;; treating <literals> as literal symbols
@@ -44,81 +52,85 @@
 	       '())))))
        (let loop ((pattern pattern) (subject subject))
 	 (cond
-	  ((null? pattern)
+	  ((syntax-null? pattern)
 	   (if (syntax-null? subject)
 	       '()
 	       (fail)))
-	  ((symbol? pattern)
-	   (if (memq pattern literals)
+	  ((syntax-symbol? pattern)
+	   (if (syntax-memq pattern literals symtab*)
 	       (if (syntax-eq-symbol? pattern subject symtab*) '() (fail))
 	       `((,pattern 0 ,subject))))
-	  ((pair? pattern)
+	  ((syntax-pair? pattern)
 	   (if (repeated? pattern)
 	       (if (syntax-list? subject)
 		   (if (syntax-null? subject)
 		       (build-empty-env pattern)
 		       (apply map combine
-			      (syntax-map (lambda (car-subject) (loop (car pattern) car-subject))
+			      (syntax-map (lambda (car-subject)
+					    (loop (syntax-car pattern) car-subject))
 					  subject)))
 		   (fail))
 	       (if (syntax-pair? subject)
-		   (append (loop (car pattern) (syntax-car subject))
-			   (loop (cdr pattern) (syntax-cdr subject)))
+		   (append (loop (syntax-car pattern) (syntax-car subject))
+			   (loop (syntax-cdr pattern) (syntax-cdr subject)))
 		   (fail))))
-	  ((vector? pattern)
+	  ((syntax-vector? pattern)
 	   (if (syntax-vector? subject)
-	       (loop (vector->list pattern) (syntax-vector->list subject))
+	       (loop (syntax-vector->list pattern) (syntax-vector->list subject))
 	       (fail)))
 	  (else
 	   (if (syntax-eq? pattern subject)
 	       '()
 	       (fail)))))))))
 
-(define (instantiate template env literals)
+(define (instantiate template env literals symtab*)
 
   (define (instantiate-internal template level env)
     (letrec
 	((pattern-vars
 	  (lambda (template penv)
 	    (cond
-	     ((null? template)
+	     ((syntax-null? template)
 	      penv)
-	     ((symbol? template)
-	      (let ((found (assoc template penv)))
+	     ((syntax-symbol? template)
+	      (let ((found (syntax-assoc template penv symtab*)))
 		(if found
 		    penv
-		    (let ((found (assoc template env)))
+		    (let ((found (syntax-assoc template env symtab*)))
 		      (if found
 			  (cons found penv)
 			  penv)))))
-	     ((pair? template)
-	      (pattern-vars (car template) (pattern-vars (cdr template) penv)))
+	     ((syntax-pair? template)
+	      (pattern-vars (syntax-car template)
+			    (pattern-vars (syntax-cdr template) penv)))
 	     (else
 	      penv)))))
       (let loop ((template template))
 	(cond
-	 ((null? template)
+	 ((syntax-null? template)
 	  '())
-	 ((symbol? template)
-	  (let ((found (assoc template env)))
+	 ((syntax-symbol? template)
+	  (let ((found (syntax-assoc template env symtab*)))
 	    (cond
 	     (found
 	      (if (zero? (cadr found))
 		  (caddr found)
 		  (error "template multiplicity error (bad nesting of ...s)" template)))
-	     ((memq template literals)
+	     ((syntax-memq template literals symtab*)
 	      template)
 	     (else			;a free variable
 	      template))))
-	 ((pair? template)
+	 ((syntax-pair? template)
 	  (if (repeated? template)
-	      (let ((penv (pattern-vars (car template) '())))
+	      (let ((penv (pattern-vars (syntax-car template) '())))
 		(append
 		 (if (null? penv)
 		     (error "cannot determine replication (too many ...s)" template)
 		     (begin
 		       (map (lambda (new-env)
-			      (instantiate-internal (car template) (+ 1 level) new-env))
+			      (instantiate-internal (syntax-car template)
+						    (+ 1 level)
+						    new-env))
 			    (apply map
 				   (lambda values
 				     (map (lambda (pentry value)
@@ -127,11 +139,11 @@
 					      ,value))
 					  penv values))
 				   (map caddr penv)))))
-		 (loop (cddr template))))
-	      (cons (loop (car template))
-		    (loop (cdr template)))))
-	 ((vector? template)
-	  (list->vector (loop (vector->list template))))
+		 (loop (syntax-cdr (syntax-cdr template)))))
+	      (cons (loop (syntax-car template))
+		    (loop (syntax-cdr template)))))
+	 ((syntax-vector? template)
+	  (list->vector (loop (syntax-vector->list template))))
 	 (else
 	  template)))))
 
@@ -140,6 +152,12 @@
 
 
 (define SCHEME-POP-MARK (list(string->symbol "Scheme-Pop-Mark")))
+(define (syntax-make-env-mark exp env)
+  (if (syntax-pop-mark? exp)
+      exp
+      (list SCHEME-POP-MARK exp env)))
+(define (syntax-marked-env exp)
+  (caddr exp))
 (define (syntax-make-pop-mark exp)
   (list SCHEME-POP-MARK exp))
 (define (syntax-marked-exp exp)
@@ -150,6 +168,8 @@
 
 (define (syntax-null? exp)
   (null? (syntax-strip exp)))
+(define (syntax-symbol? exp)
+  (symbol? (syntax-strip exp)))
 (define (syntax-pair? exp)
   (pair? (syntax-strip exp)))
 (define (syntax-list? exp)
@@ -160,31 +180,60 @@
   (let ((stripped-exp (syntax-strip exp)))
     (or (eq? pat stripped-exp)
 	(equal? pat stripped-exp))))
+(define (syntax-memq x literals symtab*)
+  (let loop ((literals literals))
+    (and (pair? literals)
+	 (or (syntax-eq-symbol? x (car literals) symtab*)
+	     (loop (cdr literals))))))
+(define (syntax-assoc x alist symtab*)
+  (let loop ((alist alist))
+    (and (pair? alist)
+	 (let ((apair (car alist)))
+	   (if (syntax-eq-symbol? x (car apair) symtab*)
+	       apair
+	       (loop (cdr alist)))))))
+(define (syntax-lookup-symbol exp symtab*)
+  (if (syntax-pop-mark? exp)
+      (syntax-lookup-symbol (syntax-marked-exp exp)
+			    (syntax-marked-env exp))
+      (or (apply-boxed-env symtab* exp (lambda () #f))
+	  exp)))
 (define (syntax-eq-symbol? pat exp symtab*)
+  (and (syntax-symbol? pat)
+       (syntax-symbol? exp)
+       (eq? (syntax-lookup-symbol pat symtab*)
+	    (syntax-lookup-symbol exp symtab*))))
+(define (syntax-eq-symbol?-obsolete pat exp symtab*)
   (let loop ((exp exp) (symtab* symtab*))
     (if (syntax-pop-mark? exp)
-	(loop (syntax-marked-exp exp) (cdr symtab*))
+	(loop (syntax-marked-exp exp) (syntax-marked-env exp))
 	(and (symbol? exp)
-	     (let ((found (apply-env (car symtab*) exp (lambda () #f))))
+	     (let ((found (apply-boxed-env symtab* exp (lambda () #f))))
 	       (and (not found)
 		    (eq? pat exp)))))))
 (define (syntax-map f exp)
   (let loop ((exp exp) (mark (lambda (x) x)))
     (if (syntax-pop-mark? exp)
-	(loop (syntax-marked-exp exp) (lambda (x) (mark (syntax-make-pop-mark x))))
+	(loop (syntax-marked-exp exp)
+	      (let ((env (syntax-marked-env exp)))
+		(lambda (x) (mark (syntax-make-env-mark x env)))))
 	(map (lambda (e) (f (mark e))) exp))))
 (define (syntax-vector->list exp)
   (let loop ((exp exp) (mark (lambda (x) x)))
     (if (syntax-pop-mark? exp)
-	(loop (syntax-marked-exp exp) (lambda (x) (mark (syntax-make-pop-mark x))))
+	(loop (syntax-marked-exp exp)
+	      (let ((env (syntax-marked-env exp)))
+		(lambda (x) (mark (syntax-make-env-mark x env)))))
 	(map mark (vector->list exp)))))
 (define (syntax-car exp)
   (if (syntax-pop-mark? exp)
-      (syntax-make-pop-mark (syntax-car (syntax-marked-exp exp)))
+      (syntax-make-env-mark (syntax-car (syntax-marked-exp exp))
+			    (syntax-marked-env exp))
       (car exp)))
 (define (syntax-cdr exp)
   (if (syntax-pop-mark? exp)
-      (syntax-make-pop-mark (syntax-cdr (syntax-marked-exp exp)))
+      (syntax-make-env-mark (syntax-cdr (syntax-marked-exp exp))
+			    (syntax-marked-env exp))
       (cdr exp)))
 (define (syntax-depth exp)
   (cond
@@ -214,11 +263,12 @@
 ;;; <exp> is (syntax-rules ...)
 ;;; <exp> -> transformer or #f
 ;;;
-(define (parse-syntax-rules exp)
+(define (parse-syntax-rules exp symtab*)
   (cond
-   ((eq? (car exp) 'syntax-rules)
-    (let ((literals (cadr exp))
-	  (rules (cddr exp)))
+   ((syntax-eq-symbol? 'syntax-rules (car exp) symtab*)
+    (let* ((rest (syntax-cdr exp))
+	   (literals (syntax-map (lambda (x) x) (syntax-car rest)))
+	   (rules (syntax-cdr rest)))
       (syntax-rules-transformer literals
 				rules
 				(lambda () (error "No match for macro call" exp)))))
@@ -228,11 +278,27 @@
 (define (syntax-rules-transformer literals rules fail)
   (lambda (exp dynamic-symtab*)		;<<- transformer
     (let loop ((rules rules))
-      (if (null? rules)
+      (if (syntax-null? rules)
 	  (fail)
-	  (let* ((rule (car rules))
-		 (env (build-env (cdar rule) (syntax-cdr exp)
-				 literals dynamic-symtab*)))
-	    (if env
-		(instantiate (cadr rule) env literals)
-		(loop (cdr rules))))))))
+	  (let* ((rule (syntax-car rules))
+		 (stripped-rule (syntax-strip rule)))
+	    (cond
+	     ((and (list? stripped-rule) (= 2 (length stripped-rule)))
+	      (let ((env (build-env (syntax-cdr (syntax-car rule))
+				    (syntax-cdr exp)
+				    literals dynamic-symtab*)))
+		(if env
+		    (instantiate (syntax-car (syntax-cdr rule)) env
+				 literals
+				 dynamic-symtab*)
+		    (loop (syntax-cdr rules)))))
+	     ((eq? stripped-rule 'else)
+	      ;; avoid recursive application
+	      (cons (syntax-make-env-mark (syntax-strip (syntax-car exp))
+					  (empty-boxed-env))
+		    (syntax-cdr exp)))
+	     (else
+	      (display "syntax-rules: syntax error in ")
+	      (display stripped-rule)
+	      (newline)
+	      (fail))))))))

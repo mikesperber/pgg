@@ -311,7 +311,16 @@
 	  extend-env*
 	  apply-env
 	  map-env
-	  for-each-env!))
+	  for-each-env!
+	  
+	  empty-boxed-env
+	  extend-boxed-env
+	  extend-boxed-env*
+	  fresh-boxed-env*
+	  apply-boxed-env
+	  shrink-boxed-env
+	  make-boxed-env
+	  unbox-env))
 
 (define-structure cogen-env cogen-env-interface
   (open scheme signals cogen-record)
@@ -444,7 +453,9 @@
 
 (define-interface cogen-macro-interface
   (export syntax-make-pop-mark
+	  syntax-make-env-mark
 	  syntax-marked-exp
+	  syntax-marked-env
 	  syntax-pop-mark?
 	  syntax-null?
 	  syntax-pair?
@@ -464,10 +475,19 @@
 	cogen-env)
   (files cogen-macro))
 
+(define-interface scheme-desugar-interface
+  (export desugar))
+
+(define-structure scheme-desugar scheme-desugar-interface
+  (open scheme filenames source-file-names auxiliary
+	cogen-scheme)
+  (files scheme-desugar))
+
 (define-interface cogen-scheme-interface
   (export scheme->abssyn-d
 	  scheme->abssyn-make-call
-	  scheme->abssyn-make-ctor1))
+	  scheme->abssyn-make-ctor1
+	  scheme-desugar))
 
 (define-structure cogen-scheme cogen-scheme-interface
   (open scheme auxiliary signals
