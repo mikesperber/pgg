@@ -263,19 +263,13 @@
 	shift-reset cogen-completers cogen-memo-standard anf-specializer)
   (files cogen-anf-compile))
 
-(define-module (make-pgg-residual pgg-library)
-  (define-structure pgg-residual
-    (export ((start-memo define-data) :syntax)
-	    specialize
-	    make-cell cell-ref cell-set!)
-    (open scheme escapes
-	  define-data
-	  pgg-library
-	  cogen-boxops cogen-memo-standard))
-  pgg-residual)
-
-(define pgg-residual (make-pgg-residual pgg-library))
-(define pgg-compiler-residual (make-pgg-residual pgg-compiler-library))
+(define-structure pgg-residual
+  (export ((start-memo define-data) :syntax)
+	  specialize
+	  make-cell cell-ref cell-set!)
+  (open scheme escapes
+	define-data
+	cogen-boxops cogen-memo-standard))
 
 (define-structure cogen-completers
   cogen-completers-interface
