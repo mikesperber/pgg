@@ -1,6 +1,6 @@
 ;;; cogen-memo-standard.scm
 
-;;; copyright © 1996, 1997, 1998, 1999 by Peter Thiemann
+;;; copyright © 1996, 1997, 1998, 1999, 2000 by Peter Thiemann
 ;;; non-commercial use is free as long as the original copright notice
 ;;; remains intact
 
@@ -73,22 +73,36 @@
     result))
 
 (define (continue var value)
-  (let ((deferred '()))
+  (let ((static-deferred '())
+	(dynamic-deferred '()))
     (for-each-deferred-list
      (lambda (key value)
-       (set! deferred (cons (cons key value) deferred))))
+       (if (> (car (memolist-entry->var value)) 0)
+	   (set! dynamic-deferred (cons (cons key value) dynamic-deferred))
+	   (set! static-deferred (cons (cons key value) static-deferred)))))
     (clear-deferred-list!)
-    ;; what else must be cleared?
     (for-each
      (lambda (kv)
        (let ((key (car kv))
 	     (entry (cdr kv)))
-	 (if (equal? (memolist-entry->var entry) var)
-	     (begin
-	       (set-car! (cdr (memolist-entry->pp entry)) value)
-	       (generate-def entry))
-	     (add-to-deferred-list! key entry))))
-     deferred)))
+	 (add-to-deferred-list! key entry)))
+     static-deferred)
+    (for-each
+     (lambda (kv)
+       (let ((entry (cdr kv)))
+	 (generate-def entry (list value))))
+     dynamic-deferred)
+    (let loop ((flag #f))
+      (for-each-deferred-list
+       (lambda (key entry)
+	 (let ((entry-var (memolist-entry->var entry)))
+	   (if (and (zero? (car entry-var))
+		    (equal? (cadr entry-var) var))
+	       (begin
+		 (set! flag #t)
+		 (set-car! entry-var -1)
+		 (generate-def entry (list value)))))))
+      (if flag (loop #f)))))
 
 (define memo-version-stamp "pgg-memo-dump-1")
 (define deferred-version-stamp "pgg-deferred-dump-1")
@@ -174,7 +188,7 @@
 	   (equal? (read-entries add-to-memolist!) deferred-version-stamp)
 	   (read-entries add-to-deferred-list!)))))
 
-(define (generate-def entry)
+(define (generate-def entry extra-arg)
   (let ((bts (memolist-entry->bts entry))
 	(bt (memolist-entry->bt entry))
 	(full-pp (memolist-entry->pp entry))
@@ -186,7 +200,8 @@
 
       (let ((body
 	     (reset
-	      (let ((v (apply fct (cdr cloned-pp))))
+	      (let* ((v0 (apply fct (cdr cloned-pp)))
+		     (v (if extra-arg (v0 (car extra-arg)) v0)))
 		(if (not (zero? bt))
 		    v
 		    (let* ((return-v (list 'return v))
@@ -215,34 +230,32 @@
 ;;; - fn is the name of the function to memoize
 ;;; - args are the free variables of the function's body
 ;;; - bts are their binding times
-(define (multi-memo level bt fname fct maybe-var bts args)
-  (multi-memo-internal level bt fname fct maybe-var bts args #t))
+(define (multi-memo level bt fname fct maybe-special bts args)
+  (multi-memo-internal level bt fname fct maybe-special bts args #t))
 
-(define (multi-memo-no-result level bt fname fct maybe-var bts args)
-  (multi-memo-internal level bt fname fct maybe-var bts args #f))
+(define (multi-memo-no-result level bt fname fct maybe-special bts args)
+  (multi-memo-internal level bt fname fct maybe-special bts args #f))
 
-(define (multi-memo-internal level bt fname fct maybe-var bts args result-needed)
+(define (multi-memo-internal level bt fname fct maybe-special bts args result-needed)
   (let*
-      ((special (and maybe-var (zero? (car bts))))
-       (%garbage% (if special (set-car! args maybe-var)))
-       (full-pp (cons fname args))
+      ((full-pp (cons fname args))
        (static-pp (top-project-static full-pp bts))
        (dynamics (top-project-dynamic full-pp bts))
        (actuals (map car dynamics))
        (dyn-bts (map cdr dynamics))
        
        (found
-	(if special
-	    (or (lookup-deferred-list static-pp)
+	(if maybe-special
+	    (or (lookup-deferred-list static-pp maybe-special)
 		(let*
 		    ((new-name (gensym-trimmed fname))
 		     (new-entry (make-memolist-entry new-name)))
-		  (memolist-entry->var! new-entry maybe-var)
+		  (memolist-entry->var! new-entry maybe-special)
 		  (memolist-entry->fct! new-entry fct)
 		  (memolist-entry->pp! new-entry full-pp)
 		  (memolist-entry->bt! new-entry bt)
 		  (memolist-entry->bts! new-entry bts)
-		  (add-to-deferred-list! static-pp new-entry)
+		  (add-to-deferred-list! static-pp new-entry maybe-special)
 		  new-entry))
 	    (or (lookup-memolist static-pp)
 		(let*
@@ -253,7 +266,7 @@
 		  (memolist-entry->bt! new-entry bt)
 		  (memolist-entry->bts! new-entry bts)
 		  (memolist-entry->fct! new-entry fct)
-		  (generate-def new-entry)
+		  (generate-def new-entry #f)
 		  new-entry))))
        (seen (memolist-entry->count! found (+ 1 (memolist-entry->count
 						 found))))
@@ -266,7 +279,9 @@
 				   ( - bt 1)
 				   `',res-name
 				   res-name
-				   maybe-var
+				   (and maybe-special
+					`(LIST ,(- (car maybe-special) 1)
+					       ,(cadr maybe-special)))
 				   `',(map pred dyn-bts)
 				   `(LIST ,@actuals)))))
       (if result-needed

@@ -1,6 +1,6 @@
 ;;; cogen-eq-flow
 
-;;; copyright © 1996, 1997, 1998, 1999 by Peter Thiemann
+;;; copyright © 1996, 1997, 1998, 1999, 2000 by Peter Thiemann
 ;;; non-commercial use is free as long as the original copright notice
 ;;; remains intact
 
@@ -220,7 +220,7 @@
 
 (define ctor-bot '***bot***)
 (define ctor-top '***top***)
-(define ctor-basic '***basic***)
+(define ctor-basic 'b)
 (define ctor-eval '***eval-dont-lift-me***)
 (define ctor-function '->)
 (define ctor-product '*)
@@ -452,6 +452,42 @@
 	  (if (annIsDefMutable? d)
 	      (full-make-top proctv))))))
 
+;;; interpret a type into the internal representation
+(define (interpret-type type)
+  (bta-debug-level 1 (display-line "interpret-type: " type))
+  (let loop ((type type) (tenv the-empty-env))
+    (cond
+     ((type-var? type)
+      (apply-env tenv (type-var->tvar type)
+		 (lambda ()
+		   (new-node))))
+     ((type-all? type)
+      (loop (type-all->type type)
+	    (extend-env (type-all->tvar type) (new-node) tenv)))
+     ((type-rec? type)
+      (let* ((rec-node (new-node))
+	     (rec-type
+	      (loop (type-rec->type type)
+		    (extend-env (type-rec->tvar type) rec-node tenv))))
+	(full-equate rec-node rec-type)
+	rec-node))
+     ((type-app? type)
+      (let ((node (new-node))
+	    (ctor (type-app->tcon type))
+	    (args (map (lambda (type) (loop type tenv)) (type-app->types type))))
+	(if (eq? ctor ctor-function)
+	    (if (null? args)
+		(error "function type constructor used as constant")
+		(let loop ((rev-args '()) (results args))
+		  (let ((next-results (cdr results)))
+		    (if (null? next-results)
+			(full-add-function node (reverse rev-args) (car results))
+			(loop (cons (car results) rev-args) next-results)))))	    
+	    (full-add-leq node ctor args))
+	node))
+     (else
+      (error "interpret-type: unknown type form")))))
+
 ;;; full-collect returns the type variable of e
 ;;; this is ___ONLY___ concerned with type inference
 (define (full-collect e symtab)
@@ -480,7 +516,11 @@
        ((annIsOp? e)
 	(let* ((phi* (map loop (annFetchOpArgs e)))
 	       (type (annFetchOpType e)))
-	  ;; !!! implement type
+	  (if type
+	      (let ((prescribed-type (interpret-type type))
+		    (inferred-type (new-node)))
+		(full-add-function inferred-type phi* phi)
+		(full-equate inferred-type prescribed-type)))
 	  ;(full-make-base phi)
 	  ;(for-each (lambda (phi-i) (full-make-base phi-i)) phi*)
 	  (if (eq? INTERNAL-IDENTITY (annFetchOpName e))
@@ -489,7 +529,7 @@
 	(let ((phi* (map loop (annFetchCallArgs e))))
 	  (full-add-function
 	   (apply-env symtab (annFetchCallName e) (lambda () (error "unknown proc")))
-			     phi* phi)))
+	   phi* phi)))
        ((annIsLet? e)
 	(let* ((phi-1 (loop (annFetchLetHeader e)))
 	       (phi-2 (full-collect (annFetchLetBody e)
@@ -878,15 +918,19 @@
 	    (if (< level 0) (set! level 0))
 	    (if (>= level *bta-max-bt*) (set! level *bta-max-bt*))
 	    (set! not-initialized #f)))
-      (if (not (number? active))
-	  (set! type* (cdr type*)))
-      (if (or (not (number? active)) (<= active *bta-max-bt*))
-	  (for-each (lambda (type)
-		      (bta-note-level!
-		       level
-		       (type-fetch-btann type)))
-		    (cons type type*))
-	  (wft-depend-property type type*)))))
+      (cond
+       ((and (number? active)
+	     (<= active *bta-max-bt*))
+	(for-each (lambda (type)
+		    (bta-note-level!
+		     level
+		     (type-fetch-btann type)))
+		  (cons type type*)))
+       ((not (number? active))
+	;; everything else is enforced by the typing
+	(bta-note-level! level (type-fetch-btann type)))
+       (else
+	(wft-depend-property type type*))))))
 
 (define wft-property-table
   `((apply   . ,wft-apply-property)
@@ -950,6 +994,8 @@
 				    (annFreeVars body))))
 		  (if (annIsLift? var)
 		      (set! var (annFetchLiftBody var)))
+		  (if (annIsLift? body)
+		      (set! body (annFetchLiftBody body)))
 		  (annIntroduceMemo1 e bt level fvs body var)
 		  (for-each (bta-memo-var level) fvs)))
 	    #f)

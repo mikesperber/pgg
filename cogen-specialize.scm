@@ -84,14 +84,22 @@
   (cons label *gen-address-counter*))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define (make-special-key key0 special)
+  (let* ((bt (car special))
+	 (key1 (cadr special)))
+    (if (> bt 0) key0 (cons key1 key0))))
 (define (clear-deferred-list!)
   (set! *deferred-list* '()))
-(define (add-to-deferred-list! key value)
-  (set! *deferred-list*
-	(cons (cons key value) *deferred-list*)))
-(define (lookup-deferred-list key)
-  (cond
-   ((assoc key *deferred-list*) => cdr)
-   (else #f)))
+(define (add-to-deferred-list! key0 value . special)
+  (let ((key (if (null? special)
+		 key0
+		 (make-special-key key0 (car special)))))
+    (set! *deferred-list*
+	  (cons (cons key value) *deferred-list*))))
+(define (lookup-deferred-list key0 special)
+  (let* ((key (make-special-key key0 special)))
+    (cond
+     ((assoc key *deferred-list*) => cdr)
+     (else #f))))
 (define (for-each-deferred-list proc)
   (for-each (lambda (k-v) (proc (car k-v) (cdr k-v))) *deferred-list*))

@@ -1,6 +1,6 @@
 ;;; pgg-packages.scm
 
-;;; copyright © 1996, 1997, 1998, 1999 by Peter Thiemann
+;;; copyright © 1996, 1997, 1998, 1999, 2000 by Peter Thiemann
 ;;; non-commercial use is free as long as the original copright notice
 ;;; remains intact
 
@@ -294,7 +294,11 @@
 
 (define-interface cogen-typesig-interface
   (export process-type-declarations parse-type
-	  desc-type desc-ctor desc-np desc-nc desc-nt desc-hidden))
+	  desc-type desc-ctor desc-np desc-nc desc-nt desc-hidden
+	  type-var? type-var->tvar
+	  type-all? type-all->tvar type-all->type
+	  type-rec? type-rec->tvar type-rec->type
+	  type-app? type-app->tcon type-app->types))
 
 (define-structure cogen-typesig cogen-typesig-interface
   (open scheme signals

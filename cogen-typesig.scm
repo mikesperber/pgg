@@ -1,6 +1,6 @@
 ;;; cogen-typesig.scm
 
-;;; copyright © 1996, 1997, 1998, 1999 by Peter Thiemann
+;;; copyright © 1996, 1997, 1998, 1999, 2000 by Peter Thiemann
 ;;; non-commercial use is free as long as the original copright notice
 ;;; remains intact
 
@@ -108,12 +108,15 @@
 	 (memo-level (caddr dm))
 	 (active-level (if (pair? (cdddr dm))
 			   (cadddr dm)
-			   0)))
+			   0))
+	 (memo-type (if (number? active-level)
+			'(all t t)
+			'(all t (-> b (-> b t) t)))))
     (list memo-name
 	  (annMakeOp1 #t
 		      (wft-make-memo-property memo-level active-level)
 		      (bta-make-memo-postprocessor memo-level active-level)
-		      (parse-type '(all t t)))
+		      (parse-type memo-type))
 	  1)))
 
 
@@ -122,33 +125,36 @@
 ;;; TC type constructor
 ;;; abstract syntax:
 (define-record primop (op-name op-type op-prop))
-(define-record primop-tapp (tcon types))
-(define-record primop-trec (tvar type))
-(define-record primop-tall (tvar type))
-(define-record primop-tvar (tvar))
+(define-record type-app (tcon types))
+(define-record type-rec (tvar type))
+(define-record type-all (tvar type))
+(define-record type-var (tvar))
+;;; typical type: (-> b b b) interprets as   (b b) -> b
 
 (define parse-type
   (lambda (texp)
-    (let loop ((texp texp)
-	       (tenv the-empty-env))
-      (cond
-       ((pair? texp)
-	(if (member (car texp) '(all rec))
-	    (let ((tvar (cadr texp)))
-	      ((if (equal? (car texp) 'rec)
-		   make-primop-trec
-		   make-primop-tall)
-	       tvar
-	       (loop (caddr texp)
-		     (extend-env tvar (make-primop-tvar tvar) tenv))))
-	    (make-primop-tapp (car texp)
-			      (map (lambda (texp)
-				     (loop texp tenv))
-				   (cdr texp)))))
-       (else
-	(apply-env tenv texp
-		   (lambda ()
-		     (make-primop-tapp texp '()))))))))
+    (and
+     (not (eq? texp '-))
+     (let loop ((texp texp)
+		(tenv the-empty-env))
+       (cond
+	((pair? texp)
+	 (if (member (car texp) '(all rec))
+	     (let ((tvar (cadr texp)))
+	       ((if (equal? (car texp) 'rec)
+		    make-type-rec
+		    make-type-all)
+		tvar
+		(loop (caddr texp)
+		      (extend-env tvar (make-type-var tvar) tenv))))
+	     (make-type-app (car texp)
+			    (map (lambda (texp)
+				   (loop texp tenv))
+				 (cdr texp)))))
+	(else
+	 (apply-env tenv texp
+		    (lambda ()
+		      (make-type-app texp '())))))))))
 
 
 ;;; a constructor description for ci is a list

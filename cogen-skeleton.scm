@@ -295,32 +295,21 @@
       (let* ((memo-fname (gensym fname))
 	     (var-exprs (annFetchMemoVars e))
 	     (vars (map annFetchVar var-exprs))
-	     (maybe-var-expr (annFetchMemoSpecial e))
-	     (maybe-var-level (and maybe-var-expr (annExprFetchLevel maybe-var-expr)))
-	     (maybe-var (and maybe-var-expr (annFetchVar maybe-var-expr)))
+	     (maybe-special-expr (annFetchMemoSpecial e))
+	     (maybe-special-level (and maybe-special-expr
+				       (annExprFetchLevel maybe-special-expr)))
+	     (maybe-special-arg (and maybe-special-expr
+				     `(LIST ,maybe-special-level
+					    ,(loop maybe-special-expr))))
 	     (bts (map annExprFetchLevel var-exprs))
 	     (generated-body (loop (annFetchMemoBody e))))
-	;; (display-line maybe-var-level " " maybe-var)
-	(if maybe-var
-	    (let ((exit-with
-		   (lambda (rvars rbts)
-		     (set! vars (cons maybe-var (reverse rvars)))
-		     (set! bts (cons maybe-var-level (reverse rbts)))
-		     (set! maybe-var (trim-symbol maybe-var)))))
-	      (let loop ((vars vars) (bts bts) (rvars '()) (rbts '()))
-		(if (pair? vars)
-		    (if (eq? (car vars) maybe-var)
-			(loop (cdr vars) (cdr bts) rvars rbts)
-			(loop (cdr vars) (cdr bts)
-			      (cons (car vars) rvars) (cons (car bts) rbts)))
-		    (exit-with rvars rbts)))))
 	(set-generating-extension!
 	      (cons `(DEFINE (,memo-fname ,@vars)
 		       ,generated-body)
 	       *generating-extension*))
 	`(MULTI-MEMO ,(annFetchMemoLevel e) ,(annExprFetchLevel e)
 		     ',memo-fname ,memo-fname
-		     ,maybe-var
+		     ,maybe-special-arg
 		     ',bts
 		     (LIST ,@vars))))
      ((annIsRef? e)

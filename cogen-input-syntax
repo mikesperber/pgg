@@ -26,9 +26,10 @@ D ::=	D0 |
 	(define-memo M <number>) |
 	(define-macro P (syntax-rules (V*) R))
 R ::=	<???> of R5RS
-T ::= (all TV T) | (rec TV T) | (TC T*) | TV
-TV    type variable (must be bound by rec or all)
-TC    type constructor
+T ::=	- | T0
+T0 ::=	(all TV T0) | (rec TV T0) | (TC T0*) | TV
+TV	type variable (must be bound by rec or all)
+TC	type constructor
 B ::=	* | d | -
 prg ::= D+
 
