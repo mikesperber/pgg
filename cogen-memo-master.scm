@@ -4,7 +4,7 @@
 ;;; perform the actual specialization work
 
 (define-record pending-entry
-  (program-point static-skeleton name bts fct master-entry))
+  (program-point static-skeleton name bts fct server-uid local-id master-entry))
 
 (define *master-pending* #f)
 (define *master-pending-lock* (make-lock))
@@ -99,7 +99,7 @@
 	   #t)))))
 
 (define (can-server-work-on? uid local-id)	; sync
-    (display "Server ") (display uid) (display " asks if it can work on ") (display local-id) (newline)
+  ;; (display "Server ") (display uid) (display " asks if it can work on ") (display local-id) (newline)
   (let loop ((master-cache *master-cache*) (final? null?))
     (cond
      ((master-cache-lookup-by-local-id local-id final?)
@@ -114,9 +114,9 @@
 
 (define (server-registers-memo-point! uid
 				      program-point local-name local-id bts fct)
-  (display "Server ") (display uid) (display " registers memo point ")
+  ;; (display "Server ") (display uid) (display " registers memo point ")
   ;; (display program-point)
-  (display ", local id ") (display local-id) (newline)
+  ;; (display ", local id ") (display local-id) (newline)
   (let ((static-skeleton (top-project-static program-point bts)))
     (obtain-lock *master-cache-lock*)
     (cond
@@ -137,16 +137,18 @@
 				  local-name
 				  bts
 				  fct
+				  uid local-id
 				  master-entry)))
 	
 	;; order is important here, no?
 	(master-cache-add-no-locking! static-skeleton master-entry)
-	(display "Registration of local id ") (display local-id) (display " complete") (newline)
+	;; (display "Registration of local id ") (display local-id) (display " complete") (newline)
 	(release-lock *master-cache-lock*)
 	(master-pending-add! static-skeleton pending-entry))))))
 
+
 (define (server-is-unemployed uid)
-  (display "Server ") (display uid) (display " says it's unemployed") (newline)
+  ;; (display "Server ") (display uid) (display " says it's unemployed") (newline)
   (let loop ()
     (obtain-lock *master-pending-lock*)
     (let ((entry (master-pending-advance-no-locking!)))
@@ -154,13 +156,19 @@
 	  (begin
 	    (release-lock *master-pending-lock*)
 	    (if (can-I-work-on-master-entry? (pending-entry->master-entry entry))
-		;; we can put it right back to work
-		(remote-run! (uid->aspace uid)
-			     server-specialize ;; -async
-			     (pending-entry->name entry) 
-			     (pending-entry->program-point entry)
-			     (pending-entry->bts entry)
-			     (pending-entry->fct entry))
+		(begin
+		  (let ((local-id (pending-entry->local-id entry)))
+		    (if local-id
+			(remote-run! (uid->aspace (pending-entry->server-uid entry))
+				     server-kill-local-id!
+				     local-id)))
+		  ;; we can put it right back to work
+		  (remote-run! (uid->aspace uid)
+			       server-specialize ;; -async
+			       (pending-entry->name entry) 
+			       (pending-entry->program-point entry)
+			       (pending-entry->bts entry)
+			       (pending-entry->fct entry)))
 		;; Don't call us, we'll call you.  Next, please!
 		(loop)))
 	  (let ((n-unemployed
@@ -170,11 +178,14 @@
 		    (set! *n-unemployed-servers* (+ 1 *n-unemployed-servers*))
 		    *n-unemployed-servers*))))
 	    (if (= n-unemployed *n-servers*)
-		(display "Finished!")
+		(placeholder-set! *finished-placeholder* #t)
 		(let ((entry-placeholder (make-placeholder)))
 		  (master-pending-sign-up! entry-placeholder)
 		  (release-lock *master-pending-lock*)
 		  (let ((entry (placeholder-value entry-placeholder)))
+		    (remote-run! (uid->aspace (pending-entry->server-uid entry))
+				 server-kill-local-id!
+				 (pending-entry->local-id entry))
 		    (with-lock
 		     *n-unemployed-servers-lock*
 		     (lambda ()
@@ -193,6 +204,8 @@
 (define *n-unemployed-servers* #f)
 (define *n-unemployed-servers-lock* (make-lock))
 
+(define *finished-placeholder* #f)
+
 (define (start-specialization server-uids
 			      level fname fct bts args)
     (master-cache-initialize!)
@@ -208,9 +221,13 @@
       (server-registers-memo-point!
        (car server-uids) program-point new-name #f bts fct))
 
+    (set! *finished-placeholder* (make-placeholder))
+
     (for-each (lambda (aspace)
 		(remote-run! aspace server-initialize! (local-aspace-uid)))
-	      *server-aspaces*))
+	      *server-aspaces*)
+
+    (placeholder-value *finished-placeholder*))
 
 (define (collect-residual-program)
   (apply append
