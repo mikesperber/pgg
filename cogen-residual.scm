@@ -80,6 +80,15 @@
     t)
    ((eq? c #f)
     e)
+   ((and (pair? e) (eq? 'IF (car e)))
+    `(COND
+      (,c ,t)
+      (,(cadr e) ,(caddr e))
+      (else ,(cadddr e))))
+   ((and (pair? e) (eq? 'COND (car e)))
+    `(COND
+      (,c ,t)
+      ,@(cdr e)))
    (else
     `(IF ,c ,t ,e))))
 
