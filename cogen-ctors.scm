@@ -1,10 +1,10 @@
 ;;; cogen-ctors
 ;;; definitions that implement constructors
 ;;; example:
-;;; (defdata type-name (nil) (cons car cdr))
+;;; (define-data type-name (nil) (cons car cdr))
 ;;; defines a datatype with two constructors, the nullary "nil" and
 ;;; the binary "cons", the selectors of the latter being "car" and "cdr"
-(define-syntax defdata
+(define-syntax define-data
   (lambda (x r c)
     (let ((%begin (r 'begin))
 	  (%car (r 'car))
