@@ -1,4 +1,7 @@
 ; -*- Scheme -*-
+; from:
+; Olivier Danvy, Semantics-Directed Compilation of Nonlinear Patterns, 
+; Information Processing Letters 6(37):315-322, 1991
 
 (define (match p d) ;;; Pat x Dat -> Ans
   ((match-hook p d (lambda (h t) (cons h t))) '() '()))
