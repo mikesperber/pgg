@@ -177,15 +177,17 @@
   (syntax-rules ()
     ((_ 0 bts ctor arg ...)
      (static-constructor 'ctor ctor (list arg ...) 'bts))
-    ((_ lv (bt ...) ctor arg ...)
-     (_complete `(_CTOR_MEMO ,(pred lv) (,(pred bt) ...) ctor ,arg ...)))))
+    ((_ 1 (bt ...) ctor arg ...)
+     (_complete-serious
+      (make-residual-call (make-residual-var 'ctor) arg ...)))))
 
 (define-syntax _s_t_memo
   (syntax-rules ()
     ((_ 0 sel v)
      (sel (v 'VALUE)))
-    ((_sel_memo lv sel v)
-     (_complete `(_S_T_MEMO ,(pred lv) sel ,v)))))
+    ((_sel_memo 1 sel v)
+     (_complete 
+      (make-residual-call (make-residual-var 'sel) v)))))
 
 (define-syntax _if
   (syntax-rules ()
