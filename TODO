@@ -1,3 +1,4 @@
+- admit static memoization
 + implement static mutable vectors:
 x cogen-abssyn.scm:(define (annIsRef? e)
 x cogen-abssyn.scm:     ((annIsRef? e)

@@ -472,8 +472,8 @@
 	 ((syntax-eq-symbol? 'QUOTE tag symtab*)
 	  ;;(display "!!!Q1 ") (display e) (newline)
 	  (syntax-strip-recursively e))
-	 ((syntax-eq-symbol? 'BACKQUOTE tag symtab*)
-	  (loop (backquote-expander 0 e)))
+	 ((syntax-eq-symbol? 'QUASIQUOTE tag symtab*)
+	  (loop (backquote-expander 0 (syntax-car args))))
 	 ;; named let
 	 ((and (syntax-eq-symbol? 'LET tag symtab*)
 	       (not (syntax-pair? (syntax-car args)))

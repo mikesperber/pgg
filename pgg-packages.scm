@@ -174,6 +174,7 @@
 	  annFetchMemoVars
 	  annFetchMemoBody
 	  annFetchMemoLevel
+	  annFetchMemoSpecial
 	  ann-replace
 	  ann-maybe-coerce
 	  annFreeVars
@@ -271,7 +272,7 @@
 (define-structure cogen-bta cogen-bta-interface
   (open scheme signals auxiliary
 	cogen-gensym cogen-globals pp cogen-env
-	cogen-typesig cogen-abssyn cogen-abssyn cogen-record cogen-labset)
+	cogen-typesig cogen-abssyn cogen-record cogen-labset)
   (files cogen-eq-flow
 	 cogen-effect))
 

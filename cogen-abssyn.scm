@@ -385,11 +385,11 @@
 ;;; subject to discussion:
 ;;; memoization
 (define (annIntroduceMemo e bt lv vars)
-  (annIntroduceMemo1 e bt lv vars (list->vector (vector->list e))))
-(define (annIntroduceMemo1 e bt lv vars body)    
+  (annIntroduceMemo1 e bt lv vars (list->vector (vector->list e)) #f))
+(define (annIntroduceMemo1 e bt lv vars body special)
   (annExprSetTag! e 'MEMO)
   (annExprSetLevel! e bt)
-  (annExprSetSubobject! e (vector lv vars body)))
+  (annExprSetSubobject! e (vector lv vars body special)))
 (define (annMakeMemo body)
   (annMakeExpr 'MEMO (vector 0 '() body)))
 (define (annIsMemo? e)
@@ -402,6 +402,8 @@
   (annExprFetchSubobject e 2))
 (define (annFetchMemoLevel e)
   (annExprFetchSubobject e 0))
+(define (annFetchMemoSpecial e)
+  (annExprFetchSubobject e 3))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define (ann-replace e1 e2)

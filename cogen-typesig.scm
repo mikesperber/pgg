@@ -99,6 +99,8 @@
 ;;; - M		name of the function
 ;;; - level	binding time of the memoization point
 ;;; - active	memo point is active in specializations with level >= active
+;;;             if active is 'deferred (verbatim!)
+;;;		then make a deferred memoization point
 (define (one-defmemo dm)
   (let* ((memo-name (cadr dm))
 	 (memo-level (caddr dm))

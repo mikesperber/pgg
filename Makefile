@@ -1,7 +1,7 @@
 SHELL = /bin/sh
 BATCH_IMAGE = batch.image
 INTERACTIVE_IMAGE = pgg.image
-COGEN_VERSION = 1.0
+COGEN_VERSION = 1.1
 DISTRIBUTION = pgg-$(COGEN_VERSION).tar.gz
 GENEXT_DISTRIBUTION = genext-$(COGEN_VERSION).tar.gz
 prefix = /usr/local
@@ -9,6 +9,7 @@ INSTALL_ROOT = /home/proglang/packages
 INSTALL_DIR = $(INSTALL_ROOT)/pgg-$(COGEN_VERSION)
 LIBDIR = $(INSTALL_DIR)/lib
 BINDIR = $(INSTALL_DIR)/bin
+EXAMPLEDIR = $(INSTALL_DIR)/examples
 EXECUTABLE = pgg.sh
 SCHEME48 = scheme48
 INSTALL = install -c
@@ -22,17 +23,18 @@ distribution: $(DISTRIBUTION)
 genext-distribution: $(GENEXT_DISTRIBUTION)
 
 install: $(INTERACTIVE_IMAGE) $(EXECUTABLE)
-	mkdir -p $(LIBDIR) $(BINDIR)
+	mkdir -p $(LIBDIR) $(BINDIR) $(EXAMPLEDIR)
 	$(INSTALL) -m 644 $(INTERACTIVE_IMAGE) $(LIBDIR)
 	$(INSTALL) -m 755 $(EXECUTABLE) $(BINDIR)
+	$(INSTALL) -m 644 $(cogen_examples) $(EXAMPLEDIR)
 
 $(EXECUTABLE): Makefile
 	echo "#!/bin/sh" > $(EXECUTABLE)
 	echo '$(SCHEME48) -h $(INTERACTIVE_HEAPSIZE) -i $(LIBDIR)/$(INTERACTIVE_IMAGE) $$@' >> $(EXECUTABLE)
 
-cogen_packages = pgg pgg-residual pgg-library
+cogen_packages = pgg pgg-residual
 cogen_generate_packages = pgg signals
-cogen_specialize_packages = auxiliary pgg-library cogen-specialize
+cogen_specialize_packages = auxiliary pgg-library cogen-specialize pp
 batch_packages = signals handle i/o conditions extended-ports
 genext_base_files = \
         auxiliary.scm \

@@ -38,8 +38,22 @@
 				closed-value
 				(cdr (clone-with clone-map ctor-vvs bts))
 				bts)))
+	 ((serialize)
+	  `(static-constructor ',ctor ,ctor
+			       (list ,@(map serialize-one vvs bts))
+			       ',bts))
 	 (else
 	  (error "static-constructor: bad argument ~a" what)))))) 
+
+(define (serialize-one val bt)
+  (if (zero? bt)
+      (if (procedure? val)
+	  (val 'serialize)
+	  `',val)
+      `',val))
+
+(define (serialize pp bts)
+  `(,(car pp) ,@(map serialize-one (cdr pp) bts)))
 
 ;;; extract the static parts out of a partially static value which
 ;;; starts with some static tag and the rest of which is described by
@@ -61,48 +75,19 @@
       'DYN))
 
 ;;; extract the dynamic parts of value
-(define (project-dynamic value bt-args message)
-  (let* ((values-by-bt
-	  (project-dynamic-level (cdr value) bt-args 0))
-	 (nested-dynamics
-	  (let loop ((values (car values-by-bt)))
-	    (if (null? values)
-		'()
-		(multi-append (project-one-dynamic (car values) 0 message)
-			      (loop (cdr values)))))))
-    (multi-append nested-dynamics (cdr values-by-bt))))
+;;; new: return list of pairs (value, bt)
+(define (project-dynamic value bts message)
+  (apply append
+	 (map (lambda (v bt)
+		(project-one-dynamic v bt message))
+	      (cdr value) bts)))
 
 (define (project-one-dynamic value bt message)
   (if (zero? bt)
       (if (procedure? value)
 	  (value message)
 	  '())
-      (let loop ((i 0))
-	(if (= i bt)
-	    (list (list value))
-	    (cons '() (loop (+ i 1)))))))
-
-;;; return `values' grouped according to `bt-args' starting with `level'
-(define (project-dynamic-level values bt-args level)
-  (let loop ((values values)
-	     (bt-args bt-args)
-	     (rvalues '())
-	     (rbt-args '()))
-    (if (null? values)
-	(if (null? rvalues)
-	    (list '())
-	    (cons '()
-		  (project-dynamic-level (reverse rvalues)
-					 (reverse rbt-args)
-					 (+ level 1))))
-	(if (= level (car bt-args))
-	    (let ((values-by-bt
-		   (loop (cdr values) (cdr bt-args) rvalues rbt-args)))
-	      (cons (cons (car values) (car values-by-bt))
-		    (cdr values-by-bt)))
-	    (loop (cdr values) (cdr bt-args)
-		  (cons (car values) rvalues) (cons (car bt-args)
-						    rbt-args))))))
+      (list (cons value bt))))
 
 ;;; clone the dynamic parts of a list of values 
 ;;; return a value with identical static skeleton, but all dynamic
@@ -142,29 +127,6 @@
 	  ((value 'CLONE-WITH) clone-map)
 	  value)
       (cdr (assoc value clone-map))))
-
-;;; (multi-append x y) is almost like (map append x y) except when the
-;;; lists x and y have different lengths in which case the result has
-;;; the length of the longest argument list
-(define (multi-append xss yss)
-  (if (pair? xss)
-      (let ((xs (car xss)))
-	(if (pair? yss)
-	    (let ((ys (car yss)))
-	      (cons (append xs ys)
-		    (multi-append (cdr xss) (cdr yss))))
-	    xss))
-      yss)) 
-
-;;; reconstruct binding times from a list of value blocks
-(define (binding-times blocks)
-  (let loop ((blocks blocks) (i 0))
-    (if (null? blocks)
-	'()
-	(let inner-loop ((values (car blocks)))
-	  (if (null? values)
-	      (loop (cdr blocks) (+ i 1))
-	      (cons i (inner-loop (cdr values))))))))
 
 ;;; procedures for dealing with references
 (define (static-cell label value bt)
@@ -346,10 +308,10 @@
 	(let* ((entry (car creation-log))
 	       (creation-log (cdr creation-log))
 	       (static-address (car entry)))
-	  (multi-append (project-one-dynamic (cell-ref (cadr entry))
-					     (caddr entry)
-					     'DYNAMIC-REF)
-			(loop creation-log))))))
+	  (append (project-one-dynamic (cell-ref (cadr entry))
+				       (caddr entry)
+				       'DYNAMIC-REF)
+		  (loop creation-log))))))
 ;;; the memolist needs to contain a copy of the restricted creation
 ;;; log. This must then be cloned in a special way.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

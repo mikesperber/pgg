@@ -127,6 +127,7 @@
 (define-interface cogen-memo-interface
   (export ((start-memo) :syntax)
 	  specialize
+	  continue
 	  nextlevel
 	  multi-memo
 	  multi-memo-no-result))
@@ -161,10 +162,9 @@
   (export static-constructor
 	  top-project-static
 	  top-project-dynamic
-	  project-dynamic-level
 	  top-clone-dynamic
 	  top-clone-with
-	  multi-append
+	  serialize
 	  static-cell
 	  static-vector
 	  current-static-store!
@@ -174,8 +174,7 @@
 	  address-map-reset!
 	  creation-log-initialize!
 	  creation-log-push!
-	  creation-log-pop!
-	  binding-times))
+	  creation-log-pop!))
 
 (define-interface cogen-globals-interface
   (export *bta-display-level*
@@ -209,6 +208,8 @@
 	  add-to-memolist! clear-memolist! lookup-memolist
 	  set-residual-program! add-to-residual-program! clear-residual-program!
 	  add-to-support-code! clear-support-code!
+	  add-to-deferred-list! clear-deferred-list!
+	  lookup-deferred-list get-deferred-list
 	  gen-address-reset! gen-address
 ))
 

@@ -6,7 +6,7 @@
 
 ;;; memo function stuff: standard implementation
 
-(define-record memolist-entry (name) (count 0))
+(define-record memolist-entry (name) (count 0) (fct #f) (var #f) (serial #f))
 
 (define-syntax start-memo
   (syntax-rules ()
@@ -42,12 +42,13 @@
   (clear-residual-program!) 
   (clear-memolist!)
   (clear-support-code!)
+  (clear-deferred-list!)
   (gensym-local-reset!)
   (gensym-reset!)
   (creation-log-initialize!)
   (let* ((initial-scope (gensym-local-push!))
 	 (initial-static-store (initialize-static-store!))
-	 (result (reset (multi-memo level fname fct bts args)))
+	 (result (reset (multi-memo level fname fct #f bts args)))
 	 (result (if (and (pair? result) (eq? (car result) 'LET))
 		     (car (cdaadr result))
 		     result))
@@ -70,48 +71,72 @@
 		       defn-body))))
     result))
 
+(define (continue var value)
+  (let ((deferred (get-deferred-list)))
+    (clear-deferred-list!)
+    ;; what else must be cleared?
+    (for-each
+     (lambda (kv)
+       (let ((key (car kv))
+	     (entry (cdr kv)))
+	 (if (eq? (memolist-entry->var entry) var)
+	     ((memolist-entry->fct entry) value)
+	     (add-to-deferred-list! key entry))))
+     deferred)))
+
 ;;; the memo-function
 ;;; - fn is the name of the function to memoize
 ;;; - args are the free variables of the function's body
 ;;; - bts are their binding times
-(define (multi-memo level fname fct bts args)
-  (multi-memo-internal level fname fct bts args #t))
+(define (multi-memo level fname fct maybe-var bts args)
+  (multi-memo-internal level fname fct maybe-var bts args #t))
 
-(define (multi-memo-no-result level fname fct bts args)
-  (multi-memo-internal level fname fct bts args #f))
+(define (multi-memo-no-result level fname fct maybe-var bts args)
+  (multi-memo-internal level fname fct maybe-var bts args #f))
 
-(define (multi-memo-internal level fname fct bts args result-needed)
+(define (multi-memo-internal level fname fct maybe-var bts args result-needed)
   (let*
-      ((enter-scope (gensym-local-push!))
+      ((special (and maybe-var (zero? (car bts))))
+       (%garbage% (if special (set-car! args maybe-var)))
        (full-pp (cons fname args))
        (pp (top-project-static full-pp bts))
        (dynamics (top-project-dynamic full-pp bts))
-					; (compressed-dynamics (map remove-duplicates dynamics))
-       (actuals (apply append dynamics))
+       (actuals (map car dynamics))
+       (dyn-bts (map cdr dynamics))
+       (specialize
+	(lambda (new-name)
+	  (gensym-local-push!)
+	  (let* ((cloned-pp (top-clone-dynamic full-pp bts))
+		 (new-formals (map car (top-project-dynamic cloned-pp bts))))
+	    (creation-log-push!)
+	    (make-residual-definition! new-name
+				       new-formals
+				       (reset (apply fct (cdr cloned-pp))))
+	    (creation-log-pop!)
+	    (gensym-local-pop!))))
        (found
-	(or (lookup-memolist pp)
-	    (let*
-		((new-name (gensym-trimmed fname))
-					; (clone-map (map (lambda (arg)
-					; 		   (cons arg (if (symbol? arg)
-					; 				 (gensym-local arg)
-					; 				 (gensym-local 'clone))))
-					; 		 actuals))
-		 (cloned-pp (top-clone-dynamic full-pp bts))
-					; (new-formals (map cdr clone-map))
-		 (new-formals (apply append (top-project-dynamic cloned-pp bts)))
-		 (new-entry (make-memolist-entry new-name))
-		 (register-entry (add-to-memolist! pp new-entry))
-		 (enter (creation-log-push!))
-		 (new-def  (make-residual-definition! new-name
-						      new-formals
-						      (reset (apply fct (cdr cloned-pp)))))
-		 (leave (creation-log-pop!)))
-	      new-entry)))
+	(if special
+	    (or (lookup-deferred-list pp)
+		(let*
+		    ((new-name (gensym-trimmed fname))
+		     (new-entry (make-memolist-entry new-name)))
+		  (memolist-entry->var! new-entry maybe-var)
+		  (memolist-entry->fct! new-entry (lambda (val)
+						    (set-car! args val)
+						    (specialize new-name)))
+		  (memolist-entry->serial! new-entry (serialize full-pp bts))
+		  (add-to-deferred-list! pp new-entry)
+		  new-entry))
+	    (or (lookup-memolist pp)
+		(let*
+		    ((new-name (gensym-trimmed fname))
+		     (new-entry (make-memolist-entry new-name))
+		     (register-entry (add-to-memolist! pp new-entry)))
+		  (specialize new-name)
+		  new-entry))))
        (seen (memolist-entry->count! found (+ 1 (memolist-entry->count
 						 found))))
-       (res-name (memolist-entry->name found))
-       (exit-scope (gensym-local-pop!)))
+       (res-name (memolist-entry->name found)))
     (if (= level 1)
 	;; generate call to fn with actual arguments
 	(if result-needed
@@ -126,7 +151,8 @@
 				 (- level 1)
 				 `',res-name
 				 res-name
-				 `',(binding-times dynamics)
+				 `',maybe-var
+				 `',(map pred dyn-bts)
 				 `(LIST ,@actuals)))
 	
 	    (_complete-serious-no-result
@@ -134,5 +160,6 @@
 				 (- level 1)
 				 `',res-name
 				 res-name
-				 `',(binding-times dynamics)
+				 `',maybe-var
+				 `',(map pred dyn-bts)
 				 `(LIST ,@actuals)))))))

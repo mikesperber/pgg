@@ -8,6 +8,7 @@
 (define *memolist* '())
 (define *residual-program* '())
 (define *support-code* '())
+(define *deferred-list* '())
 
 ;;(define (add-to-memolist! key value)
 ;;  (set! *memolist* (cons (cons key value) *memolist*)))
@@ -68,3 +69,15 @@
 (define (gen-address label)
   (set! *gen-address-counter* (+ *gen-address-counter* 1))
   (cons label *gen-address-counter*))
+
+(define (clear-deferred-list!)
+  (set! *deferred-list* '()))
+(define (add-to-deferred-list! key value)
+  (set! *deferred-list*
+	(cons (cons key value) *deferred-list*)))
+(define (lookup-deferred-list key)
+  (cond
+   ((assoc key *deferred-list*) => cdr)
+   (else #f)))
+(define (get-deferred-list)
+  *deferred-list*)
