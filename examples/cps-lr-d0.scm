@@ -82,8 +82,8 @@
                                                                                                                       (_op 2
                                                                                                                            cons
                                                                                                                            (multi-memo 2
-                                                                                                                                       'shift-terminal_1-167
-                                                                                                                                       shift-terminal_1-167
+                                                                                                                                       'shift-terminal_1-15
+                                                                                                                                       shift-terminal_1-15
                                                                                                                                        '(1
                                                                                                                                          1
                                                                                                                                          1
@@ -104,33 +104,29 @@
                                                                                                                                  continuations_1))
                                                                                                                       input_2))))))))
                                                                              fail_1))))))))))))))))))
-(define (shift-terminal_1-167 grammar_1
-                              k_1
-                              first-map_1
-                              continuations_1
-                              closure_1)
-  (_lambda_memo '2
-                '(nonterminal input)
-                '9
-                (list grammar_1 k_1 first-map_1 continuations_1 closure_1)
-                '(1 1 1 2 1)
-                (lambda (grammar_1 k_1 first-map_1 continuations_1 closure_1)
-                  (lambda (nonterminal input)
-                    (_let 1
-                          'nonterminal
-                          nonterminal
-                          (lambda (nonterminal)
-                            (_let 1
-                                  'input
-                                  input
-                                  (lambda (input)
-                                    (shift-nonterminal_1 grammar_1
-                                                         k_1
-                                                         first-map_1
-                                                         continuations_1
-                                                         closure_1
-                                                         nonterminal
-                                                         input)))))))))
+(define (shift-terminal_1-15 grammar_1
+                             k_1
+                             first-map_1
+                             continuations_1
+                             closure_1)
+  (_lambda '2
+           '(nonterminal input)
+           (lambda (nonterminal input)
+             (_let 1
+                   'nonterminal
+                   nonterminal
+                   (lambda (nonterminal)
+                     (_let 1
+                           'input
+                           input
+                           (lambda (input)
+                             (shift-nonterminal_1 grammar_1
+                                                  k_1
+                                                  first-map_1
+                                                  continuations_1
+                                                  closure_1
+                                                  nonterminal
+                                                  input))))))))
 (define (shift-nonterminal_1 grammar_1
                              k_1
                              first-map_1
@@ -210,8 +206,8 @@
                                                                                                               (_op 2
                                                                                                                    cons
                                                                                                                    (multi-memo 2
-                                                                                                                               'shift-nonterminal_1-166
-                                                                                                                               shift-nonterminal_1-166
+                                                                                                                               'shift-nonterminal_1-14
+                                                                                                                               shift-nonterminal_1-14
                                                                                                                                '(1
                                                                                                                                  1
                                                                                                                                  1
@@ -242,33 +238,29 @@
                                                                                               1
                                                                                               (_lift0 1
                                                                                                       'you-cannot-see-me)))))))))))))))))))))
-(define (shift-nonterminal_1-166 grammar_1
-                                 k_1
-                                 first-map_1
-                                 continuations_1
-                                 closure_1)
-  (_lambda_memo '2
-                '(nonterminal input)
-                '6
-                (list grammar_1 k_1 first-map_1 continuations_1 closure_1)
-                '(1 1 1 2 1)
-                (lambda (grammar_1 k_1 first-map_1 continuations_1 closure_1)
-                  (lambda (nonterminal input)
-                    (_let 1
-                          'nonterminal
-                          nonterminal
-                          (lambda (nonterminal)
-                            (_let 1
-                                  'input
-                                  input
-                                  (lambda (input)
-                                    (shift-nonterminal_1 grammar_1
-                                                         k_1
-                                                         first-map_1
-                                                         continuations_1
-                                                         closure_1
-                                                         nonterminal
-                                                         input)))))))))
+(define (shift-nonterminal_1-14 grammar_1
+                                k_1
+                                first-map_1
+                                continuations_1
+                                closure_1)
+  (_lambda '2
+           '(nonterminal input)
+           (lambda (nonterminal input)
+             (_let 1
+                   'nonterminal
+                   nonterminal
+                   (lambda (nonterminal)
+                     (_let 1
+                           'input
+                           input
+                           (lambda (input)
+                             (shift-nonterminal_1 grammar_1
+                                                  k_1
+                                                  first-map_1
+                                                  continuations_1
+                                                  closure_1
+                                                  nonterminal
+                                                  input))))))))
 (define (loop_1 fail_2 element_1 cont_1 set_2)
   (_let 0
         'fail_2
@@ -287,23 +279,23 @@
                                 set_2
                                 (lambda (set_2)
                                   (multi-memo 1
-                                              'loop_1-164
-                                              loop_1-164
+                                              'loop_1-12
+                                              loop_1-12
                                               '(1 2 1 1)
                                               (list fail_2
                                                     element_1
                                                     cont_1
                                                     set_2)))))))))))
-(define (loop_1-164 fail_2 element_1 cont_1 set_2)
+(define (loop_1-12 fail_2 element_1 cont_1 set_2)
   (_if 1
        (_op 1 null? set_2)
        (_app_memo 1 fail_2)
        (multi-memo 2
-                   'loop_1-165
-                   loop_1-165
+                   'loop_1-13
+                   loop_1-13
                    '(1 2 1 1)
                    (list fail_2 element_1 cont_1 set_2))))
-(define (loop_1-165 fail_2 element_1 cont_1 set_2)
+(define (loop_1-13 fail_2 element_1 cont_1 set_2)
   (_if 2
        (_op 2 equal? element_1 (_lift 1 1 (_op 1 car set_2)))
        (_app_memo 1 cont_1 (_op 1 car set_2))
@@ -326,14 +318,14 @@
                                 item-set_2
                                 (lambda (item-set_2)
                                   (multi-memo 1
-                                              'loop_2-162
-                                              loop_2-162
+                                              'loop_2-10
+                                              loop_2-10
                                               '(1 2 1 1)
                                               (list fail_3
                                                     input-front_1
                                                     cont_2
                                                     item-set_2)))))))))))
-(define (loop_2-162 fail_3 input-front_1 cont_2 item-set_2)
+(define (loop_2-10 fail_3 input-front_1 cont_2 item-set_2)
   (_if 1
        (_op 1 null? item-set_2)
        (_lift 1 1 (_app_memo 1 fail_3))
@@ -342,15 +334,15 @@
              (_op 1 car item-set_2)
              (lambda (item_2)
                (multi-memo 2
-                           'loop_2-163
-                           loop_2-163
+                           'loop_2-11
+                           loop_2-11
                            '(1 1 2 1 1)
                            (list item_2
                                  fail_3
                                  input-front_1
                                  cont_2
                                  item-set_2))))))
-(define (loop_2-163 item_2 fail_3 input-front_1 cont_2 item-set_2)
+(define (loop_2-11 item_2 fail_3 input-front_1 cont_2 item-set_2)
   (_if 2
        (_op 2 equal? input-front_1 (_lift 1 1 (_op 1 item-lookahead item_2)))
        (_app_memo 1 cont_2 item_2)
@@ -364,8 +356,8 @@
                 'l_1
                 l_1
                 (lambda (l_1)
-                  (multi-memo 1 'chop-161 chop-161 '(1 2) (list n_1 l_1)))))))
-(define (chop-161 n_1 l_1)
+                  (multi-memo 1 'chop-9 chop-9 '(1 2) (list n_1 l_1)))))))
+(define (chop-9 n_1 l_1)
   (_if 1
        (_op 1 zero? n_1)
        (_lift 1 1 (_lift0 1 '()))
@@ -506,8 +498,8 @@
                                                 input_1
                                                 (lambda (input_1)
                                                   (multi-memo 2
-                                                              'parse-159
-                                                              parse-159
+                                                              'parse-7
+                                                              parse-7
                                                               '(1 1 1 1 2 2)
                                                               (list state_1
                                                                     grammar_1
@@ -515,7 +507,7 @@
                                                                     first-map_1
                                                                     continuations_1
                                                                     input_1)))))))))))))))
-(define (parse-159 state_1 grammar_1 k_1 first-map_1 continuations_1 input_1)
+(define (parse-7 state_1 grammar_1 k_1 first-map_1 continuations_1 input_1)
   (_if 2
        (_if 1
             (_op 1 final? state_1 grammar_1)
@@ -583,38 +575,38 @@
                                                                                                                     'item_1
                                                                                                                     item_1
                                                                                                                     (lambda (item_1)
-                                                                                                                      (_app_memo 2
+                                                                                                                      (_app 2
+                                                                                                                            (_op 2
+                                                                                                                                 list-ref
                                                                                                                                  (_op 2
-                                                                                                                                      list-ref
-                                                                                                                                      (_op 2
-                                                                                                                                           cons
-                                                                                                                                           (multi-memo 2
-                                                                                                                                                       'parse-160
-                                                                                                                                                       parse-160
-                                                                                                                                                       '(1
-                                                                                                                                                         1
-                                                                                                                                                         1
-                                                                                                                                                         2
-                                                                                                                                                         1)
-                                                                                                                                                       (list grammar_1
-                                                                                                                                                             k_1
-                                                                                                                                                             first-map_1
-                                                                                                                                                             continuations_1
-                                                                                                                                                             closure_1))
-                                                                                                                                           continuations_1)
-                                                                                                                                      (_lift 1
-                                                                                                                                             1
-                                                                                                                                             (_op 1
-                                                                                                                                                  length
-                                                                                                                                                  (_op 1
-                                                                                                                                                       item-rhs
-                                                                                                                                                       item_1))))
+                                                                                                                                      cons
+                                                                                                                                      (multi-memo 2
+                                                                                                                                                  'parse-8
+                                                                                                                                                  parse-8
+                                                                                                                                                  '(1
+                                                                                                                                                    1
+                                                                                                                                                    1
+                                                                                                                                                    2
+                                                                                                                                                    1)
+                                                                                                                                                  (list grammar_1
+                                                                                                                                                        k_1
+                                                                                                                                                        first-map_1
+                                                                                                                                                        continuations_1
+                                                                                                                                                        closure_1))
+                                                                                                                                      continuations_1)
                                                                                                                                  (_lift 1
                                                                                                                                         1
                                                                                                                                         (_op 1
-                                                                                                                                             item-lhs
-                                                                                                                                             item_1))
-                                                                                                                                 input_1))))))
+                                                                                                                                             length
+                                                                                                                                             (_op 1
+                                                                                                                                                  item-rhs
+                                                                                                                                                  item_1))))
+                                                                                                                            (_lift 1
+                                                                                                                                   1
+                                                                                                                                   (_op 1
+                                                                                                                                        item-lhs
+                                                                                                                                        item_1))
+                                                                                                                            input_1))))))
                                                                                             (_lambda_memo '1
                                                                                                           '()
                                                                                                           '4
@@ -624,28 +616,24 @@
                                                                                                             (lambda ()
                                                                                                               (_lift0 1
                                                                                                                       'error)))))))))))))))
-(define (parse-160 grammar_1 k_1 first-map_1 continuations_1 closure_1)
-  (_lambda_memo '2
-                '(nonterminal input)
-                '3
-                (list grammar_1 k_1 first-map_1 continuations_1 closure_1)
-                '(1 1 1 2 1)
-                (lambda (grammar_1 k_1 first-map_1 continuations_1 closure_1)
-                  (lambda (nonterminal input)
-                    (_let 1
-                          'nonterminal
-                          nonterminal
-                          (lambda (nonterminal)
-                            (_let 1
-                                  'input
-                                  input
-                                  (lambda (input)
-                                    (shift-nonterminal_1 grammar_1
-                                                         k_1
-                                                         first-map_1
-                                                         continuations_1
-                                                         closure_1
-                                                         nonterminal
-                                                         input)))))))))
+(define (parse-8 grammar_1 k_1 first-map_1 continuations_1 closure_1)
+  (_lambda '2
+           '(nonterminal input)
+           (lambda (nonterminal input)
+             (_let 1
+                   'nonterminal
+                   nonterminal
+                   (lambda (nonterminal)
+                     (_let 1
+                           'input
+                           input
+                           (lambda (input)
+                             (shift-nonterminal_1 grammar_1
+                                                  k_1
+                                                  first-map_1
+                                                  continuations_1
+                                                  closure_1
+                                                  nonterminal
+                                                  input))))))))
 (define ($goal source-grammar_1 k_2 input_4)
   (do-parse source-grammar_1 k_2 input_4))

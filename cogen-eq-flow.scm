@@ -725,11 +725,11 @@
 	  (lambda (node)
 	    (let* ((info (node-fetch-info (full-ecr node)))
 		   (type (info-fetch-type info)))
-	      (let* ((memo (type->memo type)))
-		(if (ann->visited memo)
+	      (let* ((memo (type->memo type))
+		     (memo-time (ann->bt memo)))
+		(if (<= level memo-time)
 		    'nothing-to-do
 		    (begin
-		      (ann->visited! memo #t)
 		      (ann->bt! memo level)
 		      (if (type-function? type)
 			  (map bta-memo-var (info-fetch-fvs info))

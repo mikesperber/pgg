@@ -31,12 +31,22 @@
 		 (LAMBDA ,fvars (LAMBDA (,@fixed-vars . ,var) ,body))))
 (define (make-ge-app-memo l f btv args)
   `(_APP_MEMO ,l ,f ,@args))
+(define (make-ge-lambda l vars btv body)
+  `(_LAMBDA ',l ',vars (LAMBDA ,vars ,body)))
+(define (make-ge-app l f args)
+  `(_APP ,l ,f ,@args))
 (define (make-ge-ctor-memo l bts ctor args)
   `(_CTOR_MEMO ,l ,bts ,ctor ,@args))
 (define (make-ge-sel-memo l sel a)
-  `(_SEL_MEMO ,l ',sel ,a))
+  `(_SEL_MEMO ,l ,sel ,a))
 (define (make-ge-test-memo l tst a)
-  `(_TEST_MEMO ,l ',tst ,a))
+  `(_TEST_MEMO ,l ,tst ,a))
+(define (make-ge-ctor l ctor args)
+  `(_CTOR ,l ,ctor ,@args))
+(define (make-ge-sel l sel a)
+  `(_SEL ,l ,sel ,a))
+(define (make-ge-test l tst a)
+  `(_TEST ,l ,tst ,a))
 (define (make-ge-lift l diff a)
   `(_LIFT ,l ,diff ,a))
 (define (make-ge-eval l diff a)
@@ -134,50 +144,49 @@
      `(_CTOR_MEMO ,(pred lv) (,(pred bt) ...) ctor ,arg ...))))
 
 (define-syntax _sel_memo
-  (syntax-rules (quote)
-    ((_ 0 'sel v)
+  (syntax-rules ()
+    ((_ 0 sel v)
      (sel (v 'VALUE)))
     ((_sel_memo lv sel v)
-     `(_SEL_MEMO ,(pred lv) ',sel ,(maybe-reset v)))))
+     `(_SEL_MEMO ,(pred lv) sel ,(maybe-reset v)))))
 
 (define-syntax _test_memo
-  (syntax-rules (quote)
-    ((_ 0 'ctor-test v)
+  (syntax-rules ()
+    ((_ 0 ctor-test v)
      (ctor-test (v 'VALUE)))
     ((_ lv ctor-test v)
-     `(_TEST_MEMO ,(pred lv) ',ctor-test ,(maybe-reset v)))))
+     `(_TEST_MEMO ,(pred lv) ctor-test ,(maybe-reset v)))))
 
 (define-syntax _ctor
-  (syntax-rules (quote)
-    ((_ 0 'ctor arg ...)
+  (syntax-rules ()
+    ((_ 0 ctor arg ...)
      (ctor arg ...))
     ((_ lv ctor arg ...)
-     `(_CTOR ,(pred lv) ',ctor ,arg ...))))
+     `(_CTOR ,(pred lv) ctor ,arg ...))))
 
 (define-syntax _sel
-  (syntax-rules (quote)
-    ((_ 0 'sel v)
+  (syntax-rules ()
+    ((_ 0 sel v)
      (sel v))
     ((_ lv sel v)
-     `(_SEL ,(pred lv) ',sel ,(maybe-reset v)))))
+     `(_SEL ,(pred lv) sel ,(maybe-reset v)))))
 
 (define-syntax _test
-  (syntax-rules (quote)
-    ((_ 0 'ctor-test v)
+  (syntax-rules ()
+    ((_ 0 ctor-test v)
      (ctor-test v))
     ((_ lv ctor-test v)
-     `(_TEST ,(pred lv) ',ctor-test ,(maybe-reset v)))))
+     `(_TEST ,(pred lv) ctor-test ,(maybe-reset v)))))
 
-;;; needs RESET, somewhere
-;;; therefore: the arms of the conditional must be thunks, so that we
-;;; can capture control. we get this for free in the CPS version where
-;;; et2 and et3 are continuations, anyway
 (define-syntax _if
   (syntax-rules ()
     ((_if 0 e1 e2 e3)
      (if e1 e2 e3))
     ((_if lv e1 e2 e3)
-     (shift k `(_IF ,(pred lv) ,(reset e1) ,(reset (k e2)) ,(reset (k e3)))))))
+     (shift k `(_IF ,(pred lv)
+		    ,(maybe-reset e1)
+		    ,(reset (k e2))
+		    ,(reset (k e3)))))))
 
 (define-syntax _op
   (syntax-rules ()
