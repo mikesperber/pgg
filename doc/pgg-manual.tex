@@ -721,6 +721,77 @@ It contains the example programs \texttt{lazy1} and \texttt{lazy2}.
   \end{small}
 \end{itemize}
 
+
+\subsection{Modular specialization}
+\label{sec:modular}
+
+As an advanced feature, it is possible to encapsulate the generating extension
+in a module. We recap the example of the \texttt{power} function to illustrate
+it. In addition to the usual parameters for \texttt{cogen-driver} we need to
+specify a filename for the output.
+\begin{small}
+\begin{verbatim}
+> (cogen-driver (list "examples/power.scm") '(power 1 0) "/tmp/power1.scm")
+bta-run
+bta-solve
+bta-solve done
+'((define (power x_1 n_1) (if (_op 0 = 0 n_1) (_lift 0 1 1) (_op 1 * x_1 (power x_1 (_op 0 - n_1 1))))) (define ($goal x_1 n_1) (power x_1 n_1)))
+>
+\end{verbatim}
+\end{small}
+This command generates two files:
+\begin{itemize}
+\item \texttt{/tmp/power1.scm} contains the code of the generating extension
+  (pretty printed) and
+\item \texttt{/tmp/power1.config.scm} contains the declarations for the
+  interface and the structure of the generating extension. For the example, PGG 
+  generates the following declarations:
+  \begin{small}
+\begin{verbatim}
+(define-interface
+  power1-interface
+  (export $goal))
+(define-structure
+  power1
+  power1-interface
+  (open scheme signals define-data pgg-library)
+  (files power1))
+\end{verbatim}
+  \end{small}
+\end{itemize}
+To use the generating extension from this module, we need to make Scheme48
+aware of it.
+\begin{small}
+\begin{verbatim}
+> ,config,load /tmp/power1.config.scm
+/tmp/power1.config.scm
+> 
+\end{verbatim}
+\end{small}
+Now the system can load and compile the module, just by referencing it with its 
+name.
+\begin{small}
+\begin{verbatim}
+> ,open power1
+Load structure power1 (y/n)? y
+[define-data cogen-ctors.scm]
+[power1 /tmp/power1.scm]
+> 
+\end{verbatim}
+\end{small}
+Finally, we can specialize in the same way as before.
+\begin{small}
+\begin{verbatim}
+> (specialize '($goal 1 0) '(x 0))
+'($goal-1 x)
+> *residual-program*
+'((define ($goal-1 x-1) 1))
+> 
+\end{verbatim}
+\end{small}
+The section~\ref{sec:cogen-driver} in the reference part lists a number of
+options to gain more control over the module declaration.
+
 \section{Reference manual}
 \label{sec:reference}
 
@@ -1102,6 +1173,26 @@ This function is defined in module \texttt{pgg}. If it is not accessible try
 > ,open pgg
 \end{verbatim}
 at the top-level Scheme48 prompt.
+
+\index{modular specialization}%
+A number of optional parameters may be specified after the
+\texttt{BindingTime\-Skeleton} argument. They allow the generation of the
+generating extension as a Scheme48 module. The following options are
+recognized.
+\begin{itemize}
+\item \texttt{(export SYMBOL ...)} adds the listed \texttt{SYMBOL}s to the
+  export list of the generated module.
+\item \texttt{(open SYMBOL ...)} considers the listed \texttt{SYMBOL}s as
+  module names that are to be opened to run the generating extension.
+\item \texttt{(files SYMBOL ...)} considers the listed \texttt{SYMBOL}s as
+  names of files that will be included in the generating module.
+\item \texttt{(SYMBOL ...)} is included as an option line in the structure
+  declaration for the generating module.
+\item \texttt{STRING} the name of the file where the module should be
+  written. Must be the last; subsequent options are ignored. Writes the files
+  \texttt{STRING.scm} and \texttt{STRING.config.scm}, after stripping any
+  extension from \texttt{STRING}.
+\end{itemize}
 
 \subsubsection{Running a generating extension}
 \label{sec:specialize}
