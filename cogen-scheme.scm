@@ -39,6 +39,7 @@
 	 (memq template *scheme->abssyn-mutable-variables*))))
 (define (scheme->abssyn-d d* def-syntax* ctor-symtab)
   ;; (display-line "scheme->abssyn " ctor-symtab)
+  (gensym-reset!)
   (set-scheme->abssyn-label-counter! 1)
   (set! *scheme->abssyn-mutable-variables* '())
   (set-scheme->abssyn-static-references! #f)
