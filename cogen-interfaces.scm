@@ -190,7 +190,6 @@
 
 (define-structure define-data define-data-interface
   (open scheme escapes)
-  (export define-data)
   (files cogen-ctors))
 
 (define-interface cogen-direct-syntax-interface
@@ -278,6 +277,10 @@
 	     define-memo
 	     define-primitive)
 	   :syntax)))
+
+(define-structure cogen-directives cogen-directives-interface
+  (open scheme)
+  (files cogen-directives))
 
 (define-interface cogen-drive-interface
   (export cogen-driver))
