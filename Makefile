@@ -10,8 +10,8 @@ BATCH_ENTRYPOINT = cogen-main
 
 all: $(BATCH_IMAGE)
 
-cogen_packages = escapes signals
-batch_packages = handle i/o conditions big-scheme
+cogen_packages = escapes big-scheme
+batch_packages = signals handle i/o conditions extended-ports
 cogen_control = cogen-control-prop.scm
 cogen_base_files = auxiliary.scm \
 	cogen-env.scm \
@@ -28,13 +28,13 @@ cogen_cps_files = cogen-cps.scm
 cogen_ds_files = cogen-direct-syntax.scm
 cogen_combinator_files = $(cogen_ds_files)
 
-batch_files = command-line.scm cogen-batch.scm
+batch_files = tiny-format.scm fname.scm command-line.scm cogen-batch.scm
 
 gambit_shift_reset = shift-reset-r4rs.scm
 gambit_generic_syntax = cogen-ctors-defmacro.scm cogen-record-defmacro.scm
 
 s48_shift_reset = shift-reset.scm
-s48_generic_syntax = cogen-ctors.scm cogen-defmacro.scm
+s48_generic_syntax = cogen-ctors.scm cogen-record.scm
 
 
 cogen-load-s48.scm : Makefile
@@ -69,12 +69,12 @@ cogen-load-gambit.scm : Makefile
 $(BATCH_IMAGE) : $(cogen_files) $(batch_files) cogen-load-s48.scm
 	(echo ",batch on"; \
 	 echo ",bench on"; \
-	 echo ",flush source maps"; \
+	 echo ";; ,flush source maps"; \
 	 echo ",open $(cogen_packages)"; \
 	 echo ",load cogen-load-s48.scm"; \
 	 echo ",open $(batch_packages)"; \
 	 echo ",load $(batch_files)"; \
-	 echo ",flush"; \
+	 echo ";; ,flush"; \
 	 echo ",collect"; \
 	 echo ",dump $(BATCH_IMAGE) \"(cps-mcogen)\""; \
 	 echo ",exit" ) \
