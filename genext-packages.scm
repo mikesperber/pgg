@@ -156,9 +156,6 @@
 (define-interface define-data-interface
   (export ((define-data) :syntax)))
 
-(define-interface pretty-print-interface
-  (export p))
-
 (define-interface cogen-library-interface
   (export static-constructor
 	  top-project-static
@@ -250,17 +247,12 @@
   (export make-cell cell-ref cell-set!))
 
 (define-structure auxiliary auxiliary-interface
-  (open scheme pretty-print)
+  (open scheme pp)
   (files auxiliary))
 
 (define-structure cogen-specialize cogen-specialize-interface
   (open scheme cogen-globals)
   (files cogen-specialize))
-
-(define-structure pretty-print pretty-print-interface
-  (open scheme)
-  (files pp)
-  (begin (define p pretty-print)))
 
 (define-structure define-data define-data-interface
   (open scheme escapes)

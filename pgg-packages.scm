@@ -242,7 +242,7 @@
 
 (define-structure cogen-bta cogen-bta-interface
   (open scheme signals auxiliary
-	cogen-gensym cogen-globals pretty-print cogen-env
+	cogen-gensym cogen-globals pp cogen-env
 	cogen-typesig cogen-abssyn cogen-abssyn cogen-record cogen-labset)
   (files cogen-eq-flow
 	 cogen-effect))
@@ -371,7 +371,7 @@
 
 (define-structure pgg pgg-interface
   (open scheme filenames source-file-names auxiliary signals
-	pretty-print
+	pp
 	cogen-scheme
 	cogen-typesig
 	cogen-bta
@@ -383,7 +383,7 @@
 
 
 (define-structure reaching-definitions pgg-interface
-  (open scheme signals auxiliary pretty-print
+  (open scheme signals auxiliary pp
 	cogen-abssyn cogen-env cogen-globals cogen-labset cogen-record
 	cogen-typesig 
 	cogen-scheme)
