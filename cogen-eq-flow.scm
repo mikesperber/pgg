@@ -49,6 +49,7 @@
 			 (bta-insert-def-mutable
 			  d* (bta-insert-def-data
 			      def-type* (ann-maybe-coerce (annMakeCall goal-proc (map annMakeVar formals)))))))
+	 (mutable-defs (collect-mutable-defs d*))
 	 (d* (cons d0 d*))
 	 (do-type-inference (full-collect-d* d*))
 	 (proc-node (full-ecr (annDefFetchProcBTVar d0)))
@@ -88,7 +89,7 @@
 ;;;    (for-each (bta-typesig d* symtab) def-typesig*)
 ;;;    (p (display-bts-d* d*))
     (bta-solve-d* d*)
-    d*))
+    (append mutable-defs d*)))
 
 (define bt-ann-sort
   (lambda (bt-ann*)
@@ -128,6 +129,22 @@
 					 (ann-maybe-coerce (annDefFetchProcBody def))))
 			  (loop d*))
 	      (loop d*)))))))
+
+(define (collect-mutable-defs d*)
+  (let loop ((d* d*) (defs '()))
+    (if (null? d*)
+	defs
+	(let ((def (car d*))
+	      (d* (cdr d*)))
+	  (if (annIsDefMutable? def)
+	      (let ((name (annDefFetchProcName def)))
+		(loop d*
+		      (cons
+		       (annMakeDef name
+				   #f
+				   (annMakeConst name))
+		       defs)))
+	      (loop d* defs))))))
 
 ;;; step 1
 ;;; type inference
