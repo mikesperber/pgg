@@ -1,5 +1,8 @@
+- revise symbol handling to pairs of (symbol, version number)
 - change the way static skeletons are represented: include information
   on sharing of dynamic values by replacing them in a consistent way
+- change the way static and dynamic parts are projected: process only one
+  value/btime pair at once  
 + analyze which lambdas and ctors are really memoized
 + incorporate the residual program in the goal function
 + make a macro out of the (_ i ...) functions

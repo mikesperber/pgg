@@ -1,2 +1,4 @@
+,bench on
 ,open escapes signals
 ,load cogen-load-cps.scm
+(define direct-lr-input-files '("examples/direct-lr-cps.scm" "examples/direct-lr-pgg.scm"))

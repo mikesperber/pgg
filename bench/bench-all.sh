@@ -1,6 +1,6 @@
-heap=16000000
+heap=4000000
 
-for style in cps #direct cps dirkd
+for style in cps direct
 do
 
 echo benchmarking $style

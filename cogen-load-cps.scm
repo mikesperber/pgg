@@ -2,6 +2,8 @@
 (display "loading program-generator generator")
 (newline)
 (load "cogen-record.scm")
+(load "pp.scm")
+(define p pretty-print)
 (load "auxiliary.scm")
 (load "cogen-env.scm")
 (load "cogen-abssyn.scm") 
@@ -13,9 +15,6 @@
 (load "cogen-ctors.scm")
 (load "cogen-library.scm")
 (load "cogen-cps.scm")		; in cps
-;;;(load "shift-reset.scm")		; necessary for direct style,
-					; from s48 distribution 
-;;;(load "cogen-direct.scm")		; in direct style
-;;;(load "cogen-direct-syntax.scm")	; in direct style w/ macros
+(load "cogen-residual.scm")
 ;;; to generate the generating extension
 (load "cogen-driver.scm") 

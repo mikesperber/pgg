@@ -95,18 +95,23 @@
 ;;; clone the dynamic parts of a list of values 
 ;;; return a value with identical static skeleton, but all dynamic
 ;;; parts replaced by a fresh variable
+(define (clone-one-dynamic value bt)
+  (if (= 0 bt)
+      (if (procedure? value)
+	  (value 'CLONE)
+	  value)
+      (if (symbol? value)
+	  (gensym-local value)
+	  (gensym-local 'clone))))
+
 (define (clone-dynamic value bts)
   (cons (car value)
 	(let loop ((values (cdr value)) (bts bts))
 	  (if (null? values)
 	      '()
-	      (let ((skeleton (loop (cdr values) (cdr bts))))
-		(if (= 0 (car bts))
-		    (let ((s-value (car values)))
-		      (if (procedure? s-value)
-			  (cons (s-value 'CLONE) skeleton)
-			  (cons s-value skeleton)))
-		    (cons (gensym-local 'clone) skeleton)))))))
+	      (let* ((skeleton (loop (cdr values) (cdr bts)))
+		     (new-value (clone-one-dynamic (car values) (car bts))))
+		(cons new-value skeleton))))))
 
 ;;; clone the dynamic parts of a list of values 
 ;;; return a value with identical static skeleton, but all dynamic
@@ -147,64 +152,3 @@
 	      (loop (cdr blocks) (+ i 1))
 	      (cons i (inner-loop (cdr values))))))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; generators for the projection functions
-;;; ctor : D
-;;; closed-value : D
-;;; vvs : list D
-;;; bts : list S
-(define (static-constructor-gen ctor closed-value vvs bts)
-  (let ((ctor-vvs (cons ctor vvs)))
-    (_let 1 'value
-	  (_op 1 'delay (_op 1 'apply closed-value vvs)) (lambda (value)
-      (_let 1 'static
-	    (_op 1 'delay (project-static-gen ctor-vvs bts)) (lambda (static)
-	(_let 1 'dynamic
-	      (_op 1 'delay (project-dynamic-gen ctor-vvs bts)) (lambda (dynamic)
-   (_lambda 1 '(what)
-     (lambda (what)
-       (_if 1 (_op 1 'equal? what (_lift0 1 'value))
-	    (_op 1 'force value)
-	    (_if 1 (_op 1 'equal? what (_lift0 1 'static))
-		 (_op 1 'force static)
-		 (_if 1 (_op 1 'equal? what (_lift0 1 'dynamic))
-		      (_op 1 'force dynamic)
-		      (_if 1 (_op 1 'equal? what (_lift0 1 'clone))
-			   (static-constructor
-			    ctor
-			    closed-value
-			    (cdr (clone-dynamic ctor-vvs bts))
-			    bts))))))))))))))) 
-;;; value : list D
-;;; bt-args : list S
-(define (project-static-gen value bt-args)
-  (_op 1 'cons (car value)
-	(let loop ((values (cdr value))
-		   (bt-args bt-args))
-	  (if (null? values)
-	      (_lift0 1 '())
-	      (let ((skeleton (loop (cdr values)
-				    (cdr bt-args))))
-		(if (= 0 (car bt-args))
-		    (let ((s-value (car values)))
-		      (_if 1 (_op 1 'procedure? s-value)
-			     (_op 1 'append (_app 1 s-value (_lift0 1 'STATIC))
-				           skeleton)
-			     (_op 1 'cons s-value skeleton)))
-		    skeleton))))))
-;;; value : list D
-;;; bts : list S
-(define (clone-dynamic-gen value bts)
-  (_op 1 'cons (car value)
-	(let loop ((values (cdr value)) (bts bts))
-	  (if (null? values)
-	      (_lift0 1 '())
-	      (let ((skeleton (loop (cdr values) (cdr bts))))
-		(if (= 0 (car bts))
-		    (let ((s-value (car values)))
-		      (_if 1 (_op 1 'procedure? s-value)
-			  (_op 1 'cons (_app 1 s-value (_lift0 1 'CLONE))
-			               skeleton)
-			  (_op 1 'cons s-value skeleton)))
-		    (_op 1 'cons (_op 1 'gensym-local (_lift0 1 'clone))
-			 skeleton)))))))

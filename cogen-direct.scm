@@ -12,9 +12,9 @@
 (define (make-ge-var l v)
   v)
 (define (make-ge-const c)
-  `(_LIFT0 1 ',c))
+  `',c)
 (define (make-ge-cond l c t e)
-  `(_IF ,l ,c ,(make-thunk t) ,(make-thunk e)))
+  `(_IF ,l ,(make-thunk c) ,(make-thunk t) ,(make-thunk e)))
 (define (make-ge-op l o args)
   `(_OP ,l ',o ,@(map make-thunk args)))
 (define (make-ge-call f args)
@@ -31,12 +31,22 @@
 		 (LAMBDA ,fvars (LAMBDA (,@fixed-vars . ,var) ,body))))
 (define (make-ge-app-memo l f btv args)
   `(_APP_MEMO ,l ,(make-thunk f) ,@(map make-thunk args)))
+(define (make-ge-lambda l vars btv body)
+  `(_LAMBDA ',l ',vars (LAMBDA ,vars ,body)))
+(define (make-ge-app l f btv args)
+  `(_APP ,l ,(make-thunk f) ,@(map make-thunk args)))
 (define (make-ge-ctor-memo l bts ctor args)
   `(_CTOR_MEMO ,l ',bts ',ctor ,@args))
 (define (make-ge-sel-memo l sel a)
-  `(_SEL_MEMO ,l ',sel ,a))
+  `(_S_T_MEMO ,l ',sel ,a))
 (define (make-ge-test-memo l tst a)
-  `(_TEST_MEMO ,l ',tst ,a))
+  `(_S_T_MEMO ,l ',tst ,a))
+(define (make-ge-ctor l ctor args)
+  `(_OP ,l ',ctor ,@args))
+(define (make-ge-sel l sel a)
+  `(_OP ,l ',sel ,a))
+(define (make-ge-test l tst a)
+  `(_OP ,l ',tst ,a))
 (define (make-ge-lift l diff a)
   `(_LIFT ,l ,diff ,a))
 (define (make-ge-eval l diff a)
@@ -44,9 +54,11 @@
 
 ;;; cogen functions
 (define (_app lv f . args)
-  (if (= lv 1)
-      `(,f ,@args)
-      `(_APP ,(pred lv) ,f ,@args))) 
+  (let ((args (map reset-thunk args))
+	(f (reset-thunk f)))
+    (if (= lv 1)
+	`(,f ,@args)
+	(make-ge-app (pred lv) f '() args)))) 
 
 (define (_app_memo lv f . args)
   (let ((args (map reset-thunk args))
@@ -122,44 +134,46 @@
 	`(STATIC-CONSTRUCTOR ',ctor ,ctor (LIST ,@args) ',new-bts)
 	(make-ge-ctor-memo (- lv 1) new-bts ctor args))))
 
-(define (_sel_memo lv sel v)
+(define (_s_t_memo lv sel/test v)
   (if (= lv 1)
-      `(,sel (,v 'VALUE))
-      (make-ge-sel-memo (- lv 1) sel v)))
-
-(define (_test_memo level ctor-test v)
-  (if (= level 1)
-      `(,ctor-test (,v 'VALUE))
-      (make-ge-test-memo (- level 1) ctor-test v)))
+      `(,sel/test (,v 'VALUE))
+      (make-ge-sel-memo (- lv 1) sel/test v)))
 
 ;;; needs RESET, somewhere
 ;;; therefore: the arms of the conditional must be thunks, so that we
 ;;; can capture control. we get this for free in the CPS version where
 ;;; et2 and et3 are continuations, anyway
-(define (_If level e1 et2 et3)
+(define (_If level et1 et2 et3)
   (if (= level 1)
-      (shift k `(IF ,e1 ,(reset (k (et2))) ,(reset (k (et3)))))
-      (shift k `(_IF ,(- level 1) ,e1 (LAMBDA () ,(reset (k (et2))))
-		     (LAMBDA () ,(reset (k (et3))))))))
+      (shift k `(IF ,(reset-thunk et1) ,(reset (k (et2))) ,(reset (k (et3)))))
+      (shift k (make-ge-cond (- level 1)
+			     (reset-thunk et1)
+			     (reset (k (et2)))
+			     (reset (k (et3)))))))
 
 ;;; alternative implementation
-(define (_If1 level e1 et2 et3)
+(define (_If1 level et1 et2 et3)
   (if (= level 0)
-      (if e1 (et2) (et3))
-      (shift k `(_IF1 ,(- level 1) ,e1 (LAMBDA () ,(reset (k (et2))))
+      (if (et1) (et2) (et3))
+      (shift k `(_IF1 ,(- level 1) ,(reset-thunk et1)
+		      (LAMBDA () ,(reset (k (et2))))
 		      (LAMBDA () ,(reset (k (et3))))))))
 
 (define (_Op level op . args)
   (let ((args (map reset-thunk args)))
-    (if (= level 1)
-	(cond
-	 ((eq? op 'cons)
-	  (make-residual-cons (car args) (cadr args)))
-	 ((eq? op 'apply)
-	  (make-residual-apply (car args) (cadr args)))
-	 (else
-	  `(,op ,@args)))
-	(make-ge-op (pred level) op args))))
+    (cond
+     ((eq? op '_DEFINE_DATA)
+      (make-residual-define-data level (car args)))
+     ((= level 1)
+      (cond
+       ((eq? op 'cons)
+	(make-residual-cons (car args) (cadr args)))
+       ((eq? op 'apply)
+	(make-residual-apply (car args) (cadr args)))
+       (else
+	`(,op ,@args))))
+     (else
+      (make-ge-op (pred level) op args)))))
 
 (define (_Lift0 level val)
   (if (= level 1)
@@ -169,9 +183,13 @@
       `(_LIFT0 ,(- level 1) ',val)))
 
 (define (_Lift level diff value)
-  (if (= level 1)
-      `(_LIFT0 ,diff ,value)
-      `(_LIFT ,(- level 1) ,diff ,value)))
+  (cond
+   ((zero? level)
+    (_LIFT0 diff value))
+   ((= level 1)
+    `(_LIFT0 ,diff ,value))
+   (else
+    `(_LIFT ,(- level 1) ,diff ,value))))
 
 (define (_Eval level diff body)
   (cond

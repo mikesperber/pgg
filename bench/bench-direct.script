@@ -1,3 +1,4 @@
+,bench on
 ,open escapes signals
-(define ***dynamic-context-propagation*** #t)
 ,load cogen-load.scm
+(define direct-lr-input-files '("examples/direct-lr-pgg.scm"))

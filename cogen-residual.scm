@@ -21,16 +21,18 @@
     `(LET ((,var ,exp)) ,body))))
 
 (define (make-residual-begin exp1 exp2)
-  (let ((exp2-begin (and (pair? exp2) (eq? (car exp2) 'BEGIN))))
-    (cond
-     ((and (pair? exp1) (eq? (car exp1) 'BEGIN))
-      (if exp2-begin
-	  `(BEGIN ,@(cdr exp1) ,@(cdr exp2))
-	  `(BEGIN ,@(cdr exp1) ,exp2)))
-     (else
-      (if exp2-begin
-	  `(BEGIN ,exp1 ,@(cdr exp2))
-	  `(BEGIN ,exp1 ,exp2))))))
+  (if (and (pair? exp1) (not (eq? (car exp1) 'QUOTE)))
+      (let ((exp2-begin (and (pair? exp2) (eq? (car exp2) 'BEGIN))))
+	(cond
+	 ((eq? (car exp1) 'BEGIN)
+	  (if exp2-begin
+	      `(BEGIN ,@(cdr exp1) ,@(cdr exp2))
+	      `(BEGIN ,@(cdr exp1) ,exp2)))
+	 (else
+	  (if exp2-begin
+	      `(BEGIN ,exp1 ,@(cdr exp2))
+	      `(BEGIN ,exp1 ,exp2)))))
+      exp2))
 
 (define (make-residual-cons exp1 exp2)
   (if (pair? exp2)
@@ -54,8 +56,18 @@
 	     (loop (caddr arg)))
 	    ((and (pair? arg) (eq? (car arg) '_LIFT))
 	     (loop (cadddr arg)))
-	    (else real-arg)))))
+	    (else
+	     arg)))))
     (add-to-support-code! `(define-data ,@real-arg))
     (if (= lv 0)
 	'pooof				;ignored
 	`(_OP ,(- lv 1) _DEFINE_DATA ,arg))))
+
+(define (make-residual-if c t e)
+  (cond
+   ((eq? c #t)
+    t)
+   ((eq? c #f)
+    e)
+   (else
+    `(IF ,c ,t ,e))))

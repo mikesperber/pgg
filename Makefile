@@ -12,7 +12,6 @@ all: $(BATCH_IMAGE)
 
 cogen_packages = escapes big-scheme
 batch_packages = signals handle i/o conditions extended-ports
-cogen_control = cogen-control-prop.scm
 cogen_base_files = auxiliary.scm \
 	cogen-env.scm \
 	cogen-abssyn.scm \
@@ -28,7 +27,7 @@ cogen_cps_files = cogen-cps.scm
 cogen_ds_files = cogen-direct-syntax.scm
 cogen_combinator_files = $(cogen_ds_files)
 
-cogen_files = $(cogen_control) $(cogen_base_files) $(cogen_combinator_files)
+cogen_files = $(cogen_base_files) $(cogen_combinator_files)
 
 batch_files = tiny-format.scm fname.scm command-line.scm cogen-batch.scm
 
@@ -48,7 +47,6 @@ cogen-load-s48.scm : Makefile
 	 for f in $(cogen_base_files) ; do \
 		echo "(load \"$$f\")" ; \
 	 done ; \
-	 echo "(load \"$(cogen_control)\")" ; \
 	 for f in $(cogen_combinator_files) ; do \
 		echo "(load \"$$f\")" ; \
 	 done \
@@ -62,7 +60,6 @@ cogen-load-gambit.scm : Makefile
 	 for f in $(cogen_base_files) ; do \
 		echo "(load \"$$f\")" ; \
 	 done ; \
-	 echo "(load \"$(cogen_control)\")" ; \
 	 for f in $(cogen_combinator_files) ; do \
 		echo "(load \"$$f\")" ; \
 	 done \

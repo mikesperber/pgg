@@ -39,12 +39,12 @@
   (let loop ((e e))
     (cond
      ((annIsVar? e)
-      (make-ge-var (+ 1 (annExprFetchLevel e))
+      (make-ge-var (annExprFetchLevel e)
 		   (annFetchVar e)))
      ((annIsConst? e)
       (make-ge-const (annFetchConst e)))
      ((annIsCond? e)
-      (make-ge-cond (+ 1 (annExprFetchLevel (annFetchCondTest e)))
+      (make-ge-cond (annExprFetchLevel (annFetchCondTest e))
 		    (loop (annFetchCondTest e))
 		    (loop (annFetchCondThen e))
 		    (loop (annFetchCondElse e))))
@@ -53,7 +53,7 @@
 	    (op-args (annFetchOpArgs e)))
 	(if (eq? op-name INTERNAL-IDENTITY)
 	    (loop (car op-args))
-	    (make-ge-op (+ 1 (annExprFetchLevel e))
+	    (make-ge-op (annExprFetchLevel e)
 			op-name (map loop op-args)))))
      ((annIsCall? e)
       (make-ge-call (annFetchCallName e)
@@ -61,21 +61,19 @@
      ((annIsLet? e)
       (let* ((level (annExprFetchLevel (annFetchLetHeader e)))
 	     (var (annFetchLetVar e))
-	     (n-level (if (annFetchLetUnfoldability e)
-			  level
-			  (+ level 1)))
+	     (n-level (max 0 (if (annFetchLetUnfoldability e) (- level 1) level)))
 	     (header (loop (annFetchLetHeader e)))
 	     (body (loop (annFetchLetBody e))))
 	(if (= 0 (annFetchLetUseCount e))
 	    (make-ge-begin n-level header body)
 	    (make-ge-let n-level var header body))))
      ((annIsLambda? e)
-;;;      `(_LAMBDA ,(+ 1 (annExprFetchLevel e))
+;;;      `(_LAMBDA ,(annExprFetchLevel e)
 ;;;		(LAMBDA ,(annFetchLambdaVars e)
 ;;;		  ,(loop (annFetchLambdaBody e))))
       (let* ((fvar-exprs (annFreeVars e))
 	     (fvars (map annFetchVar fvar-exprs))
-	     (bts (map succ (map annExprFetchLevel fvar-exprs)))
+	     (bts (map annExprFetchLevel fvar-exprs))
 	     (vars (annFetchLambdaVars e))
 	     (btv (annFetchLambdaBTVars e))
 	     ;; temporary
@@ -85,10 +83,10 @@
 	      (ann->bt
 	       (type->memo (node-fetch-type (full-ecr (annExprFetchType e)))))))
 	(if (and memo-optimize (<= memo-level level))
-	    (make-ge-lambda (+ 1 level)
+	    (make-ge-lambda level
 			    vars btv
 			    (loop body))
-	    (make-ge-lambda-memo (+ 1 level)
+	    (make-ge-lambda-memo level
 				 vars btv
 				 (annFetchLambdaLabel e)
 				 fvars
@@ -97,11 +95,11 @@
      ((annIsVLambda? e)
       (let* ((fvar-exprs (annFreeVars e))
 	     (fvars (map annFetchVar fvar-exprs))
-	     (bts (map succ (map annExprFetchLevel fvar-exprs)))
+	     (bts (map annExprFetchLevel fvar-exprs))
 	     (fixed-vars (annFetchVLambdaFixedVars e))
 	     (var (annFetchVLambdaVar e))
 	     (btv (annFetchVLambdaBTVars e)))
-	(make-ge-vlambda-memo (+ 1 (annExprFetchLevel e))
+	(make-ge-vlambda-memo (annExprFetchLevel e)
 			      fixed-vars
 			      var btv
 			      (annFetchVLambdaLabel e)
@@ -114,15 +112,15 @@
 	     (level (annExprFetchLevel rator))
 	     (memo-level
 	      (ann->bt
-	       (type->memo (node-fetch-type (full-ecr (annExprFetchType rator)))))))
+	       (type->memo (node-fetch-type (full-ecr
+					     (annExprFetchType
+					      rator))))))
+	     (the-rator (loop rator))
+	     (the-rands (map loop rands))
+	     (btv (map annExprFetchLevel rands)))
 	(if (and memo-optimize (<= memo-level level))
-	    (make-ge-app (+ 1 level)
-			 (loop rator)
-			 (map loop rands))
-	    (make-ge-app-memo (+ 1 level)
-			      (loop rator)
-			      (map succ (map annExprFetchLevel rands))
-			      (map loop rands)))))
+	    (make-ge-app level the-rator btv the-rands)
+	    (make-ge-app-memo level the-rator btv the-rands))))
      ((annIsCtor? e)
       (let* ((level (annExprFetchLevel e))
 	     (memo-level
@@ -131,11 +129,11 @@
 					     (annExprFetchType
 					      e)))))))
 	(if (and memo-optimize (<= memo-level level))
-	    (make-ge-ctor (+ 1 level)
+	    (make-ge-ctor level
 			  (annFetchCtorName e)
 			 (map loop (annFetchCtorArgs e)))
-	    (make-ge-ctor-memo (+ 1 level)
-			       (map succ (map annExprFetchLevel (annFetchCtorArgs e))) 
+	    (make-ge-ctor-memo level
+			       (map annExprFetchLevel (annFetchCtorArgs e)) 
 			       (annFetchCtorName e)
 			       (map loop (annFetchCtorArgs e))))))
      ((annIsSel? e)
@@ -146,7 +144,7 @@
 	       (type->memo (node-fetch-type (full-ecr (annExprFetchType arg)))))))
 	((if (and memo-optimize (<= memo-level level))
 	     make-ge-sel make-ge-sel-memo)
-	 (succ level)
+	 level
 	 (annFetchSelName e)
 	 (loop (annFetchSelArg e)))))
      ((annIsTest? e)
@@ -157,16 +155,16 @@
 	       (type->memo (node-fetch-type (full-ecr (annExprFetchType arg)))))))
 	((if (and memo-optimize (<= memo-level level))
 	     make-ge-test make-ge-test-memo)
-	 (succ level)
+	 level
 	 (annFetchTestName e)
 	 (loop (annFetchTestArg e)))))
      ((annIsLift? e)
-      (make-ge-lift (+ 1 (annExprFetchLevel e))
+      (make-ge-lift (annExprFetchLevel e)
 		    (annFetchLiftDiff e)
 		    (loop (annFetchLiftBody e))))
      ((annIsEval? e)
-      (let ((bodylevel (+ 1 (annExprFetchLevel (annFetchEvalBody e))))
-	    (ctxlevel (+ 1 (annExprFetchLevel e))))
+      (let ((bodylevel (annExprFetchLevel (annFetchEvalBody e)))
+	    (ctxlevel (annExprFetchLevel e)))
 	(make-ge-eval bodylevel
 		      (- ctxlevel bodylevel)
 		      (loop (annFetchEvalBody e)))))
@@ -174,14 +172,15 @@
       (let* ((memo-fname (gensym fname))
 	     (var-exprs (annFetchMemoVars e))
 	     (vars (map annFetchVar var-exprs))
-	     (bts (map succ (map annExprFetchLevel var-exprs))))
+	     (bts (map annExprFetchLevel var-exprs))
+	     (generated-body (loop (annFetchMemoBody e))))
 	(set! *generating-extension*
 	      (cons `(DEFINE (,memo-fname ,@vars)
-		       ,(loop (annFetchMemoBody e)))
+		       ,generated-body)
 	       *generating-extension*))
-	`(MULTI-MEMO ,(+ 1 (annFetchMemoLevel e))
+	`(MULTI-MEMO ,(annFetchMemoLevel e)
 		     ',memo-fname ,memo-fname
 		     ',bts
 		     (LIST ,@vars))))
      (else
-      (error)))))
+      (error "cogen-skeleton:generate unrecognized syntax")))))

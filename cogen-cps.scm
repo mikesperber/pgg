@@ -22,7 +22,7 @@
 (define (make-ge-var l v)
   v)
 (define (make-ge-const c)
-  `(_LIFT0 1 ,c))
+  `(RESULT ',c))
 (define (make-ge-cond l c t e)
   `(_IF ,l ,c ,t ,e))
 (define (make-ge-op l o args)
@@ -34,16 +34,16 @@
 (define (make-ge-begin l e1 e2)
   `(_BEGIN ,l ,e1 ,e2))
 (define (make-ge-lambda-memo l vars btv label fvars bts body)
-  `(_LAMBDA_MEMO ',l ',vars ',label (LIST ,@fvars) ',bts
+  `(_LAMBDA_MEMO ,l ',vars ',label (LIST ,@fvars) ',bts
 		 (LAMBDA_RESULT ,fvars (LAMBDA_RESULT ,vars ,body))))
 (define (make-ge-vlambda-memo l fixed-vars var btv label fvars bts body)
-  `(_VLAMBDA_MEMO ',l ',fixed-vars ',var ',label (LIST ,@fvars) ',bts
+  `(_VLAMBDA_MEMO ,l ',fixed-vars ',var ',label (LIST ,@fvars) ',bts
 		 (LAMBDA ,fvars (LAMBDA (,@fixed-vars . ,var) ,body))))
 (define (make-ge-app-memo l f btv args)
   `(_APP_MEMO ,l ,f ,@args))
 (define (make-ge-lambda l vars btv body)
-  `(_LAMBDA ',l ',vars (LAMBDA ,vars ,body)))
-(define (make-ge-app l f args)
+  `(_LAMBDA ,l ',vars (LAMBDA ,vars ,body)))
+(define (make-ge-app l f btv args)
   `(_APP ,l ,f ,@args))
 (define (make-ge-ctor-memo l bts ctor args)
   `(_CTOR_MEMO ,l ,bts ,ctor ,@args))
@@ -62,13 +62,6 @@
 (define (make-ge-eval l diff a)
   `(_EVAL ,l ,diff ,a))
 
-
-(define (make-residual-let var exp body)
-  (if (and (pair? body) (memq (car body) '(LET LET*)))
-      (let ((header (cadr body))
-	    (body (caddr body)))
-	`(LET* ((,var ,exp) ,@header) ,body))
-      `(LET ((,var ,exp)) ,body)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; application with arbitrary many arguments
@@ -167,19 +160,21 @@
      (_let-internal lv '?v e (lambda (?v) body)))))
 
 (define (_let-internal lv orig-var ec f)
-  (lambda (kappa)
-    (let* ((var (gensym orig-var))
-	   (varc (lambda (k) (k var))))
-      (ec
-       (lambda (value)
-	 (cond
-	  ((zero? lv)
-	   ((f (result value)) kappa))
-	  ((and (= lv 1) (or (not (pair? value)) (equal? 'QUOTE (car value))))
-	   ((f (result value)) kappa))
-	  (else
-	   `(_LET ,(- lv 1) ((,var ,value))
-		  ,((f varc) kappa)))))))))
+  (if (zero? lv)
+      (lambda (kappa)
+	(ec (lambda (value)
+	      ((f (result value)) kappa))))
+      (lambda (kappa)
+	(let* ((var (gensym-local orig-var))
+	       (varc (lambda (k) (k var))))
+	  (ec
+	   (lambda (value)
+	     (cond
+	      ((and (= lv 1) (or (not (pair? value)) (equal? 'QUOTE (car value))))
+	       ((f (result value)) kappa))
+	      (else
+	       `(_LET ,(- lv 1) ((,var ,value))
+		      ,((f varc) kappa))))))))))
 
 (define (_begin lv e1c e2c)
   (lambda (kappa)
@@ -213,15 +208,19 @@
 
 ;;; conditional
 (define (_If level e1c e2c e3c)
-  (lambda (kappa)
-    (e1c (lambda (e1)
-	  (if (zero? level)
-	      (if e1 (e2c kappa) (e3c kappa))
-	      `(_IF ,(- level 1) ,e1 ,(e2c kappa) ,(e3c kappa)))))))
+  (if (zero? level)
+      (lambda (kappa)
+	(e1c
+	 (lambda (e1)
+	   (if e1 (e2c kappa) (e3c kappa)))))
+      (lambda (kappa)
+	`(_IF ,(- level 1) ,(e1c id) ,(e2c kappa) ,(e3c kappa)))))
 
 ;;; primitive operators
 (define-syntax _op
-  (syntax-rules ()
+  (syntax-rules (_define_data)
+    ((_ lv _define_data argc)
+     (lambda (k) (argc (lambda (arg) (k (make-residual-define-data lv arg))))))
     ((_ 0 op argc ...)
      (lambda (k) (lib-arg-list (list argc ...) (lambda (args) (k (apply op args))))))
     ((_ lv op argc ...)
@@ -236,12 +235,48 @@
     ((_ lv val)
      (lambda (k) (k `(_LIFT0 ,(pred lv) val))))))
 
+(define _lift0-internal
+  (lambda (diff val)
+    (if (zero? diff)
+	(lambda (k)
+	  (k val))
+	(lambda (k)
+	  (k `(_LIFT0 ,(pred diff) ,val))))))
+
 (define-syntax _lift
   (syntax-rules ()
     ((_ 0 diff valc)
+     (lambda (k) (valc (lambda (val) ((_lift0-internal diff val) k)))))
+    ((_ 1 diff valc)
      (lambda (k) (valc (lambda (val) (k `(_LIFT0 ,(pred diff) ,val))))))
     ((_ lv diff valc)
      (lambda (k) (valc (lambda (val) (k `(_LIFT ,(pred lv) ,diff ,val))))))))
+
+;;; eval
+(define (_Eval level diff bodyc)
+  (cond
+   ((= level 0)
+    (lambda (kappa)
+      (bodyc
+       (lambda (body)
+	 (kappa
+	  (cond
+	   ((zero? diff)
+	    (eval body (interaction-environment)))
+	   ((= 1 diff)
+	    body)
+	   (else
+	    `(_EVAL 0 ,(- diff 1) ',body))))))))
+   ((= level 1)
+    (cond
+     ((zero? diff)
+      `(EVAL ,(bodyc id) (INTERACTION-ENVIRONMENT)))
+     ((= 1 diff)
+      (bodyc id))
+     (else
+      `(_EVAL 0 ,diff ',(bodyc id)))))
+   (else
+    `(_EVAL ,(- level 1) ,diff ,(bodyc id)))))
 
 ;;; general argument-list processing
 ;;; accept a list of argument continuations `argsc' and a continuation

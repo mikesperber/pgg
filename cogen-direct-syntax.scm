@@ -8,7 +8,7 @@
 (define (make-ge-var l v)
   v)
 (define (make-ge-const c)
-  `(_LIFT0 1 ',c))
+  `',c)
 (define (make-ge-cond l c t e)
   `(_IF ,l ,c ,t ,e))
 (define (make-ge-op l o args)
@@ -20,16 +20,16 @@
 (define (make-ge-begin l e1 e2)
   `(_BEGIN ,l ,e1 ,e2))
 (define (make-ge-lambda-memo l vars btv label fvars bts body)
-  `(_LAMBDA_MEMO ',l ',vars ',label (LIST ,@fvars) ',bts
+  `(_LAMBDA_MEMO ,l ',vars ',label (LIST ,@fvars) ',bts
 		 (LAMBDA ,fvars (LAMBDA ,vars ,body))))
 (define (make-ge-vlambda-memo l fixed-vars var btv label fvars bts body)
-  `(_VLAMBDA_MEMO ',l ',fixed-vars ',var ',label (LIST ,@fvars) ',bts
+  `(_VLAMBDA_MEMO ,l ',fixed-vars ',var ',label (LIST ,@fvars) ',bts
 		 (LAMBDA ,fvars (LAMBDA (,@fixed-vars . ,var) ,body))))
 (define (make-ge-app-memo l f btv args)
   `(_APP_MEMO ,l ,f ,@args))
 (define (make-ge-lambda l vars btv body)
-  `(_LAMBDA ',l ',vars (LAMBDA ,vars ,body)))
-(define (make-ge-app l f args)
+  `(_LAMBDA ,l ',vars (LAMBDA ,vars ,body)))
+(define (make-ge-app l f btv args)
   `(_APP ,l ,f ,@args))
 (define (make-ge-ctor-memo l bts ctor args)
   `(_CTOR_MEMO ,l ,bts ,ctor ,@args))
@@ -56,16 +56,16 @@
     ((_app 0 f arg ...)
      (f arg ...))
     ((_app 1 f arg ...)
-     `(,(maybe-reset f) ,(maybe-reset arg) ...))
+     `(,(reset f) ,(reset arg) ...))
     ((_app lv f arg ...)
-     `(_APP ,(pred lv) ,(maybe-reset f) ,(maybe-reset arg) ...))))
+     `(_APP ,(pred lv) ,(reset f) ,(reset arg) ...))))
 
 (define-syntax _app_memo
   (syntax-rules ()
     ((_app_memo 0 f arg ...)
      ((f 'VALUE) arg ...))
     ((_app_memo lv f arg ...)
-     `(_APP_MEMO ,(pred lv) ,(maybe-reset f) ,(maybe-reset arg) ...))))
+     `(_APP_MEMO ,(pred lv) ,(reset f) ,(reset arg) ...))))
 
 (define (_lambda lv arity f)
   (let* ((vars (map gensym-local arity))
@@ -121,55 +121,49 @@
     ((_ 0 ((?v e)) body)
      (let ((?v e)) body))
     ((_ lv ((?v e)) body)
-     (_let-internal lv '?v (maybe-reset e) (lambda (?v) body)))))
+     (_let-internal lv '?v (reset e) (lambda (?v) body)))))
 
 (define (_let-internal lv orig-var e f)
   (let ((var (gensym-local orig-var)))
-    (cond
-     ((zero? lv)
-      (f e))
-     ((= lv 1)
-      (if (and (pair? e)
-	       (not (equal? 'QUOTE (car e))))
-	  (shift k (make-residual-let var e (reset (k (f var)))))
-	  (f e)))
-     (else
-      (shift k (make-ge-let (pred lv) var e (reset (k (f var)))))))))
+    (if (= lv 1)
+	(if (and (pair? e)
+		 (not (equal? 'QUOTE (car e))))
+	    (shift k (make-residual-let var e (reset (k (f var)))))
+	    (f e))
+	(shift k (make-ge-let (pred lv) var e (reset (k (f var))))))))
 
 (define-syntax _begin
   (syntax-rules ()
     ((_ 0 e1 e2)
      (begin e1 e2))
     ((_ 1 e1 e2)
-     (shift k (make-residual-begin (maybe-reset e1) (reset (k e2)))))
+     (shift k (make-residual-begin (reset e1) (reset (k e2)))))
     ((_ lv e1 e2)
-     (shift k `(_BEGIN ,(pred lv) ,(maybe-reset e1) ,(reset (k e2)))))))
+     (shift k `(_BEGIN ,(pred lv) ,(reset e1) ,(reset (k e2)))))))
 
 (define-syntax _ctor_memo
   (syntax-rules ()
     ((_ 0 bts ctor arg ...)
      (static-constructor 'ctor ctor (list arg ...) 'bts))
     ((_ lv (bt ...) ctor arg ...)
-     `(_CTOR_MEMO ,(pred lv) (,(pred bt) ...) ctor ,(maybe-reset arg) ...))))
+     `(_CTOR_MEMO ,(pred lv) (,(pred bt) ...) ctor ,(reset arg) ...))))
 
 (define-syntax _s_t_memo
   (syntax-rules ()
     ((_ 0 sel v)
      (sel (v 'VALUE)))
     ((_sel_memo lv sel v)
-     `(_S_T_MEMO ,(pred lv) sel ,(maybe-reset v)))))
+     `(_S_T_MEMO ,(pred lv) sel ,(reset v)))))
 
 (define-syntax _if
   (syntax-rules ()
     ((_if 0 e1 e2 e3)
      (if e1 e2 e3))
     ((_if 1 e1 e2 e3)
-     (shift k `(IF ,(maybe-reset e1)
-		   ,(reset (k e2))
-		   ,(reset (k e3)))))
+     (shift k (make-residual-if (reset e1) (reset (k e2)) (reset (k e3)))))
     ((_if lv e1 e2 e3)
      (shift k `(_IF ,(pred lv)
-		    ,(maybe-reset e1)
+		    ,(reset e1)
 		    ,(reset (k e2))
 		    ,(reset (k e3)))))))
 
@@ -184,9 +178,9 @@
     ((_op 1 apply f arg)
      (make-residual-apply f arg))
     ((_op 1 op arg ...)
-     `(op ,(maybe-reset arg) ...))
+     `(op ,(reset arg) ...))
     ((_op lv op arg ...)
-     `(_OP ,(pred lv) op ,(maybe-reset arg) ...))))
+     `(_OP ,(pred lv) op ,(reset arg) ...))))
 
 (define-syntax _lift0
   (syntax-rules ()
@@ -199,6 +193,8 @@
 
 (define-syntax _lift
   (syntax-rules ()
+    ((_ 0 diff value)
+     (_lift0 diff value))
     ((_ 1 diff value)
      `(_LIFT0 ,diff ,value))
     ((_ lv diff value)
