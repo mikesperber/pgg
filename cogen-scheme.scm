@@ -135,9 +135,11 @@
 		   (list tag (map loop args)))
 	    (cond
 	     ((equal? tag 'IF)
-	      (annMakeCond (loop (car args))
-			   (ann-maybe-coerce (loop (cadr args)))
-			   (ann-maybe-coerce (loop (caddr args)))))
+	      (let* ((opt-else-branch (cddr args))
+		     (else-branch (if (null? opt-else-branch) `'IF-2 (car opt-else-branch))))
+		(annMakeCond (loop (car args))
+			     (ann-maybe-coerce (loop (cadr args)))
+			     (ann-maybe-coerce (loop else-branch)))))
 	     ((equal? tag 'AND)
 	      (cond
 	       ((null? args)
@@ -203,13 +205,15 @@
 	     ;; these LETs may have to be marked as not discardable if
 	     ;; side effects are around
 	     ((equal? tag 'BEGIN)
-	      (scheme->abssyn-e
-	       (let loop ((args args))
-		 (if (= 1 (length args))
-		     (car args)
-		     `(LET ((,(gensym 'BEGIN) ,(car args)))
-			,(loop (cdr args)))))
-	       symtab))
+	      (if (null? args)
+		  (annMakeConst 'begin-0)
+		  (scheme->abssyn-e
+		   (let loop ((args args))
+		     (if (= 1 (length args))
+			 (car args)
+			 `(LET ((,(gensym 'BEGIN) ,(car args)))
+			    ,(loop (cdr args)))))
+		   symtab)))
 	     ((and (equal? tag 'LAMBDA)
 		   (list? (car args)))
 	      (let* ((formals (car args))
@@ -349,6 +353,19 @@
 		   `(IF ,(caar body)
 			,(scheme-body-list->body (cdar body))
 			,(loop (cdr body))))))))
+	     ;; I never, never, never wanted this ...
+	     ((equal? tag 'DO)
+	      (let ((name (gensym 'DO))
+		    (var/init/step* (car args))
+		    (test/exp* (cadr args))
+		    (cmd* (cddr args)))
+		(loop
+		 `(LET ,name ,(map (lambda (vis) (take 2 vis)) var/init/step*)
+		       (IF ,(car test/exp*)
+			   (BEGIN ,@(cdr test/exp*))
+			   (BEGIN ,@cmd*
+				  (,name ,@(map (lambda (vis) (list-ref vis 2))
+						var/init/step*)))))))) 
 	     ;;
 	     ((and (equal? tag 'LET)
 		   (not (pair? (car args))))

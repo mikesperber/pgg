@@ -513,7 +513,7 @@
 	  list-or
 	  take
 	  ((load-program) :syntax)
-	  file->list writelpp writel))
+	  file->list writelpp writel count-cells))
 
 (define-structure auxiliary auxiliary-interface
   (open scheme pretty-print)

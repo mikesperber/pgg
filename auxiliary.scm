@@ -211,3 +211,8 @@
   (with-output-to-file filename
     (lambda ()
       (for-each write l)))) 
+
+(define (count-cells x)
+  (if (pair? x)
+      (+ 1 (count-cells (car x)) (count-cells (cdr x)))
+      1))

@@ -3,6 +3,7 @@ E ::=	K | (quote A) | V | (if E E E) | (cond (E E)* (else E)?) |
 	(let ((V E)*) D0* E*) | (let* ((V E)*) D0* E*) |
 	(letrec ((V (lambda (V*) E*))*) D0* E*) |
 	(let P ((V E)*) D0* E*) |
+	(do ((V E E)*) (E E*) E*) |
 	(case E ((A*) E*)* (else E*)?) |
 	(lambda (V*) D0* E*) | (E E*) |
 	[ (lambda V D0* E*) | (lambda (V* . V) D0* E*) | ]
