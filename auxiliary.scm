@@ -134,3 +134,8 @@
   (with-output-to-file filename
     (lambda ()
       (for-each p l)))) 
+
+(define (writel l filename)
+  (with-output-to-file filename
+    (lambda ()
+      (for-each write l)))) 
