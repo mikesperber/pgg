@@ -13,23 +13,23 @@
 
 (define (master-pending-initialize!)
   (set! *master-pending* '())
-  (set! *master-pending-lock* (make-proxy (make-lock)))
+  (set! *master-pending-lock* (make-lock))
   (set! *master-pending-placeholders* '())
-  (set! *master-pending-placeholders-lock* (make-proxy (make-lock))))
+  (set! *master-pending-placeholders-lock* (make-lock)))
 
 (define (master-pending-add! key entry)
-  (obtain-lock (proxy-local-ref *master-pending-placeholders-lock*))
+  (obtain-lock *master-pending-placeholders-lock*)
   (if (null? *master-pending-placeholders*)
       (begin
-	(release-lock (proxy-local-ref *master-pending-placeholders-lock*))
+	(release-lock *master-pending-placeholders-lock*)
 	(with-lock
-	 (proxy-local-ref *master-pending-lock*)
+	 *master-pending-lock*
 	 (lambda ()
 	   (set! *master-pending* (cons (cons key entry) *master-pending*)))))
       (let ((placeholder (car *master-pending-placeholders*)))
 	(set! *master-pending-placeholders* (cdr *master-pending-placeholders*))
 	(set! *n-unemployed-servers* (- *n-unemployed-servers* 1))
-	(release-lock (proxy-local-ref *master-pending-placeholders-lock*))
+	(release-lock *master-pending-placeholders-lock*)
 	(placeholder-set! placeholder entry))))
 
 (define (master-pending-advance-no-locking!)
@@ -40,11 +40,11 @@
 	entry)))
 
 (define (master-pending-sign-up! placeholder)
-  (obtain-lock (proxy-local-ref *master-pending-placeholders-lock*))
+  (obtain-lock *master-pending-placeholders-lock*)
   (set! *master-pending-placeholders*
 	(cons placeholder *master-pending-placeholders*))
   (set! *n-unemployed-servers* (+ 1 *n-unemployed-servers*))
-  (release-lock (proxy-local-ref *master-pending-placeholders-lock*))
+  (release-lock *master-pending-placeholders-lock*)
   (if (= *n-unemployed-servers* *n-servers*)
       (placeholder-set! *finished-placeholder* #t)))
 
@@ -63,7 +63,7 @@
   (set! *master-cache* '())
   (set! *master-cache-ids-size* 501)
   (set! *master-cache-ids* (make-vector *master-cache-ids-size* '()))
-  (set! *master-cache-lock* (make-proxy (make-lock))))
+  (set! *master-cache-lock* (make-lock)))
 
 (define (master-cache-add-no-locking! key entry local-id)
   (set! *master-cache* (cons (cons key entry) *master-cache*))
@@ -99,7 +99,7 @@
   ;;master-entry
   ;;(cons (cons local-id uid) ids+aspaces)))))
   (with-lock
-   (proxy-local-ref *master-cache-lock*)
+   *master-cache-lock*
    (lambda ()
      (let ((hash-key (modulo local-id *master-cache-ids-size*)))
        (vector-set! *master-cache-ids* hash-key
@@ -111,7 +111,9 @@
 (define (server-working-on uid local-id) ; async
   ;; make sure that local-name is already registered with the master
   (if (not (can-server-work-on? uid local-id))
-      (remote-run! (uid->aspace uid) server-kill-specialization! local-id)))
+      'lose
+      ;;(remote-run! (uid->aspace uid) server-kill-specialization! local-id)
+      ))
 
 ;; this assumes that, if the answer is #t, the caller gets busy on entry!
 
@@ -124,17 +126,6 @@
 	 (begin
 	   (master-entry->mark! entry #t)
 	   #t)))))
-
-(define *servers-placeholders* #f)
-(define *servers-placeholders-lock* #f)
-(define (servers-placeholders-initialize!)
-  (set! *servers-placeholders* (make-vector (+ 1 *n-servers*) #f))
-  (set! *servers-placeholders-lock* (make-proxy (make-lock)))
-  (let loop ((i 1))
-    (if (<= i *n-servers*)
-	(begin
-	  (vector-set! *servers-placeholders* i (make-placeholder))
-	  (loop (+ i 1))))))
 
 (define (can-server-work-on? uid local-id) ; sync
   (let loop ()
@@ -163,7 +154,7 @@
 	       (begin
 		 ;; (display (list "Server" uid local-id "setting placeholder")) (newline)
 		 (with-lock
-		  (proxy-local-ref *servers-placeholders-lock*)
+		  *servers-placeholders-lock*
 		  (lambda ()
 		    (let ((placeholder (vector-ref *servers-placeholders* uid)))
 		      (placeholder-set! placeholder #t)
@@ -194,18 +185,18 @@
 				    uid local-id
 				    master-entry)))
 
-	  (obtain-lock (proxy-local-ref *master-cache-lock*))
+	  (obtain-lock *master-cache-lock*)
 	  (cond ((master-cache-delimited-lookup
 		  static-skeleton
 		  (lambda (item) (eq? item master-cache)))
 		 => (lambda (entry)
-		      (release-lock (proxy-local-ref *master-cache-lock*))
+		      (release-lock *master-cache-lock*)
 		      (master-entry->add-local-id! entry local-id (uid->aspace uid))))
 		(else
 		 ;; we can go ahead
 		 ;; order is important here, no?
 		 (master-cache-add-no-locking! static-skeleton master-entry local-id)
-		 (release-lock (proxy-local-ref *master-cache-lock*))
+		 (release-lock *master-cache-lock*)
 		 (set-placeholders)
 		 (master-pending-add! static-skeleton pending-entry)))))))
 
@@ -217,7 +208,7 @@
   ;; (display "Server ") (display uid) (display " says it's unemployed") (newline)
   (let loop ()
     (let ((entry (with-lock
-		  (proxy-local-ref *master-pending-lock*)
+		  *master-pending-lock*
 		  (lambda ()
 		    (master-pending-advance-no-locking!)))))
       (if entry
@@ -230,7 +221,7 @@
 				   local-id)))
 		;; we can put it right back to work
 		(remote-run! (uid->aspace uid)
-			     server-specialize ;-async
+			     server-specialize-async
 			     (pending-entry->name entry) 
 			     (pending-entry->program-point entry)
 			     (pending-entry->bts entry)
@@ -252,6 +243,8 @@
 
 ;; Specialization driver
 
+(define *servers-placeholders* #f)
+(define *servers-placeholders-lock* #f)
 (define *server-aspaces* #f)
 (define *n-servers* #f)
 (define *n-unemployed-servers* #f)
@@ -259,12 +252,24 @@
 
 (define *finished-placeholder* #f)
 
+(define (servers-placeholders-initialize!)
+  (set! *servers-placeholders*
+	(make-vector (+ 1 (apply max
+				 (map aspace-uid *server-aspaces*)))
+		     #f))
+  (set! *servers-placeholders-lock* (make-lock))
+  ;; sort of a kludge
+  (for-each
+   (lambda (aspace)
+     (vector-set! *servers-placeholders* (aspace-uid aspace) (make-placeholder)))
+   *server-aspaces*))
+
 (define (start-specialization server-uids
 			      level fname fct bts args)
     (set! *server-aspaces* (map uid->aspace server-uids))
     (set! *n-servers* (length *server-aspaces*))
     (set! *n-unemployed-servers* 0)
-    (set! *n-unemployed-servers-lock* (make-proxy (make-lock)))
+    (set! *n-unemployed-servers-lock* (make-lock))
 
     (master-cache-initialize!)
     (master-pending-initialize!)
@@ -295,4 +300,3 @@
      (display (remote-apply aspace get-local-kill-count))
      (newline))
    *server-aspaces*))
-				   
