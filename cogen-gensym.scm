@@ -8,9 +8,13 @@
   (lambda (sym)
     (set! *gensym-counter* (+ *gensym-counter* 1))
     (any->symbol sym "-" *gensym-counter*)))
-(define gensym-trimmed
+(define gensym-global-trimmed
   (lambda (sym)
     (gensym (trim-symbol sym))))
+(define gensym-global-ignore
+  (lambda (sym)
+    (gensym 'f)))
+(define gensym-trimmed gensym-global-trimmed)
 (define *gensym-local* (list 0))
 (define gensym-local-reset! (lambda () (set! *gensym-local* (list 0))))
 (define gensym-local-push! (lambda () (set! *gensym-local* (cons 0 *gensym-local*))))
@@ -40,10 +44,12 @@
     (any->symbol "x-" (car *gensym-local*))))
 (define gensym-ignore-name-stubs!
   (lambda ()
+    (set! gensym-trimmed gensym-global-ignore)
     (set! gensym-local gensym-local-ignore-stub)
     (set! gensym-local-trimmed gensym-local-ignore-stub)))
 (define gensym-use-name-stubs!
   (lambda ()
+    (set! gensym-trimmed gensym-global-trimmed)
     (set! gensym-local gensym-local-use-stub)
     (set! gensym-local-trimmed gensym-local-trimmed-use-stub)))
 

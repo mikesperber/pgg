@@ -9,12 +9,6 @@
 ;;; unit of the continuation monad
 (define (result-c v) (lambda (k) (k v)))
 
-(define *gen-address-counter* 0)
-(define (gen-address-reset!)
-  (set! *gen-address-counter* 0))
-(define (gen-address label)
-  (set! *gen-address-counter* (+ *gen-address-counter* 1))
-  (cons label *gen-address-counter*))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define any->symbol			;big-util: concatenate-symbol
   (lambda args
@@ -28,29 +22,6 @@
 		 args)))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; auxiliary
-(define *memolist* '())
-(define *residual-program* '())
-(define *support-code* '())
-
-(define (add-to-memolist! key value)
-  (set! *memolist* (cons (cons key value) *memolist*)))
-(define (clear-memolist!)
-  (set! *memolist* '()))
-(define (lookup-memolist key)
-  (cond ((assoc key *memolist*) => cdr)
-	(else #f)))
-
-(define (set-residual-program! prg)
-  (set! *residual-program* prg))
-(define (add-to-residual-program! item)
-  (set! *residual-program* (cons item *residual-program*)))
-(define (clear-residual-program!)
-  (set! *residual-program* '()))
-
-(define (add-to-support-code! item)
-  (set! *support-code* (cons item *support-code*)))
-(define (clear-support-code!)
-  (set! *support-code* '()))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; list of n results of applying thunk
 

@@ -1,7 +1,7 @@
 ;;; $Id $
 ;;; memo function stuff: standard implementation
 
-(define-record memolist-entry (name))
+(define-record memolist-entry (name) (count 0))
 
 (define-syntax start-memo
   (syntax-rules ()
@@ -90,14 +90,16 @@
 		 (cloned-pp (top-clone-dynamic full-pp bts))
 		 ; (new-formals (map cdr clone-map))
 		 (new-formals (apply append (top-project-dynamic cloned-pp bts)))
-		 (new-entry (add-to-memolist! pp (make-memolist-entry
-						  new-name)))
+		 (new-entry (make-memolist-entry new-name))
+		 (register-entry (add-to-memolist! pp new-entry))
 		 (enter (creation-log-push!))
 		 (new-def  (make-residual-definition! new-name
 						      new-formals
 						      (reset (apply fct (cdr cloned-pp)))))
 		 (leave (creation-log-pop!)))
-	      (make-memolist-entry new-name))))
+	      new-entry)))
+       (seen (memolist-entry->count! found (+ 1 (memolist-entry->count
+						 found))))
        (res-name (memolist-entry->name found))
        (exit-scope (gensym-local-pop!)))
     (if (= level 1)

@@ -14,7 +14,7 @@ all: $(INTERACTIVE_IMAGE)
 
 cogen_packages = pgg pgg-residual pgg-library
 cogen_generate_packages = pgg signals pretty-print
-cogen_specialize_packages = auxiliary pgg-library
+cogen_specialize_packages = auxiliary pgg-library cogen-specialize
 batch_packages = signals handle i/o conditions extended-ports
 cogen_base_files = \
 	auxiliary.scm \
@@ -37,6 +37,7 @@ cogen_base_files = \
 	cogen-residual.scm \
 	cogen-scheme.scm \
 	cogen-skeleton.scm \
+	cogen-specialize.scm \
 	cogen-terminate.scm \
 	cogen-typesig.scm \
 	pp.scm \

@@ -385,7 +385,7 @@
 	  binding-times))
 
 (define-structure cogen-library cogen-library-interface
-  (open scheme signals auxiliary cogen-gensym cogen-boxops)
+  (open scheme signals auxiliary cogen-specialize cogen-gensym cogen-boxops)
   (files cogen-library))
 
 (define-interface cogen-boxops-interface
@@ -429,7 +429,7 @@
 
 (define-structure cogen-residual
   cogen-residual-interface
-  (open scheme auxiliary)
+  (open scheme cogen-specialize)
   (files cogen-residual))
 
 (define-interface cogen-typesig-interface
@@ -483,6 +483,7 @@
 	  *scheme->abssyn-let-insertion*
 	  *abssyn-maybe-coerce*
 	  *memo-optimize*
+	  *memolist-stages*
 	  *generating-extension*
 	  *termination-analysis*
 	  *generate-flat-program*
@@ -493,6 +494,7 @@
 	  set-scheme->abssyn-label-counter!
 	  set-scheme->abssyn-let-insertion!
 	  set-memo-optimize!
+	  set-memolist-stages!
 	  set-generating-extension!
 	  set-abssyn-maybe-coerce!
 	  set-termination-analysis!
@@ -558,11 +560,6 @@
 (define-interface auxiliary-interface
   (export id succ pred
 	  any->symbol
-	  gen-address-reset! gen-address
-	  *memolist* *residual-program* *support-code*
-	  add-to-memolist! clear-memolist! lookup-memolist
-	  set-residual-program! add-to-residual-program! clear-residual-program!
-	  add-to-support-code! clear-support-code!
 	  nlist
 	  set-include set-union set-intersection set-subtract set-difference set-union* set-equal?
 	  and-map and-map2 strict-and-map
@@ -580,6 +577,19 @@
 (define-structure auxiliary auxiliary-interface
   (open scheme pretty-print)
   (files auxiliary))
+
+
+(define-interface cogen-specialize-interface
+  (export *memolist* *residual-program* *support-code*
+	  add-to-memolist! clear-memolist! lookup-memolist
+	  set-residual-program! add-to-residual-program! clear-residual-program!
+	  add-to-support-code! clear-support-code!
+	  gen-address-reset! gen-address
+))
+
+(define-structure cogen-specialize cogen-specialize-interface
+  (open scheme cogen-globals)
+  (files cogen-specialize))
 
 (define-structure pretty-print pretty-print-interface
   (open scheme)
@@ -669,7 +679,8 @@
 
 (define-structure cogen-memo-standard
   cogen-memo-interface
-  (open scheme auxiliary shift-reset cogen-globals cogen-record cogen-gensym
+  (open scheme auxiliary shift-reset
+	cogen-specialize cogen-globals cogen-record cogen-gensym
 	cogen-library cogen-completers cogen-residual)
   (files cogen-memo-standard))
 

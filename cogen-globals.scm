@@ -10,6 +10,7 @@
 (define *scheme->abssyn-let-insertion* #t)
 (define *memo-optimize* #t)		;use representation analysis
 (define *generating-extension* '())
+(define *memolist-stages* 0)		;stages in memoization table
 
 (define *termination-analysis* #f)	;do not run termination analysis
 
@@ -36,6 +37,9 @@
   (set! *memo-optimize* v))
 (define (set-generating-extension! v)
   (set! *generating-extension* v))
+(define (set-memolist-stages! n)
+  (if (and (number? n) (<= 0 n))
+      (set! *memolist-stages* n)))
 
 (define (set-abssyn-maybe-coerce! v)
   (set! *abssyn-maybe-coerce* v))
