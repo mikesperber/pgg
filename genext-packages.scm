@@ -219,13 +219,13 @@
   (files cogen-residual))
 
 (define-interface cogen-completers-interface
-  (export ((_complete
-	    _complete-no-result
-	    _complete-serious
-	    _complete-serious-apply
-	    _complete-serious-no-result
-	    _complete-serious-apply-no-result
-	    _complete-maybe) :syntax)))
+  (export _complete
+	  _complete-no-result
+	  _complete-serious
+	  _complete-serious-apply
+	  _complete-serious-no-result
+	  _complete-serious-apply-no-result
+	  _complete-maybe))
 
 (define-module (make-cogen-completers residual)
   (structure cogen-completers-interface
