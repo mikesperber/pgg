@@ -4,7 +4,7 @@
 ;;; memoization master.
 
 (define-record server-entry
-  (program-point static-skeleton name local-id bts fct))
+  (program-point static-skeleton name local-id bts fct killed?))
 
 (define *local-cache* #f)
 (define *local-pending* #f)
@@ -25,9 +25,6 @@
 (define (local-pending-initialize!)
   (set! *local-pending* '()))
 
-(define (local-pending-empty?)
-  (null? *local-pending*))
-
 (define (local-cache-enter! pp static-skeleton bts fct)
   (cond ((or (assoc static-skeleton *local-cache*)
 	     (assoc static-skeleton *local-pending*))
@@ -45,22 +42,38 @@
 					 pp static-skeleton
 					 name
 					 local-id
-					 bts fct))
+					 bts fct
+					 #f))
 		  *local-pending*))
 	   (values name local-id #f)))))
 
 (define (local-cache-insert! res-name pp static-skeleton bts fct)
-  (let ((entry (make-server-entry pp static-skeleton res-name #f bts fct)))
+  (let ((entry 
+	 (make-server-entry pp static-skeleton res-name #f
+			    bts fct
+			    #f)))
     (set! *local-cache* (cons (cons static-skeleton entry) *local-cache*))
     entry))
 
 (define (local-cache-advance!)
-  (let ((pending *local-pending*))
-    (let* ((item (car pending))
-	   (entry (cdr item)))
-      (set! *local-pending* (cdr pending))
-      (set! *local-cache* (cons item *local-cache*))
-      entry)))
+  (if (null? *local-pending*)
+      #f
+      (let* ((item (car *local-pending*))
+	     (entry (cdr item)))
+	(set! *local-pending* (cdr *local-pending*))
+	(set! *local-cache* (cons item *local-cache*))
+	(if (server-entry->killed? entry)
+	    (local-cache-advance!)
+	    entry))))
+
+(define (local-pending-lookup local-id)
+  (let loop ((pending *local-pending*))
+    (if (null? pending)
+	#f
+	(let ((entry (cdar pending)))
+	  (if (eqv? local-id (server-entry->local-id entry))
+	      entry
+	      (loop (cdr pending)))))))
 
 ;;; residual code
 (define *local-resid* #f)
@@ -134,7 +147,7 @@
     (call-with-values
      (lambda () (local-cache-enter! full-pp pp bts fct))
      (lambda (res-name local-id already-registered?)
-       (display "Registering memo point ") (display local-id) (newline)
+       ;; (display "Registering memo point ") (display local-id) (newline)
        (if (not already-registered?)
 	   (I-register-memo-point! full-pp res-name local-id bts fct))
        (if (= level 1)
@@ -177,7 +190,7 @@
 	       server-working-on (local-aspace-uid) local-id))
 
 (define (server-initialize! uid)
-  (display "Initializing, uid ") (display uid) (newline)
+  ;; (display "Initializing, uid ") (display uid) (newline)
   (set! *server-master-aspace* (uid->aspace uid))
   (set! *local-id-count* 0)
   (local-cache-initialize!)
@@ -194,20 +207,19 @@
     ;; assume master-cache knows about this specialization
     (let loop ((entry
 		(local-cache-insert! res-name program-point static-skeleton bts fct)))
-      (display "Specializing ")
+      ;; (display "Specializing ")
       ;; (display (server-entry->program-point entry))
-      (newline)
+      ;; (newline)
       (specialize-entry entry)
       (let inner-loop ()
-	(if (local-pending-empty?)
-	    (I-am-unemployed)
-	    (let ((entry (local-cache-advance!)))
-	      (if (can-I-work-on? (server-entry->local-id entry))
+	(let ((maybe-entry (local-cache-advance!)))
+	  (if maybe-entry
+	      (if (can-I-work-on? (server-entry->local-id maybe-entry))
 		  (begin
-		    (display "Master says I can work on ") (display (server-entry->local-id entry)) (newline)
-		    
-		    (loop entry))
-		  (inner-loop))))))))
+		    ;; (display "Master says I can work on ") (display (server-entry->local-id maybe-entry)) (newline)
+		    (loop maybe-entry))
+		  (inner-loop))
+	      (I-am-unemployed)))))))
 
 (define (specialize-entry entry)
   (let* ((pp (server-entry->program-point entry))
@@ -222,6 +234,13 @@
 			       (reset (apply fct (cdr cloned-pp))))
     (gensym-local-pop!)))
 
+(define (server-kill-local-id! local-id)
+  (let ((maybe-entry (local-pending-lookup local-id)))
+    (if maybe-entry
+	(begin
+	    ;; (display "Master killed local id ") (display local-id) (newline)
+	    (server-entry->killed?! maybe-entry #t)))))
+
 ;; Async variant
 
 (define *server-current-local-id* #f)
@@ -233,41 +252,41 @@
 	 (static-skeleton (top-project-static program-point bts))
 	 (entry
 	  (local-cache-insert! res-name program-point static-skeleton bts fct)))
-    (display "Specializing ")
+    ;; (display "Specializing ")
     ;; (display (server-entry->program-point entry))
-    (newline)
+    ;; (newline)
     (with-lock
      *server-status-lock*
      (lambda () (set! *server-current-local-id* #f)))
     (specialize-entry entry)
+    (obtain-lock *server-status-lock*)
     (server-async-loop)))
 
 (define (server-async-loop)
-  (with-lock
-   *server-status-lock*
-   (lambda () (set! *server-current-local-id* #f)))
-  (if (local-pending-empty?)
-      (I-am-unemployed)
-      (let ((entry (local-cache-advance!)))
-	(with-lock
-	 *server-status-lock*
-	 (lambda ()
-	   (set! *server-current-local-id* (server-entry->local-id entry))
-	   (set! *server-current-thread* (current-thread))))
-	(I-am-working-on (server-entry->local-id entry))
-	(display "Specializing local id ") (display (server-entry->local-id entry))
-	;; (display (server-entry->program-point entry))
-	(newline)
-	(specialize-entry entry)
-	(server-async-loop))))
+  (let ((maybe-entry (local-cache-advance!)))
+    (if maybe-entry
+	(begin
+	  (set! *server-current-local-id* (server-entry->local-id maybe-entry))
+	  (set! *server-current-thread* (current-thread))
+	  (I-am-working-on (server-entry->local-id maybe-entry))
+	  ;; (display "Specializing local id ") (display (server-entry->local-id maybe-entry))
+	  ;; (display (server-entry->program-point maybe-entry))
+	  ;; (newline)
+	  (release-lock *server-status-lock*)
+	  (specialize-entry maybe-entry)
+	  (obtain-lock *server-status-lock*)
+	  (server-async-loop))
+	(begin
+	  (set! *server-current-local-id* #f) 
+	  (release-lock *server-status-lock*)
+	  (I-am-unemployed)))))
 
 (define (server-kill-specialization! local-id)
   (obtain-lock *server-status-lock*)
-  (display "Trying to kill local id ") (display local-id) (newline)
-  (if (and *server-current-local-id*
-	   (eq? local-id *server-current-local-id*))
+  ;; (display "Trying to kill local id ") (display local-id) (newline)
+  (if (eqv? local-id *server-current-local-id*)
       (begin
-	(display "Killing local id " local-id) (newline)
+	;; (display "Killing local id " local-id) (newline)
 	(kill-thread! *server-current-thread*)
 	(release-lock *server-status-lock*)
 	(server-async-loop))
