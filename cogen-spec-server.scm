@@ -195,7 +195,7 @@
 	       server-working-on (local-aspace-uid) local-id))
 
 (define (server-initialize! uid)
-  ;; (display "Initializing, uid ") (display uid) (newline)
+  (display "Initializing, uid ") (display uid) (newline)
   (set! *server-master-aspace* (uid->aspace uid))
   (set! *local-id-count* 0)
   (local-cache-initialize!)
@@ -270,20 +270,19 @@
      *server-status-lock*
      (lambda () (set! *server-current-local-id* #f)))
     (specialize-entry entry)
-    (obtain-lock *server-status-lock*)
     (server-async-loop)))
 
 (define (server-async-loop)
+  (obtain-lock *server-status-lock*)
   (let ((maybe-entry (local-cache-advance!)))
     (if maybe-entry
 	(begin
 	  (set! *server-current-local-id* (server-entry->local-id maybe-entry))
 	  (set! *server-current-thread* (current-thread))
 	  (I-am-working-on (server-entry->local-id maybe-entry))
-	  ;; (display "Specializing local id ") (display (server-entry->local-id maybe-entry)) (display (server-entry->program-point maybe-entry)) (newline)
 	  (release-lock *server-status-lock*)
+	  ;; (display "Specializing local id ") (display (server-entry->local-id maybe-entry)) (display (server-entry->program-point maybe-entry)) (newline)
 	  (specialize-entry maybe-entry)
-	  (obtain-lock *server-status-lock*)
 	  (server-async-loop))
 	(begin
 	  (set! *server-current-local-id* #f) 
@@ -291,12 +290,12 @@
 	  (I-am-unemployed)))))
 
 (define (server-kill-specialization! local-id)
-  (obtain-lock *server-status-lock*)
   ;; (display "Trying to kill local id ") (display local-id) (newline)
+  (obtain-lock *server-status-lock*)
   (if (eqv? local-id *server-current-local-id*)
       (begin
-	;; (display "Killing local id " local-id) (newline)
 	(kill-thread! *server-current-thread*)
 	(release-lock *server-status-lock*)
+	;; (display "Killed local id " local-id) (newline)
 	(server-async-loop))
       (release-lock *server-status-lock*)))

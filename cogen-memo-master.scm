@@ -166,27 +166,27 @@
 (define (server-is-unemployed uid)
   ;; (display "Server ") (display uid) (display " says it's unemployed") (newline)
   (let loop ()
-    (obtain-lock *master-pending-lock*)
-    (let ((entry (master-pending-advance-no-locking!)))
+    (let ((entry (with-lock
+		  *master-pending-lock*
+		  (lambda ()
+		    (master-pending-advance-no-locking!)))))
       (if entry
-	  (begin
-	    (release-lock *master-pending-lock*)
-	    (if (can-I-work-on-master-entry? (pending-entry->master-entry entry))
-		(begin
-		  (let ((local-id (pending-entry->local-id entry)))
-		    (if local-id
-			(remote-run! (uid->aspace (pending-entry->server-uid entry))
-				     server-kill-local-id!
-				     local-id)))
-		  ;; we can put it right back to work
-		  (remote-run! (uid->aspace uid)
-			       server-specialize-async
-			       (pending-entry->name entry) 
-			       (pending-entry->program-point entry)
-			       (pending-entry->bts entry)
-			       (pending-entry->fct entry)))
-		;; Don't call us, we'll call you.  Next, please!
-		(loop)))
+	  (if (can-I-work-on-master-entry? (pending-entry->master-entry entry))
+	      (begin
+		(let ((local-id (pending-entry->local-id entry)))
+		  (if local-id
+		      (remote-run! (uid->aspace (pending-entry->server-uid entry))
+				   server-kill-local-id!
+				   local-id)))
+		;; we can put it right back to work
+		(remote-run! (uid->aspace uid)
+			     server-specialize ;-async
+			     (pending-entry->name entry) 
+			     (pending-entry->program-point entry)
+			     (pending-entry->bts entry)
+			     (pending-entry->fct entry)))
+	      ;; Don't call us, we'll call you.  Next, please!
+	      (loop))
 	  (let ((n-unemployed
 		 (with-lock
 		  *n-unemployed-servers-lock*
@@ -197,7 +197,6 @@
 		(placeholder-set! *finished-placeholder* #t)
 		(let ((entry-placeholder (make-placeholder)))
 		  (master-pending-sign-up! entry-placeholder)
-		  (release-lock *master-pending-lock*)
 		  (let ((entry (placeholder-value entry-placeholder)))
 		    (remote-run! (uid->aspace (pending-entry->server-uid entry))
 				 server-kill-local-id!
@@ -207,7 +206,7 @@
 		     (lambda ()
 		       (set! *n-unemployed-servers* (- *n-unemployed-servers* 1))))
 		    (remote-run! (uid->aspace uid)
-				 server-specialize-async
+				 server-specialize ;-async
 				 (pending-entry->name entry) 
 				 (pending-entry->program-point entry)
 				 (pending-entry->bts entry)
