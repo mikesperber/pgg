@@ -74,18 +74,25 @@
 	'()
 	(cons (thunk) (loop (- n 1)))))) 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; sets rep. by sets without repeated elements
+;;; sets rep. by sets without repeated elements; compared w/ eq?
 
 (define (set-union s1 s2)
   (if (null? s1) s2
-      (if (member (car s1) s2)
+      (if (memq (car s1) s2)
 	  (set-union (cdr s1) s2)
 	  (cons (car s1) (set-union (cdr s1) s2)))))
+
+(define (set-intersection s1 s2)
+  (if (null? s1)
+      '()
+      (if (memq (car s1) s2)
+	  (cons (car s1) (set-intersection (cdr s1) s2))
+	  (set-intersection (cdr s1) s2))))
 
 (define (set-subtract s e)
   (if (null? s)
       '()
-      (if (equal? e (car s))
+      (if (eq? e (car s))
 	  (cdr s)
 	  (cons (car s) (set-subtract (cdr s) e)))))
 
@@ -94,7 +101,7 @@
       '()
       (let ((el (car s1))
 	    (rest (set-difference (cdr s1) s2)))
-	(if (member el s2)
+	(if (memq el s2)
 	    rest
 	    (cons el rest))))) 
 
@@ -166,9 +173,9 @@
 	      (loop (cdr l) u)
 	      (loop (cdr l) (cons e u)))))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(define (any? l)
+(define (list-or l)
   (and (pair? l)
-       (or (car l) (any? (cdr l)))))
+       (or (car l) (list-or (cdr l)))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define (take n l)
   (let loop ((n n) (l l) (acc '()))

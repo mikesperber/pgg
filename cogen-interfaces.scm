@@ -88,6 +88,7 @@
 	  annMakeSel1
 	  annIsSel?
 	  annFetchSelName
+	  annFetchSelCtor
 	  annFetchSelDesc
 	  annFetchSelComp
 	  annFetchSelArg
@@ -135,7 +136,8 @@
 	  annFetchMemoLevel
 	  ann-maybe-coerce
 	  annFreeVars
-	  annExprTerminates?))
+	  annExprTerminates?
+	  ann-dsp-e ann-dsp-d*))
 
 (define-interface cogen-construct-genext-interface
   (export make-ge-var
@@ -282,14 +284,18 @@
   (open scheme)
   (files cogen-directives))
 
-(define-interface cogen-drive-interface
+(define-interface cogen-terminate-interface
+  (export perform-termination-analysis))
+
+(define-interface cogen-driver-interface
   (export cogen-driver))
 
 (define-interface cogen-env-interface
   (export the-empty-env
 	  extend-env
 	  extend-env*
-	  apply-env))
+	  apply-env
+	  map-env))
 
 (define-structure cogen-env cogen-env-interface
   (open scheme signals cogen-record)
@@ -434,6 +440,7 @@
 	  *abssyn-maybe-coerce*
 	  *memo-optimize*
 	  *generating-extension*
+	  *termination-analysis*
 	  set-bta-display-level!
 	  set-effect-display-level!
 	  set-scheme->abssyn-static-references!
@@ -442,6 +449,7 @@
 	  set-memo-optimize!
 	  set-generating-extension!
 	  set-abssyn-maybe-coerce!
+	  set-termination-analysis!
 	  ))
 
 (define-structure cogen-globals cogen-globals-interface
@@ -496,13 +504,13 @@
 	  set-residual-program! add-to-residual-program! clear-residual-program!
 	  add-to-support-code! clear-support-code!
 	  nlist
-	  set-union set-subtract set-difference set-union* set-equal?
+	  set-union set-intersection set-subtract set-difference set-union* set-equal?
 	  and-map and-map2 strict-and-map
 	  or-map strict-or-map thread-map
 	  generic-sort
 	  filter
 	  remove-duplicates
-	  any?
+	  list-or
 	  take
 	  ((load-program) :syntax)
 	  file->list writelpp writel))
@@ -515,6 +523,11 @@
   (open scheme)
   (files pp)
   (begin (define p pretty-print)))
+
+(define-structure cogen-terminate cogen-terminate-interface
+  (open scheme auxiliary signals
+	cogen-globals cogen-abssyn cogen-env cogen-record)
+  (files cogen-terminate))
 
 (define-structure small-big-scheme (export concatenate-symbol
 					   error breakpoint
@@ -551,7 +564,8 @@
   (open scheme auxiliary
 	cogen-scheme
 	cogen-bta
-	cogen-skeleton)
+	cogen-skeleton
+	cogen-terminate)
   (files cogen-driver))
 
 (define-structure pgg-library

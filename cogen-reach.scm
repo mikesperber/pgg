@@ -886,6 +886,7 @@
 		     args)))
      ((annIsSel? e)
       (annMakeSel (annFetchSelName e)
+		  (annFetchSelCtor e)
 		  (annFetchSelDesc e)
 		  (annFetchSelComp e)
 		  (loop (annFetchSelArg e))))

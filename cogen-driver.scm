@@ -44,6 +44,7 @@
 		   def-datatype*
 		   def-typesig*
 		   def-opsig*)))
+    (perform-termination-analysis d*)
     (generate-d d*)
     (append def-datatype*
 	    *generating-extension*))) 

@@ -795,7 +795,7 @@
 	  (map (introduce-lift-if-needed bt) (annFetchOpArgs e))
 	  (if postprocess
 	      (postprocess e bt)
-	      (any? args))))
+	      (list-or args))))
        ((annIsCall? e)
 	(for-each loop (annFetchCallArgs e))
 	#t)

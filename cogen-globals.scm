@@ -11,6 +11,8 @@
 (define *memo-optimize* #t)		;use representation analysis
 (define *generating-extension* '())
 
+(define *termination-analysis* #f)	;do not run termination analysis
+
 ;;; setter functions
 
 (define (set-bta-display-level! n)
@@ -32,3 +34,6 @@
 
 (define (set-abssyn-maybe-coerce! v)
   (set! *abssyn-maybe-coerce* v))
+
+(define (set-termination-analysis! v)
+  (set! *termination-analysis* v))

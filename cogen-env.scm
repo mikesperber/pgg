@@ -25,8 +25,7 @@
 		    (extended-ff*->val* ff)
 		    (lambda () (loop (extended-ff*->ff ff)))))
        (else
-	(error "apply-ff: expected finite function"))))))
-
+	(error "apply-ff: finite function expected"))))))
 (define ribassoc-c
   (lambda (key key* val* fail)
     (let loop ((key* key*) (val* val*))
@@ -35,6 +34,22 @@
 	  (if (equal? (car key*) key)
 	      (car val*)
 	      (loop (cdr key*) (cdr val*)))))))
+(define map-ff
+  (lambda (fun ff)
+    (let loop ((ff ff))
+      (cond
+       ((empty-ff? ff)
+	(make-empty-ff))
+       ((extended-ff? ff)
+	(extend-ff (extended-ff->key ff)
+		   (fun (extended-ff->val ff))
+		   (loop (extended-ff->ff ff))))
+       ((extended-ff*? ff)
+	(extend-ff* (extended-ff*->key* ff)
+		    (map fun (extended-ff*->val* ff))
+		    (loop (extended-ff*->ff ff))))
+       (else
+	(error "map-ff: finite function expected"))))))
 
 ;;; environments
 
@@ -42,3 +57,4 @@
 (define extend-env extend-ff)
 (define extend-env* extend-ff*)
 (define apply-env apply-ff)
+(define map-env map-ff)
