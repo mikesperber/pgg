@@ -1,5 +1,6 @@
 + inspect the lambda lifter (dependency analysis?)
 - insert LET only if the variable appears more than once in the body
+- reconsider LET insertion strategy (constructor arguments!)
 - how many memoization points are really necessary?
 + support for EVAL
 - complete the above (preprocessor, bta, skeleton)
@@ -20,3 +21,7 @@
   free variables
 - support variadic procedures (by considering argument lists as a
   special partially static datatype)
+- the code generating functions return two results, the generated code
+  and a synthesized attribute which indicates the "seriousness" of the
+  code. The idea is that functions with non-serious body are unfolded
+  on the fly. 

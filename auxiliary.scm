@@ -91,6 +91,18 @@
   (or (null? xs)
       (and (p? (car xs) (car ys))
 	   (and-map2 p? (cdr xs) (cdr ys)))))
+
+(define (strict-and-map p? xs)
+  (or (null? xs)
+      (let ((h (p? (car xs)))
+	    (t (strict-and-map p? (cdr xs))))
+	(and h t))))
+
+(define (strict-or-map p? xs)
+  (and (pair? xs)
+       (let ((h (p? (car xs)))
+	     (t (strict-or-map p? (cdr xs))))
+	 (or h t))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define (filter p xs)
   (if (null? xs)
@@ -99,9 +111,9 @@
 	  (cons (car xs) (filter p (cdr xs)))
 	  (filter p (cdr xs))))) 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(define (andmap p xs)
-  (or (null? xs)
-      (and (p (car xs)) (andmap p (cdr xs)))))
+(define (any? l)
+  (and (pair? l)
+       (or (car l) (any? (cdr l)))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; I/O: read a list of Scheme objects
 (define (file->list filename)
