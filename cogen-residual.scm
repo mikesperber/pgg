@@ -11,6 +11,11 @@
 
 (define (make-residual-let var exp body)
   (cond
+   ((and (pair? exp)			; kludge
+	 (eq? (car exp) 'SET!))
+    (if (and (pair? body) (eq? (car body) 'BEGIN))
+	`(BEGIN ,exp ,@(cdr body))
+	`(BEGIN ,exp body)))
    ((and (pair? body) (memq (car body) '(LET LET*)))
     (let ((header (cadr body))
 	  (bodies (cddr body)))
