@@ -1,42 +1,5 @@
 ;;; skeleton for multi-level cogen
 ;;; $Id$
-;;; $Log$
-;;; Revision 1.16  1996/08/14 09:00:16  thiemann
-;;; revived CPS version and some polishing
-;;;
-;;; Revision 1.15  1996/08/01 11:53:09  thiemann
-;;; modified bta of operators
-;;;
-;;; Revision 1.14  1996/08/01 07:07:06  thiemann
-;;; fixed _lambda_memo
-;;;
-;;; Revision 1.12  1996/07/30 08:56:34  thiemann
-;;; bugfixes in BTA and preprocessor
-;;;
-;;; Revision 1.11  1996/07/15 14:01:20  thiemann
-;;; stable version after MBTA
-;;;
-;;; Revision 1.10  1996/06/03 07:34:57  thiemann
-;;; checkpoint after including new equational BTA
-;;;
-;;; Revision 1.8  1995/11/09  16:48:06  thiemann
-;;; implemented simple occurrence count analysis
-;;;
-;;; Revision 1.7  1995/11/06  15:40:50  thiemann
-;;; handle eval, fix bug in lambda lifter
-;;;
-;;; Revision 1.6  1995/11/03  17:12:26  thiemann
-;;; more sophisticated type signatures
-;;; correct handling of direct-style if and let
-;;; extended syntax (nested defines allowed)
-;;;
-;;; Revision 1.5  1995/10/27  08:52:27  thiemann
-;;; fixed problem in binding-time analysis
-;;;
-;;; Revision 1.4  1995/10/23  16:59:13  thiemann
-;;; type annotations (may) work
-;;; standard memoization may be circumvented
-;;;
 
 ;;; idea: generate new procedure names for the "copies" of the old
 ;;; procedures; use the original procedure names for the memoization
@@ -63,10 +26,11 @@
 	(let* ((d (car d*))
 	       (fname (annDefFetchProcName d))
 	       (e (annDefFetchProcBody d))
+	       (new-body (generate fname e))
 	       (formals (annDefFetchProcFormals d)))
 	  (set! *generating-extension*
 		(cons `(define (,fname ,@formals)
-			 ,(generate fname e))
+			 ,new-body)
 		      *generating-extension*))
 	  (loop (cdr d*))))))
 ;;; transform binding-time annotated expression e 
