@@ -87,10 +87,14 @@
 				     (ann-maybe-coerce (cadr args)))) 2)
 		 (list 'MAKE-VECTOR (lambda (tag args)
 				      (scheme->abssyn-static-references-yes!)
-				      (annMakeVector
-				       (scheme->abssyn-make-label)
-				       (ann-maybe-coerce (car args))
-				       (ann-maybe-coerce (cadr args)))) 2)
+				      (let ((arg1 (car args))
+					    (arg2 (if (null? (cdr args))
+						      (annMakeConst #f)
+						      (cadr args))))
+					(annMakeVector
+					 (scheme->abssyn-make-label)
+					 (ann-maybe-coerce arg1)
+					 (ann-maybe-coerce arg2)))) 2)
 		 (list 'VECTOR-REF (lambda (tag args)
 				     (scheme->abssyn-static-references-yes!)
 				     (annMakeVref

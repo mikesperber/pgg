@@ -648,7 +648,7 @@
 	  (full-add-leq phi-0 ctor-vector (list phi))))
        ((annIsVlen? e)
 	(let ((phi-0 (loop (annFetchVlenVec e))))
-	  (full-add-leq phi-0 ctor-vector (list phi))
+	  (full-add-leq phi-0 ctor-vector (list (new-node)))
 	  (full-make-base phi)))
        ((annIsVset? e)
 	(let ((phi-0 (loop (annFetchVsetVec e)))
@@ -723,6 +723,8 @@
 				       (bta-note-dynamic! rbtann)))
 				   effect))
 				 ((eq? ctor ctor-reference)
+				  'nothing-to-do)
+				 ((eq? ctor ctor-vector)
 				  'nothing-to-do)
 				 (else
 				  (error "effect on " ctor))))))))
@@ -843,7 +845,8 @@
 	    (ann+>dlist! index-btann ref-btann)
 	    (ann+>dlist! ref-btann index-btann)))) ;beta_index == beta_ref
        ((annIsVlen? e)
-	(let ((ref (annFetchVlenVec e)))
+	(let ((btann (type-fetch-btann type))
+	      (ref (annFetchVlenVec e)))
 	  (loop ref)
 	  (let* ((ref-type (node-fetch-type (annExprFetchType ref)))
 		 (ref-btann (type-fetch-btann ref-type)))

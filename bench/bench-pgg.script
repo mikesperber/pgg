@@ -7,12 +7,9 @@
 	    (thunk)
 	    (loop (- i 1)))))))
 
-(set! *bta-display-level* 0)		;quiet, please
+,in cogen-globals (set! *bta-display-level* 0)		;quiet, please
+,open define-data
 
-(define (cleanup!)
-  (set! *residual-program* '())
-  (set! *memolist* '())
-  (set! *generating-extension* '()))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (display "----------------------------------------------------------------------") (newline)
@@ -30,9 +27,9 @@
 (display (list "^^^ specialization time *" repetitions)) (newline)
 
 ;;;
-,undefine $goal-1
 
-(cleanup!)
+
+
 ,collect
 
 ;;; second run 
@@ -51,9 +48,9 @@
 (display (list "^^^ specialization time *" repetitions)) (newline)
 
 ;;;
-,undefine $goal-1
 
-(cleanup!)
+
+
 ,collect
 
 ;;; third run
@@ -72,15 +69,16 @@
 (display (list "^^^ specialization time *" repetitions)) (newline)
 
 ;;;
-,undefine $goal-1
 
-(cleanup!)
+
+
 ,collect
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (display "----------------------------------------------------------------------") (newline)
 (display "PGG (direct-lr) :") (newline)
 (set! repetitions 1)
+(define direct-lr-input-files '("examples/direct-lr-pgg.scm"))
 
 ,collect
 ,time (ntimes (lambda() (cogen-driver direct-lr-input-files '(direct-parse-main 0 0 1)) #f) repetitions)
@@ -88,7 +86,7 @@
 
 
 (load "examples/direct-lr-support.scm")
-(load "../lr-essence/examples/grammars.scm")
+(load "../lr-essence/examples/toy-grammars.scm")
 (display "!!!compiling") (newline)
 (define *residual-program* (cogen-driver direct-lr-input-files '(direct-parse-main 0 0 1)))
 (load-program *residual-program*)
@@ -97,9 +95,9 @@
 (display (list "^^^ specialization time *" repetitions)) (newline)
 
 ;;;
-,undefine $goal-1
 
-(cleanup!)
+
+
 ,collect
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -112,16 +110,16 @@
 (define *residual-program* (cogen-driver '("examples/cps-lr.scm") '(do-parse 0 0 1)))
 (load-program *residual-program*)
 (load "examples/direct-lr-support.scm")
-(load "../lr-essence/examples/grammars.scm")
+(load "../lr-essence/examples/toy-grammars.scm")
 
 ,collect
 ,time (begin (start-memo 1 $goal '(0 0  1) (list g10-attrib 1 'input)) #t)
 (display (list "^^^ specialization time * 1")) (newline)
 
 ;;;
-,undefine $goal-1
 
-(cleanup!)
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (display "----------------------------------------------------------------------") (newline)
@@ -140,14 +138,14 @@
 (load-program *residual-program*)
 
 (load "examples/direct-lr-support.scm")
-(load "../lr-essence/examples/grammars.scm")
+(load "../lr-essence/examples/toy-grammars.scm")
 ,collect
 ,time (begin (nextlevel level1 (list g10-attrib 1 'input)) #t)
 (display (list "^^^ specialization time 1 * 1")) (newline)
 
 
-,undefine $goal-1
-(cleanup!)
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (display "----------------------------------------------------------------------") (newline)
