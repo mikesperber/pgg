@@ -68,11 +68,15 @@
   (vector-set! e 5 bt))
 ;;; variable
 (define (annMakeVar v)
-  (annMakeExpr 'VAR v))
+  (annMakeExpr 'VAR (vector v #f)))
 (define (annIsVar? e)
   (equal? 'VAR (annExprFetchTag e)))
 (define (annFetchVar e)
-  (annExprFetchSubobject e))
+  (annExprFetchSubobject e 0))
+(define (annFetchVarGlobal e)
+  (annExprFetchSubobject e 1))
+(define (annSetVarGlobal! e prop)
+  (annExprSetSubobject! e 1 prop))
 ;;; constant
 (define (annMakeConst c)
   (annMakeExpr 'CONST c))

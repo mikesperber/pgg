@@ -24,6 +24,8 @@
 	  annMakeVar
 	  annIsVar?
 	  annFetchVar
+	  annFetchVarGlobal
+	  annSetVarGlobal!
 	  annMakeConst
 	  annIsConst?
 	  annFetchConst
@@ -141,6 +143,7 @@
 
 (define-interface cogen-construct-genext-interface
   (export make-ge-var
+	  make-ge-freevar
 	  make-ge-const
 	  make-ge-cond
 	  make-ge-op
@@ -244,6 +247,7 @@
 	    _s_t_memo
 	    _if
 	    _op
+	    _freevar
 	    _lift0
 	    _lift
 	    _eval

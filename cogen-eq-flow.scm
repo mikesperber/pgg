@@ -38,7 +38,13 @@
   (let* ((goal-proc (car skeleton))
 	 (bts (cdr skeleton))
 	 (d (annDefLookup goal-proc d*))
-	 (formals (annDefFetchProcFormals d))
+	 (formals (or (annDefFetchProcFormals d)
+		      (let ((body (annDefFetchProcBody d)))
+			(cond
+			 ((annIsLambda? body)
+			  (annFetchLambdaVars body))
+			 (else
+			  (error "specified goal is not a procedure"))))))
 	 (d0 (annMakeDef '$goal formals
 			 (bta-insert-def-data def-type*
 					      (ann-maybe-coerce
@@ -211,6 +217,9 @@
 ;;; enforce a basic value
 (define (full-make-base node)
   (full-add-leq node ctor-basic '()))
+
+(define (full-make-top node)
+  (full-add-leq node ctor-top '()))
 
 (define the-top-type
   (let ((type (make-type ctor-top '())))
@@ -403,7 +412,14 @@
       (annExprSetType! e phi)
       (cond
        ((annIsVar? e)
-	(full-equate phi (apply-env symtab (annFetchVar e) (lambda () (error "unknown var")))))
+	(call-with-current-continuation
+	 (lambda (k)
+	   (full-equate phi (apply-env symtab (annFetchVar e)
+				       (lambda ()
+					 (bta-debug-level 1 (display-line "unknown var: " (annFetchVar e) " considered dynamic"))
+					 (annSetVarGlobal! e #t)
+					 (full-make-top phi)
+					 (k 'ignored)))))))
        ((annIsConst? e)
 	(full-make-base phi))
        ((annIsCond? e)

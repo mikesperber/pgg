@@ -21,27 +21,31 @@
   (set-generating-extension! '())
   ;; perform occurrence count analysis
   (oca-d d*)
-  (let loop ((d* d*))
-    (if (null? d*)
-	*generating-extension*
-	(let* ((d (car d*))
-	       (fname (annDefFetchProcName d))
-	       (e (annDefFetchProcBody d))
-	       (new-body (generate fname e))
-	       (formals (annDefFetchProcFormals d)))
-	  (set-generating-extension!
-		(cons `(define (,fname ,@formals)
-			 ,new-body)
-		      *generating-extension*))
-	  (loop (cdr d*))))))
+  (let ((make-define (lambda (name formals body)
+		       (if formals
+			   `(define (,name ,@formals) ,body)
+			   `(define ,name ,body)))))
+    (let loop ((d* d*))
+      (if (null? d*)
+	  *generating-extension*
+	  (let* ((d (car d*))
+		 (fname (annDefFetchProcName d))
+		 (e (annDefFetchProcBody d))
+		 (new-body (generate fname e))
+		 (formals (annDefFetchProcFormals d)))
+	    (set-generating-extension!
+	     (cons (make-define fname formals new-body)
+		   *generating-extension*))
+	    (loop (cdr d*)))))))
 ;;; transform binding-time annotated expression e 
 ;;; into the generating extension
 (define (generate fname e)
   (let loop ((e e))
     (cond
      ((annIsVar? e)
-      (make-ge-var (annExprFetchLevel e)
-		   (annFetchVar e)))
+      ((if (annFetchVarGlobal e) make-ge-freevar make-ge-var)
+       (annExprFetchLevel e)
+       (annFetchVar e)))
      ((annIsConst? e)
       (make-ge-const (annFetchConst e)))
      ((annIsCond? e)

@@ -12,6 +12,8 @@
 ;;; syntax constructors
 (define (make-ge-var l v)
   v)
+(define (make-ge-freevar l v)
+  `(_FREEVAR ,l ,v))
 (define (make-ge-const c)
   `',c)
 (define (make-ge-cond l lb c t e)
@@ -217,6 +219,13 @@
      (_complete `(op ,arg ...)))
     ((_op lv op arg ...)
      (_complete `(_OP ,(pred lv) op ,arg ...)))))
+
+(define-syntax _freevar
+  (syntax-rules ()
+    ((_freevar 0 arg)
+     arg)
+    ((_freevar lv arg)
+     `(_FREEVAR ,(pred lv) arg))))
 
 (define-syntax _lift0
   (syntax-rules ()
