@@ -52,7 +52,7 @@
 	 (d* (map scheme-wrap-one-d d*))
 	 ;; (dummy (writelpp d* "/tmp/def2.scm"))
 	 (d* (scheme-lambda-lift-d d*))
-	 (dummy (writelpp d* "/tmp/def3.scm"))
+	 ;; (dummy (writelpp d* "/tmp/def3.scm"))
 	 (symtab
 	  (append
 	   (map (lambda (d)
