@@ -6,7 +6,8 @@
 
 ;;; memo function stuff: standard implementation
 
-(define-record memolist-entry (name) (count 0) (fct #f) (var #f) (serial #f))
+(define-record memolist-entry
+  (name) (count 0) (fct #f) (var #f) (serial #f) (bts #f))
 
 (define-syntax start-memo
   (syntax-rules ()
@@ -79,10 +80,44 @@
      (lambda (kv)
        (let ((key (car kv))
 	     (entry (cdr kv)))
-	 (if (eq? (memolist-entry->var entry) var)
+	 (if (equal? (memolist-entry->var entry) var)
 	     ((memolist-entry->fct entry) value)
 	     (add-to-deferred-list! key entry))))
      deferred)))
+
+(define (resurrect var value file-contents)
+  (let loop ((file-contents file-contents))
+    (if (pair? file-contents)
+	(begin
+	  (let* ((new-name (list-ref file-contents 0))
+		 (waiting-for (list-ref file-contents 1))
+		 (frozen-pp (list-ref file-contents 2))
+		 (bts (list-ref file-contents 3)))
+
+	    (if (equal? var waiting-for)
+		(let
+		    ;; might have to move this to module cogen-library
+		    ((fresh-pp (eval frozen-pp (interaction-environment)))
+		     ;; ... or into the genext!
+		     (fct (eval (car frozen-pp) (interaction-environment))))
+		  (gensym-local-push!)
+		  (set-car! (cdr fresh-pp) value)
+		  (let* ((cloned-pp (top-clone-dynamic fresh-pp bts))
+			 (new-formals (map car (top-project-dynamic cloned-pp bts))))
+		    (creation-log-push!)
+		    (make-residual-definition! new-name
+					       new-formals
+					       (reset (apply fct (cdr cloned-pp))))
+		    (creation-log-pop!)
+		    (gensym-local-pop!)))
+		;; waiting for someone else
+		(let ((new-entry (make-memolist-entry new-name)))
+		  (memolist-entry->var! new-entry var)
+		  (memolist-entry->serial! new-entry frozen-pp)
+		  (memolist-entry->bts! new-entry bts)
+		  (add-to-deferred-list! pp new-entry)))
+
+	    (loop (list-tail file-contents 4)))))))
 
 ;;; the memo-function
 ;;; - fn is the name of the function to memoize
@@ -125,6 +160,7 @@
 						    (set-car! args val)
 						    (specialize new-name)))
 		  (memolist-entry->serial! new-entry (serialize full-pp bts))
+		  (memolist-entry->bts! new-entry bts)
 		  (add-to-deferred-list! pp new-entry)
 		  new-entry))
 	    (or (lookup-memolist pp)
@@ -151,7 +187,7 @@
 				 (- level 1)
 				 `',res-name
 				 res-name
-				 `',maybe-var
+				 maybe-var
 				 `',(map pred dyn-bts)
 				 `(LIST ,@actuals)))
 	
@@ -160,6 +196,6 @@
 				 (- level 1)
 				 `',res-name
 				 res-name
-				 `',maybe-var
+				 maybe-var
 				 `',(map pred dyn-bts)
 				 `(LIST ,@actuals)))))))

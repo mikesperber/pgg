@@ -100,7 +100,9 @@ cogen_examples = \
 	examples/power.scm \
 	examples/pure-arith.scm \
 	examples/unify-aux.scm \
-	examples/unify.scm
+	examples/unify.scm \
+	examples/modint.scm \
+	examples/modint-examples.scm
 additional_files = Makefile
 
 cogen-load-gambit.scm : Makefile

@@ -21,6 +21,19 @@
 		    ((number? arg) (number->string arg))))
 		 args)))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define trim-symbol
+  (lambda (sym)
+    (let ((s (symbol->string sym)))
+      (let loop ((i (- (string-length s) 1)))
+	(if (< i 0)
+	    sym
+	    (let ((c (string-ref s i)))
+	      (case (string-ref s i)
+		((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9 #\- #\_)
+		 (loop (- i 1)))
+		(else
+		 (substring s 0 (+ i 1))))))))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; auxiliary
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; list of n results of applying thunk

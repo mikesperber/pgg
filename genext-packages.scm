@@ -160,6 +160,7 @@
 
 (define-interface cogen-library-interface
   (export static-constructor
+	  hidden-constructor
 	  top-project-static
 	  top-project-dynamic
 	  top-clone-dynamic
@@ -215,7 +216,7 @@
 
 (define-interface auxiliary-interface
   (export id succ pred
-	  any->symbol
+	  any->symbol trim-symbol
 	  nlist
 	  set-include set-union set-intersection set-subtract set-difference set-union* set-equal?
 	  and-map and-map2 strict-and-map

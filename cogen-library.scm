@@ -45,15 +45,34 @@
 	 (else
 	  (error "static-constructor: bad argument ~a" what)))))) 
 
+(define (hidden-constructor ctor closed-value vvs bts)
+  (let ((v (static-constructor ctor closed-value vvs bts)))
+    (lambda (what)
+      (case what
+	((static)
+	 '(hidden))
+	((clone)
+	 (hidden-constructor ctor
+			     closed-value
+			     (cdr (clone-dynamic (cons ctor vvs) bts))
+			     bts))
+	((serialize)
+	 (list 'unquote
+	       `(hidden-constructor ',ctor ,ctor
+				    (list ,@(map serialize-one vvs bts))
+				    ',bts)))
+	(else
+	 (v what))))))
+
 (define (serialize-one val bt)
-  (if (zero? bt)
-      (if (procedure? val)
-	  (val 'serialize)
-	  `',val)
-      `',val))
+  (if (procedure? val)
+      (val 'serialize)
+      val))
 
 (define (serialize pp bts)
-  `(,(car pp) ,@(map serialize-one (cdr pp) bts)))
+  (list 'quasiquote
+	(cons (car pp)
+	      (map serialize-one (cdr pp) bts))))
 
 ;;; extract the static parts out of a partially static value which
 ;;; starts with some static tag and the rest of which is described by

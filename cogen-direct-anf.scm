@@ -188,10 +188,12 @@
 
 (define-syntax _ctor_memo
   (syntax-rules ()
-    ((_ctor_memo 0 bts ctor arg ...)
+    ((_ctor_memo 0 bts #f ctor arg ...)
      (static-constructor 'ctor ctor (list arg ...) 'bts))
-    ((_ctor_memo lv (bt ...) ctor arg ...)
-     (_complete `(_CTOR_MEMO ,(pred lv) (,(pred bt) ...) ctor ,arg ...)))))
+    ((_ctor_memo 0 bts #t ctor arg ...)
+     (hidden-constructor 'ctor ctor (list arg ...) 'bts))
+    ((_ctor_memo lv (bt ...) hidden ctor arg ...)
+     (_complete `(_CTOR_MEMO ,(pred lv) (,(pred bt) ...) hidden ctor ,arg ...)))))
 
 (define-syntax _s_t_memo
   (syntax-rules ()

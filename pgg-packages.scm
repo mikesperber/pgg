@@ -294,7 +294,7 @@
 
 (define-interface cogen-typesig-interface
   (export process-type-declarations parse-type
-	  desc-type desc-ctor desc-np desc-nc desc-nt))
+	  desc-type desc-ctor desc-np desc-nc desc-nt desc-hidden))
 
 (define-structure cogen-typesig cogen-typesig-interface
   (open scheme signals

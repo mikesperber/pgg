@@ -245,14 +245,16 @@
       (let* ((level (annExprFetchLevel e))
 	     (memo-level
 	      (ann->bt
-	       (type->memo (node-fetch-type (annExprFetchType e))))))
-	(register-type-desc! (annFetchCtorDesc e) level)
+	       (type->memo (node-fetch-type (annExprFetchType e)))))
+	     (desc (annFetchCtorDesc e)))
+	(register-type-desc! desc level)
 	(if (and *memo-optimize* (<= memo-level level))
 	    (make-ge-ctor level
 			  (annFetchCtorName e)
-			 (map loop (annFetchCtorArgs e)))
+			  (map loop (annFetchCtorArgs e)))
 	    (make-ge-ctor-memo level
-			       (map annExprFetchLevel (annFetchCtorArgs e)) 
+			       (map annExprFetchLevel (annFetchCtorArgs e))
+			       (desc-hidden desc)
 			       (annFetchCtorName e)
 			       (map loop (annFetchCtorArgs e))))))
      ((annIsSel? e)
@@ -300,22 +302,25 @@
 	     (generated-body (loop (annFetchMemoBody e))))
 	;; (display-line maybe-var-level " " maybe-var)
 	(if maybe-var
-	    (let loop ((vars vars) (bts bts) (rvars '()) (rbts '()))
-	      (if (pair? vars)
-		  (if (eq? (car vars) maybe-var)
-		      (loop (cdr vars) (cdr bts) rvars rbts)
-		      (loop (cdr vars) (cdr bts)
-			    (cons (car vars) rvars) (cons (car bts) rbts)))
-		  (begin
-		    (set! vars (cons maybe-var (reverse rvars)))
-		    (set! bts (cons maybe-var-level (reverse rbts)))))))
+	    (let ((exit-with
+		   (lambda (rvars rbts)
+		     (set! vars (cons maybe-var (reverse rvars)))
+		     (set! bts (cons maybe-var-level (reverse rbts)))
+		     (set! maybe-var (trim-symbol maybe-var)))))
+	      (let loop ((vars vars) (bts bts) (rvars '()) (rbts '()))
+		(if (pair? vars)
+		    (if (eq? (car vars) maybe-var)
+			(loop (cdr vars) (cdr bts) rvars rbts)
+			(loop (cdr vars) (cdr bts)
+			      (cons (car vars) rvars) (cons (car bts) rbts)))
+		    (exit-with rvars rbts)))))
 	(set-generating-extension!
 	      (cons `(DEFINE (,memo-fname ,@vars)
 		       ,generated-body)
 	       *generating-extension*))
 	`(MULTI-MEMO ,(annFetchMemoLevel e)
 		     ',memo-fname ,memo-fname
-		     ',maybe-var
+		     ,maybe-var
 		     ',bts
 		     (LIST ,@vars))))
      ((annIsRef? e)

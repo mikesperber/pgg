@@ -42,7 +42,9 @@
 
 (define (one-defdata dc)
   (let* ((type-name (cadr dc))
-	 (ctors (cddr dc))
+	 (rest (cddr dc))
+	 (hidden (and (pair? rest) (eq? (car rest) 'hidden)))
+	 (ctors (if hidden (cdr rest) rest))
 	 (nt (get-nt ctors)))
     (let loop ((ctors ctors) (np 0))
       (if (null? ctors)
@@ -50,7 +52,7 @@
 	  (let* ((ctor (car ctors))
 		 (nc (get-nc ctor)))
 	    (append (one-ctor
-		     (list type-name (car ctor) np nc nt) ctor)
+		     (list type-name (car ctor) np nc nt hidden) ctor)
 		    (loop (cdr ctors) (+ np nc))))))))
 (define (one-ctor desc ctor)
   (let* ((the-ctor (car ctor))
@@ -159,3 +161,4 @@
 (define (desc-np desc) (list-ref desc 2))
 (define (desc-nc desc) (list-ref desc 3))
 (define (desc-nt desc) (list-ref desc 4))
+(define (desc-hidden desc) (list-ref desc 5))

@@ -31,18 +31,6 @@
 (define gensym-local-trimmed-use-stub
   (lambda (sym)
     (gensym-local-use-stub (trim-symbol sym))))
-(define trim-symbol
-  (lambda (sym)
-    (let ((s (symbol->string sym)))
-      (let loop ((i (- (string-length s) 1)))
-	(if (< i 0)
-	    sym
-	    (let ((c (string-ref s i)))
-	      (case (string-ref s i)
-		((#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9 #\- #\_)
-		 (loop (- i 1)))
-		(else
-		 (substring s 0 (+ i 1))))))))))
 (define gensym-local-ignore-stub
   (lambda (sym)
     (set-car! *gensym-local* (+ (car *gensym-local*) 1))
