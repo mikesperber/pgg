@@ -298,12 +298,12 @@
 ;;; constraint: if i \in aval1 then aval2 <= aval3
 (define (add-conditional! i aval1 aval2 aval3)
   (add-conditional!-internal i aval1 (lambda ()
-				       (display "!!! point 1") (newline)
+				       ;;(display "!!! point 1") (newline)
 				       (add-subset! aval2 aval3))))
 ;;; if aval2*and aval3* are lists of aval
 (define (add-conditional*! i aval1 aval2* aval3*)
   (add-conditional!-internal i aval1 (lambda ()
-				       (display "!!! point 2") (newline)
+				       ;;(display "!!! point 2") (newline)
 				       (for-each add-subset! aval2* aval3*))))
 
 (define (add-conditional!-internal i aval1 thunk!)
@@ -490,7 +490,7 @@
 		(if-init-thunk!
 		 (anf-get-init anf-unit)
 		 (lambda ()
-		   (display "!!! point 3") (newline)
+		   ;;(display "!!! point 3") (newline)
 		   (add-subset! (flowmap-lookup flowmap
 						(anf-var->name (anf-unit->body anf-unit)))
 				def-aval))))
@@ -514,7 +514,7 @@
 	     init
 	     (lambda ()
 	       (initialize! init-body)
-	       (display "!!! point 4") (newline)
+	       ;;(display "!!! point 4") (newline)
 	       (add-subset! (anfvar-lookup header) formal-aval))))
 	   ((anf-const? header)
 	    (if-init-thunk!
@@ -536,7 +536,7 @@
 		 (initialize! (anf-get-init anf-else))
 		 (for-each (lambda (anf-unit)
 			     (let ((anfvar (anf-unit->body anf-unit)))
-			       (display "!!! point 5") (newline)
+			       ;;(display "!!! point 5") (newline)
 			       (add-subset! (anfvar-lookup anfvar) formal-aval)
 			       (if-init-thunk!
 				(anf-get-init anf-unit)
@@ -573,7 +573,7 @@
 			  (add-conditional!-internal
 			   i rator-aval 
 			   (lambda ()
-			     (display "!!! point 6, args = ") (display (anf-app->rator header)) (display (anf-app->rands header)) (newline)
+			     ;;(display "!!! point 6, args = ") (display (anf-app->rator header)) (display (anf-app->rands header)) (newline)
 			     (for-each add-subset!
 				       rands-avals
 				       (map flowmap-lookup formals))
@@ -583,7 +583,7 @@
 					    (anf-get-init anf-unit)
 					    (lambda ()
 					      (initialize! init-body)
-					      (display "!!! point 7") (newline)
+					      ;;(display "!!! point 7") (newline)
 					      (add-subset! last-aval formal-aval)))))
 				       (anf-lambda->last obj))))))))))))
 	   ((anf-ref? header)
@@ -597,7 +597,7 @@
 		      (aval-store (astore-ref (anf-get-astore body)
 					      (anf-ref->nr header))))
 		 (add-singleton! nr formal-aval)
-		 (display "!!! point 8") (newline)
+		 ;;(display "!!! point 8") (newline)
 		 (add-subset! aval-actual aval-store)))))
 	   ((anf-deref? header)
 	    (if-init-thunk!
@@ -969,7 +969,7 @@
 		(vector-set! current-vec i
 			     (list (lambda ()
 				     (for-each (lambda (var)
-						 (display "!!! point 9: var = ") (display var) (newline)
+						 ;;(display "!!! point 9: var = ") (display var) (newline)
 						 (add-subset! (flowmap-lookup flowmap var)
 							      current))
 					       (anf-lambda->free obj)))))
