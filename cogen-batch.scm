@@ -11,8 +11,6 @@
   "just create a generating extension:"
   "cps-mcogen ( -c callpat | --call-pattern=callpat )"
   "           [ -o outfile ] [ --output=outfile ]"
-  "           [ --keep-generator ]"
-  "           [ --generator=genname ] [ -g genname ]"
   "           [ -v ] [ --verbose ]"
   "           subjectfile ..."
   ""
@@ -25,7 +23,7 @@
   "           [ -v ] [ --verbose ]"
   "           subjectfile ..."
   ""
-  "specialize with pre-fabricated generating extension:"
+  "specialize with pre-fabricated generating extension or later stage:"
   "cps-mcogen ( -i infile | --input=infile )"
   "           [ -p goalproc ] [ --goal-proc=goalproc ]"
   "           [ -s supportfile+ ] [ --support=supportfile+ ]"
@@ -45,23 +43,13 @@
     ("i" "input" parameter accumulates splits input)
     ("o" "output" parameter output)
     ("p" "goal-proc" parameter goal-proc)
-    ("s" "support" parameter accumulates splits support)
-    ("keep-generator" keep-generator)
-    ("generator" parameter generator)))
+    ("s" "support" parameter accumulates splits support)))
 
 (define scheme-file-suffixes '(".scm" ".ss"))
 (define input-file-suffixes '(".dat"))
 (define cogen-generating-extension-file-suffix "-genext")
-(define cogen-generator-file-suffix "-generator")
 
-(define cogen-memo-template-prefix ";; memo-template: ")
-
-(define (canonical-generator-name name)
-  (call-with-values
-   (lambda ()
-     (parse-file-name name))
-   (lambda (dir base suffix)
-     (string-append dir base cogen-generator-file-suffix suffix))))
+(define cogen-stage-prefix ";; ")
 
 (define (canonical-genext-name name)
   (call-with-values
@@ -99,9 +87,7 @@
 	suffix)))))
 
 (define (read-line . arg)
-  (let* ((port (if (null? arg)
-		   (current-input-port)
-		   (car arg)))
+  (let* ((port (if (null? arg) (current-input-port) (car arg)))
 	 (char (read-char port)))
     (if (eof-object? char)
 	char
@@ -110,61 +96,55 @@
 	    ((or (eof-object? char) (char=? #\newline char))
 	     (list->string (reverse clist)))))))
 
-(define (read-memo-template)
+(define (read-memo-info)
   (let* ((line (read-line))
 	 (line-length (string-length line))
-	 (prefix-length (string-length cogen-memo-template-prefix)))
+	 (prefix-length (string-length cogen-stage-prefix)))
 
     (if (or (< line-length prefix-length)
-	    (not (string=? cogen-memo-template-prefix
-			   (substring line 0 prefix-length))))
+	    (not (string=? cogen-stage-prefix (substring line 0 prefix-length))))
 	(error "invalid memo template: ~a" line))
 
     (let* ((memo-stuff (substring line prefix-length line-length))
-	   (port (make-string-input-port memo-stuff)))
-      (read port))))
+	   (port (make-string-input-port memo-stuff))
+	   (id (read port))
+	   (stuff (read port)))
+      (values id stuff))))
 
 (define (pp-list l . args)
   (for-each (lambda (x)
 	      (apply pp x args))
 	    l))
 
-(define (cogen-make-generator files pattern)
-  (cogen-driver files pattern))
+(define (cogen-make-generating-extension files pattern)
+  (let ((residual-program (cogen-driver files pattern)))
+    (values residual-program
+	    *support-code*)))
 
-(define (cogen-make-generating-extension pattern)
-  (if (> (length pattern) 16)
-      (error "Too many parameters for the goal procedure~%"))
-  
-  ;; let a guy have some fun ...
-  (values
-   (start-memo-internal
-    2
-    '$goal
-    (eval '$goal (interaction-environment))
-    (map (lambda (level) (+ 1 level)) pattern)
-    (take (length pattern)
-	  '(foo bar baz bla baz blabla argl blabaz foobar
-	    kotz brech wuerg reier goebel kuebel spei)))
-   *residual-program*
-   *support-code*))
+(define (cogen-run-generating-extension pattern input-parameters)
+  (let ((template
+	 (start-memo-internal
+	  1
+	  '$goal
+	  (eval '$goal (interaction-environment))
+	  pattern
+	  input-parameters)))
+    (values
+     template
+     *residual-program*
+     *support-code*)))
 
-(define (cogen-run-generating-extension memo-template input-parameters)
+(define (cogen-run-later-stage memo-template input-parameters)
   (let ((next-memo-template
 	 (nextlevel memo-template input-parameters)))
     (values
      next-memo-template
      *residual-program*
      *support-code*)))
-  
+
 (define (cogen-main argv)
   (call-with-current-continuation
-   (lambda (real-exit)
-
-     (define (exit code)
-       (force-output (current-output-port))
-       (force-output (current-error-port))
-       (real-exit code))
+   (lambda (exit)
 
      (with-handler
 
@@ -199,7 +179,8 @@
 
 	   (let ((verbose? (assq 'verbose options))
 		 (the-genext #f)
-		 (the-memo-template #f))
+		 (the-memo-template #f)
+		 (the-bt-pattern #f))
 	  
 	     (define (maybe-format . l)
 	       (if verbose?
@@ -214,40 +195,18 @@
 		   (let* ((pattern-string
 			   (cdr (assq 'call-pattern options)))
 			  (pattern
-			   (read (make-string-input-port pattern-string)))
-			  (generator
-			   (begin
-			     (maybe-format "Making the generator~%")
-			     (cogen-make-generator files pattern))))
+			   (read (make-string-input-port pattern-string))))
 
-		     (if (or (assq 'keep-generator options)
-			     (assq 'generator options))
-			 (let ((generator-name
-				(let ((p (assq 'generator options)))
-				  (if p
-				      (cdr p)
-				      (canonical-generator-name (car files))))))
-			   (begin
-			     (maybe-format "Writing generator into ~A~%"
-					   generator-name)
-			     (with-output-to-file
-				 generator-name
-			       (lambda ()
-				 (pp-list generator))))))
-
-		     (maybe-format "Loading the generator~%")
-		     (load-program generator)
-			   
 		     (call-with-values
 		      (lambda ()
-			(maybe-format "Making the generating extension~%")
-			(cogen-make-generating-extension (cdr pattern)))
-		      (lambda (memo-template genext support-code)
+			(maybe-format "Computing the generating extension~%")
+			(cogen-make-generating-extension files pattern))
+		      (lambda (genext support-code)
 			(if (assq 'input options)
 			    ;; specialize also---later
 			    (begin
 			      (set! the-genext (append genext support-code))
-			      (set! the-memo-template memo-template))
+			      (set! the-bt-pattern (cdr pattern)))
 			    ;; just write out the generating extension
 			    (let ((genext-name
 				   (if (assq 'output options)
@@ -258,9 +217,10 @@
 			      (with-output-to-file
 				  genext-name
 				(lambda ()
-				  (format #t "~a~s~%~%"
-					  cogen-memo-template-prefix
-					  memo-template)
+				  (format #t "~a~a ~s~%~%"
+					  cogen-stage-prefix
+					  'bt-pattern
+					  (cdr pattern))
 				  (pp-list genext)
 				  (if (not (null? support-code))
 				      (format #t "~%;; Supporting definitions:~%"))
@@ -288,10 +248,15 @@
 			 (load-program the-genext))
 		       (begin
 			 (maybe-format "from files~%")
-			 (set! the-memo-template
-			       (with-input-from-file
-				   (car files)
-				 read-memo-template))
+			 (call-with-values
+			  (lambda ()
+			    (with-input-from-file
+				(car files)
+			      read-memo-info))
+			  (lambda (id stuff)
+			    (if (eq? 'bt-pattern id)
+				(set! the-bt-pattern stuff)
+				(set! the-memo-template stuff))))
 			 (for-each (lambda (file)
 				     (maybe-format "Loading ~A~%" file)
 				     (load file))
@@ -318,16 +283,20 @@
 		     (maybe-format "Specializing with goal ~A~%" goal)
 		     (call-with-values
 		      (lambda ()
-			(cogen-run-generating-extension 
-			 the-memo-template input-parameters))
+			(if the-bt-pattern
+			    (cogen-run-generating-extension the-bt-pattern
+							    input-parameters)
+			    (cogen-run-later-stage the-bt-pattern
+						   input-parameters)))
 		      (lambda (memo-template code support-code)
 			(maybe-format "Writing residual program into ~A~%"
 				      residual-program-name)
 			(with-output-to-file
 			    residual-program-name
 			  (lambda ()
-			    (format #t "~a~s~%~%"
-				    cogen-memo-template-prefix
+			    (format #t "~a~a ~s~%~%"
+				    cogen-stage-prefix
+				    'memo-template
 				    memo-template)
 			    (pp-list code)
 			    (if (not (null? support-code))
