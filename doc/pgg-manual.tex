@@ -183,7 +183,7 @@ several ways to do that:
 bta-run
 bta-solve
 bta-solve done
-> (eval `(begin ,@genext) (interaction-environment))
+> (load-program genext)
 >
 \end{verbatim}
 \end{small}
@@ -264,7 +264,7 @@ Now we can say
 >   (cogen-driver (list "examples/power.scm"
 >                       "examples/pure-arith.scm") '(power 1 0)))
 ...
-> (eval `(begin ,@genext) (interaction-environment))
+> (load-program genext)
 > (specialize '($goal 1 0) '(x 4))
 \end{verbatim}
 \end{small}
@@ -408,7 +408,7 @@ Load structure pgg-residual (y/n)? y
 [pgg-residual
 cogen-ctors.scm ]
 Newly accessible in user: (define-data)
-> (eval `(begin ,@genext) (interaction-environment))
+> (load-program genext)
 > (specialize '($goal 0 0 1) '(5 () values))
 '($goal-1 values)
 > (p *residual-program*)
@@ -561,7 +561,7 @@ Load structure pgg-residual (y/n)? y
 [pgg-residual
 cogen-ctors.scm ]
 Newly accessible in user: (define-data)
-> (eval `(begin ,@genext) (interaction-environment))
+> (load-program genext)
 > (specialize '($goal 1) '(x))
 '($goal-1 x)
 > (p *residual-program*)
@@ -593,7 +593,7 @@ the pair \texttt{(x . 1)} is implemented by \texttt{(cons mlet-5 1)}.
 \begin{verbatim}
 > (define genext
 >   (cogen-driver (list "examples/2lazy.scm") '(lazy-2int 0 0 0 1)))
-> (eval `(begin ,@genext) (interaction-environment))
+> (load-program genext)
 \end{verbatim}
 \end{small}
 The parameters of \texttt{(lazy-2int prg goal xs* xd*)} are
@@ -636,7 +636,7 @@ It contains the example programs \texttt{lazy1} and \texttt{lazy2}.
 \begin{verbatim}
 > (define genext (cogen-driver (list "examples/dotprod.scm")
 >                              '(dotprod 0 1 2 3)))
-> (eval `(begin ,@genext) (interaction-environment))
+> (load-program genext)
 > (specialize '($goal 0 1 2 3) '(2 v1 v2 v3))
 '(multi-memo 2 '$goal-1 $goal-1 '(0 1 2) (list v1 v2 v3))
 \end{verbatim}
@@ -673,10 +673,10 @@ It contains the example programs \texttt{lazy1} and \texttt{lazy2}.
   us the name \texttt{\$goal-1} of the entry point.
   \begin{small}
 \begin{verbatim}
-> (eval `(begin ,@*residual-program*) (interaction-environment))
+> (load-program *residual-program*)
 > (specialize '($goal-1 0 1 2) '((111 222) v2 v3))
 '(multi-memo 1 '$goal-1-1 $goal-1-1 '(0 1) (list v2 v3))
-> (eval `(begin ,@*residual-program*) (interaction-environment))
+> (load-program *residual-program*)
 > (specialize '($goal-1-1 0 1) '((333 444) v3))
 '($goal-1-1-1 v3)
 > (p *residual-program*)
@@ -697,7 +697,7 @@ It contains the example programs \texttt{lazy1} and \texttt{lazy2}.
 \begin{small}
 \begin{verbatim}
 > (define genext (cogen-driver (list "examples/object.scm") '(main)))
-> (eval `(begin ,@genext) (interaction-environment))
+> (load-program genext)
 > (specialize '($goal) '())
 \end{verbatim}
 \end{small}
@@ -712,7 +712,7 @@ It contains the example programs \texttt{lazy1} and \texttt{lazy2}.
   \begin{small}
 \begin{verbatim}
 > (define genext (cogen-driver (list "examples/unify.scm") '(main 0 1)))
-> (eval `(begin ,@genext) (interaction-environment))
+> (load-program genext)
 > (specialize '($goal 0 1) (list  '(cst 555) 'YYY))
 > (specialize '($goal 0 1) (list  '(var 555) 'YYY))
 > (specialize '($goal 0 1) (list  '(bin (var 1) (var 1)) 'YYY))
@@ -1224,6 +1224,12 @@ separately.
 
   Instructs the generating extension to use provided name stubs wherever
   possible. 
+\item \verb+(set-memolist-stages! n)+ Default: \texttt{0}.
+  \dindextt{set-memolist-stages"!}
+
+  Set optimization level for memoization table. If set to \texttt{n} then
+  memoization uses \texttt{n} cascaded association lists, indexed by the first
+  \texttt{n} elements of the static projection at a memoization point.
 \end{itemize}
 
 
