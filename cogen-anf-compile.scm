@@ -114,11 +114,11 @@
 
 (define-syntax _if
   (syntax-rules ()
-    ((_if 0 lb e1 e2 e3)
+    ((_if 0 e1 e2 e3)
      (if e1 e2 e3))
-    ((_if 1 bl e1 e2 e3)
+    ((_if 1 e1 e2 e3)
      (shift k (make-residual-if e1 (reset (k e2)) (reset (k e3)))))
-    ((_if lv bl e1 e2 e3)
+    ((_if lv e1 e2 e3)
      (shift k `(_IF ,(pred lv) 0
 		    ,e1
 		    ,(reset (k e2))
