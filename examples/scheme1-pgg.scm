@@ -2,8 +2,8 @@
 ;;;
 ;;; $Header$
 ;;; $Log$
-;;; Revision 1.1  1996/04/01 08:19:07  thiemann
-;;; everything's up and running again
+;;; Revision 1.2  1996/06/03 07:35:07  thiemann
+;;; checkpoint after including new equational BTA
 ;;;
 ;;;Revision 1.7  1995/05/17  12:45:24  thiemann
 ;;;Added data activation, cleaned up handling of primitive operators

@@ -1,8 +1,8 @@
 ;;; skeleton for multi-level cogen
 ;;; $Id$
 ;;; $Log$
-;;; Revision 1.9  1996/04/01 08:18:53  thiemann
-;;; everything's up and running again
+;;; Revision 1.10  1996/06/03 07:34:57  thiemann
+;;; checkpoint after including new equational BTA
 ;;;
 ;;; Revision 1.8  1995/11/09  16:48:06  thiemann
 ;;; implemented simple occurrence count analysis

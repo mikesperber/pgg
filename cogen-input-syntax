@@ -12,11 +12,13 @@ A ::=   <datum> of R4RS
 D0 ::=  (define (P V*) D0* E*)
 D ::=	D0 |
 	(define P D0* E*) |			% not allowed for goal procedure
-	(defdata T (C Ci*)+) |
+	(define-data TC (C Ci*)+) |
 	(define-type (P B*) B) |
-	(define-operator O d) |
-	(define-operator (O B*) B) |
-	(defmemo M [only])			% "only" present => standard memoization off
+	(define-primitive O T [dynamic|error|opaque]) |
+	(define-memo M [only])			% "only" present => standard memoization off
+T ::= (all TV T) | (rec TV T) | (TC T*) | TV
+TV    type variable (must be bound by rec or all)
+TC    type constructor
 B ::=	* | d | -
 prg ::= D+
 

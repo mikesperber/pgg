@@ -6,7 +6,7 @@
 ;;;
 ;;; specialize append
 ;;;
-(define ppp (cogen-driver '("examples/app.scm") '(app s d)))
+(define ppp (cogen-driver '("examples/app.scm") '(app 0 1)))
 (writelpp ppp "examples/app-d0.scm")
 ;;; load generating extension
 (load "examples/app-d0.scm")

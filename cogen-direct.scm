@@ -6,14 +6,19 @@
 ;;; set result to the unit of the identity monad
 (define result id)
 ;;; interface to create generating extensions
+;;; syntax constructors
+(define (make-thunk arg) `(LAMBDA () ,arg))
+(define (run-thunk t) (t))
+(define (reset-thunk t) (reset (t)))
+
 (define (make-ge-var v)
   v)
 (define (make-ge-const c)
   `(_LIFT0 1 ',c))
 (define (make-ge-cond l c t e)
-  `(_IF ,l ,c (LAMBDA () ,t) (LAMBDA () ,e)))
+  `(_IF ,l ,c ,(make-thunk t) ,(make-thunk e)))
 (define (make-ge-op l o args)
-  `(_OP ,l ',o ,@args))
+  `(_OP ,l ',o ,@(map make-thunk args)))
 (define (make-ge-call f args)
   `(,f ,@args))
 (define (make-ge-let l v e body)
@@ -22,7 +27,7 @@
   `(_LAMBDA_MEMO ',l ',vars ',label (LIST ,@fvars) ',bts
 		 (LAMBDA ,fvars (LAMBDA ,vars ,body))))
 (define (make-ge-app-memo l f args)
-  `(_APP_MEMO ,l ,f ,@args))
+  `(_APP_MEMO ,l ,f ,@(map make-thunk args)))
 (define (make-ge-ctor-memo l bts ctor args)
   `(_CTOR_MEMO ,l ',bts ',ctor ,@args))
 (define (make-ge-sel-memo l sel a)
@@ -41,9 +46,10 @@
       `(_APP ,(pred lv) ,f ,@args))) 
 
 (define (_app_memo lv f . args)
+  (let ((args (map reset-thunk args)))
   (if (= lv 1)
       `((,f 'VALUE) ,@args)
-      `(_APP_MEMO ,(pred lv) ,f ,@args)))
+      (make-ge-app-memo (pred lv) f args))))
 
 (define (_lambda lv arity f)
   (let* ((vars (map gensym-local arity))
@@ -128,11 +134,12 @@
       `(_IF1 ,(- level 1) ,e1 (LAMBDA () ,(reset (et2))) (LAMBDA () ,(reset (et3))))))
 
 (define (_Op level op . args)
+  (let ((args (map reset-thunk args)))
   (if (= level 1)
       (if (equal? op 'apply)
 	  (_apply args)
 	  `(,op ,@args))
-      `(_OP ,(- level 1) ',op ,@args)))
+      (make-ge-op (pred level) op args))))
 
 (define (_apply args)
   (let ((fn (car args))

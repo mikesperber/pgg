@@ -1,5 +1,9 @@
 ;;; cogen-scheme
 
+;;; copyright 1996 by Peter Thiemann
+;;; non-commercial use is free as long as the original copright notice
+;;; remains intact
+
 ;;; convert side-effect free scheme to abstract syntax
 ;;; + translate and, or to if
 ;;; + simplify let to (let ((V E)) E) 
@@ -632,8 +636,8 @@
   (apply + (map scheme->abssyn-nc ctors)))
 ;; scheme->abssyn-define-type constructs a symbol table for conversion
 ;; to abstract syntax out of 
-;; dc* - list of (defdata ...) forms
-;; dt* - list of (deftype ...) forms
+;; dc* - list of (define-data ...) forms
+;; dt* - list of (define-type ...) forms
 (define (scheme->abssyn-define-type dc* dt* do*)
   (append
    (map scheme->abssyn-one-deftype dt*)
@@ -671,10 +675,50 @@
   (let ((template (cadr dt))
 	(result-type (caddr dt)))
     (list (car template) annMakeCall (length (cdr template)))))
-;;; process (define-operator O B0) and (define-operator (O B1 ... Bn) B0)
+
+;;; process (define-primitive ...)
+;;; accepts the following syntax for definitions of primitive operators
+;;; D  ::= (define-primitive O T [dynamic|error|opaque])
 (define (scheme->abssyn-one-defop dt)
-  (let ((template (cadr dt))
-	(result-type (caddr dt)))
-    (if (pair? template)
-	(list (car template) (annMakeOp1 #f result-type) (length (cdr template)))
-	(list template (annMakeOp1 #f result-type) -1))))
+  (let ((op-name (cadr dt))
+	(op-type (caddr dt))
+	(op-optional (cdddr dt)))
+    (list op-name
+	  (annMakeOp1
+	   (not (equal? op-optional '(opaque)))   ;opacity
+	   (and op-optional (car op-optional))    ;property \in d, e, o
+	   (parse-type op-type))	          ;type
+	  (length op-rand-types))))
+
+;;; T  ::= (all TV T) | (rec TV T) | (TC T*) | TV
+;;; TV type variable (must be bound by rec or all)
+;;; TC type constructor
+;;; abstract syntax:
+(define-record primop (op-name op-type op-prop))
+(define-record primop-tapp (tcon types))
+(define-record primop-trec (tvar type))
+(define-record primop-tall (tvar type))
+(define-record primop-tvar (tvar))
+
+(define parse-type
+  (lambda (texp)
+    (let loop ((texp texp)
+	       (tenv the-empty-env))
+      (cond
+       ((pair? texp)
+	(if (member (car texp) '(all rec))
+	    (let ((tvar (caddr texp)))
+	      ((if (equal? (car texp) 'rec)
+		   make-primop-trec
+		   make-primop-tall)
+	       tvar
+	       (loop (cadddr texp)
+		     (extend-env tvar (make-primop-tvar tvar) tenv))))
+	    (make-primop-tapp (car texp)
+			      (map (lambda (texp)
+				     (loop texp tenv))
+				   (cdr texp)))))
+       (else
+	(apply-env tenv texp
+		   (lambda ()
+		     (make-primop-tapp texp '()))))))))

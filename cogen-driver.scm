@@ -22,15 +22,15 @@
 	   (filter (lambda (defn) (equal? (car defn) 'define))
 		   full-source))
 	 (def-datatype*
-	   (filter (lambda (defn) (equal? (car defn) 'defdata))
+	   (filter (lambda (defn) (equal? (car defn) 'define-data))
 		   full-source))
 	 (def-typesig*
 	   (filter (lambda (defn) (equal? (car defn) 'define-type))
 		   full-source))
 	 (def-opsig*
-	   (filter (lambda (defn) (equal? (car defn) 'define-operator))
+	   (filter (lambda (defn) (equal? (car defn) 'define-primitive))
 		   full-source))
-	 (def-memo (assoc 'defmemo full-source))
+	 (def-memo (assoc 'define-memo full-source))
 	 (def-opsig*
 	   (if def-memo
 	       (cons `(DEFINE-OPERATOR ,(cadr def-memo) MEMO) def-typesig*)

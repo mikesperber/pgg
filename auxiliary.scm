@@ -104,6 +104,22 @@
 	     (t (strict-or-map p? (cdr xs))))
 	 (or h t))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define (generic-sort leq x*)
+  (let loop ((x* x*) (result '()))
+    (if (null? x*)
+	result
+	(loop (cdr x*) (generic-insert leq (car x*) result)))))
+
+(define (generic-insert leq x x*)
+  (let loop ((x* x*))
+    (if (null? x*)
+	(list x)
+	(let ((x1 (car x*)))
+	  (if (leq x x1)
+	      (cons x x*)
+	      (cons x1 (loop (cdr x*))))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define (filter p xs)
   (if (null? xs)
       '()

@@ -1,6 +1,8 @@
+- put type annotations to work: enforce types of primitives in bta-eq-flow
+- type annotation for arity of operators
 + inspect the lambda lifter (dependency analysis?)
 - insert LET only if the variable appears more than once in the body
-- reconsider LET insertion strategy (constructor arguments!)
++ reconsider LET insertion strategy (constructor arguments!)
 - how many memoization points are really necessary? you may want to
   read Malmkjaer's PEPM'93 paper
 + support for EVAL
@@ -8,8 +10,6 @@
 + check whether it still performs continuation-based reduction :-)
 + really generate LAMBDA_MEMO and friends
 + control memoization
-+ put type annotations to work
-- type annotation for arity of operators
 + handle (begin ...)
 + handle nested (define ...)
 - analyze which lambdas and ctors are really memoized
@@ -35,3 +35,7 @@
 - implement parameterized abstract syntax: first define some macros,
   then define ast accessors and constructors using them. How about
   using some record facility?
++ add record support
+- replace the symtab by environments (cogen-env)
+- let the spec transform the residual program to CPS in order to
+  memoize partially static values (alternative: use call-with-values)
