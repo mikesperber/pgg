@@ -604,7 +604,7 @@
   (files cogen-labset-bylist))
 
 (define-structure pgg pgg-interface
-  (open scheme auxiliary
+  (open scheme filenames source-file-names auxiliary
 	cogen-scheme
 	cogen-typesig
 	cogen-bta
@@ -724,7 +724,7 @@
 
 (define-structure pgg-compiler
   (export cogen-driver)
-  (open scheme auxiliary
+  (open scheme filenames source-file-names auxiliary
 	cogen-scheme cogen-bta
 	cogen-compile-skeleton
 	)
