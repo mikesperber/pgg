@@ -16,4 +16,14 @@
 		(map (lambda (filename)
 		       `(BEGIN ,@(file->list filename)))
 		     source-files))))
-    (scheme-desugar full-source)))
+    (call-with-values
+     (lambda ()
+       (scheme-desugar full-source))
+     (lambda (d* rejected*)
+       (if (not (null? rejected*))
+	   (begin
+	     (display "Warning: desugar cannot resolve toplevel expressions")
+	     (newline)
+	     (display rejected*)
+	     (newline)))
+       d*))))

@@ -1,4 +1,9 @@
-;; copright by Peter Thiemann, 1998
+;;; cogen-specialize.scm
+
+;;; copyright © 1996, 1997, 1998 by Peter Thiemann
+;;; non-commercial use is free as long as the original copright notice
+;;; remains intact
+
 
 (define *memolist* '())
 (define *residual-program* '())
@@ -17,12 +22,16 @@
   (set! *memolist* (list '*memolist*)))
 (define (add-to-memolist! key value)
   (let loop ((key key) (n *memolist-stages*) (memolist *memolist*))
-    (if (or (zero? n) (null? key))
+    (if (zero? n)
 	(let ((saved-cdr (cdr memolist)))
 	  (set-cdr! memolist (cons (cons key value) saved-cdr)))
 	(cond ((assoc (car key) (cdr memolist))
 	       => (lambda (entry)
 		    (loop (cdr key) (- n 1) (cdr entry))))
+	      ((null? (cdr key))
+	       (let ((saved-cdr (cdr memolist)))
+		 (set-cdr! memolist
+			   (cons (cons (car key) value) saved-cdr))))
 	      (else
 	       (let ((saved-cdr (cdr memolist))
 		     (nested-memolist (list '***)))
@@ -31,12 +40,15 @@
 		 (loop (cdr key) (- n 1) nested-memolist)))))))
 (define (lookup-memolist key)
   (let loop ((key key) (n *memolist-stages*) (memolist (cdr *memolist*)))
-    (if (or (zero? n) (null? key))
+    (if (zero? n)
 	(cond ((assoc key memolist) => cdr)
 	      (else #f))
 	(cond ((assoc (car key) memolist)
 	       => (lambda (entry)
-		    (loop (cdr key) (- n 1) (cddr entry))))
+		    (let ((cdr-key (cdr key)))
+		      (if (null? cdr-key)
+			  memolist
+			  (loop cdr-key (- n 1) (cddr entry))))))
 	      (else #f)))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define (set-residual-program! prg)
