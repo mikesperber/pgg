@@ -4,6 +4,8 @@
 (newline)
 (load "cogen-record.scm")
 (load "auxiliary.scm")
+(load "pp.scm")
+(define p pretty-print)
 (load "cogen-env.scm")
 (load "cogen-abssyn.scm") 
 (load "cogen-scheme.scm")
