@@ -14,11 +14,11 @@
 	  (jump-global modulename-of name args)))))
 
 (define (jump-global modulename-of name args)
-  (_load (modulename-of name)
-	 (lambda (mod-name mod-body)
-	   (if (null? mod-body)
-	       (error "Undefined label")
-	       ((jump-local modulename-of mod-body) name args)))))
+  (access (modulename-of name)
+	  (lambda (mod-name mod-body)
+	    (if (null? mod-body)
+		(error "Undefined label")
+		((jump-local modulename-of mod-body) name args)))))
 
 ;;; main : 1 0 0 1
 (define (main modulename-of name nargs initial_args)

@@ -8,15 +8,15 @@
   (lambda (name args)
     (let* ((is-exported (assoc name exported-names))
 	   (name+mod (or is-exported (cons name modname))))
-      (_load (cdr name+mod)
-	     (lambda (this-modname this-mod)
-	       (let ((found (assoc name this-mod)))
-		 (if found 
-		     (exec (jump exported-names 
-				 this-modname)
-			   (cdr found)
-			   args)
-		     (error "Undefined name"))))))))
+      (access (cdr name+mod)
+	      (lambda (this-modname this-mod)
+		(let ((found (assoc name this-mod)))
+		  (if found 
+		      (exec (jump exported-names 
+				  this-modname)
+			    (cdr found)
+			    args)
+		      (error "Undefined name"))))))))
 
 ;;; main : 0 1 0 1
 (define-without-memoization (main exported-names name 

@@ -5,7 +5,7 @@
   (my-pair fst snd))
 
 (define-memo _memo 1)
-(define-memo _load 1 'deferred)
+(define-memo access 1 'deferred)
 
 (define-primitive zero? - pure)	; (all t t); (all x (-> (* b x) b))
 (define-primitive null? - pure)
@@ -30,7 +30,7 @@
 	r
 	(loop (:: (hd xs) r) (tl xs)))))
 
-(define (append xs ys)
+(define (concat xs ys)
   (let loop ((xs xs))
     (if (nil? xs)
 	ys
@@ -55,7 +55,7 @@
 		    (regs2 (snd xxx))
 		    (reg (hd regs2)))
 	       (loop instrs
-		     (append regs1 (:: (+ reg 1) (tl regs2))))))
+		     (concat regs1 (:: (+ reg 1) (tl regs2))))))
 	    ((Decr)
 	     (let* ((regno (cadr instr))
 		    (xxx (split regno regs))
@@ -63,7 +63,7 @@
 		    (regs2 (snd xxx))
 		    (reg (hd regs2)))
 	       (loop instrs
-		     (append regs1 (:: (- reg 1) (tl regs2))))))
+		     (concat regs1 (:: (- reg 1) (tl regs2))))))
 	    ((Jz)
 	     (let* ((regno (cadr instr))
 		    (label (caddr instr))
