@@ -63,6 +63,7 @@
 	  make-residual-call
 	  make-residual-primop
 	  make-residual-closed-lambda
+	  make-residual-lambda
 	  make-residual-literal
 	  make-residual-variable
 	  make-residual-generator-ve*
@@ -72,6 +73,7 @@
 	  make-residual-generator-veve*
 	  make-residual-generator-vvvve
 	  make-residual-generator-vvee
+	  make-residual-generator-vveqe
 	  make-residual-generator-vqqeqe
 	  make-residual-generator-vqqqeqe
 	  make-residual-definition!

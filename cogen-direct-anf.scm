@@ -44,21 +44,32 @@
 
 (define-syntax _lambda
   (syntax-rules ()
-    ((_lambda 0 vars body)
+    ((_lambda 0 vars vvs bts body)
      (lambda vars body))
-    ((_lambda lv vars body)
-     (_lambda-internal lv 'vars (lambda vars body)))))
+    ((_lambda lv vars vvs bts body)
+     (_lambda-internal lv 'vars vvs bts (lambda vars body)))))
 
-(define (_lambda-internal lv arity f)
+(define (_lambda-internal lv arity vvs bts f)
   (let* ((vars (map make-residual-variable (map gensym-local arity)))
 	 (body (reset (apply f vars)))
 	 (l (pred lv))
+	 ;; for fvs
+	 (lambda-pp (cons 'LAMBDA vvs))
+	 (dynamics (top-project-dynamic lambda-pp bts))
+	 (compressed-dynamics (remove-duplicates dynamics))
+	 (actual-fvs (map car compressed-dynamics))
+	 ;; end for fvs
 	 (generate-lambda
 	  (if (zero? l)
 	      (lambda ()
-		(make-residual-closed-lambda vars 'FREE body))
+		(make-residual-lambda vars actual-fvs body))
 	      (lambda ()
-		(make-residual-generator-vve '_LAMBDA l vars body)))))
+		(let ((new-bts (map pred (map cdr compressed-dynamics))))
+		  (make-residual-generator-vveqe '_LAMBDA l vars
+						 (make-residual-call 'LIST actual-fvs)
+						 new-bts
+						 body))))))
+    (display-line "_lambda-internal " dynamics)
     (if *lambda-is-pure*
 	(generate-lambda)
 	(_complete			;don't duplicate, experimental

@@ -97,6 +97,9 @@
 (define (make-residual-generator-vvee name lv v1 v2 e1 e2)
   `(,name ,lv ,v1 ,v2 ,e1 ,e2))
 
+(define (make-residual-generator-vveqe name lv v1 v2 e1 q1 e2)
+  `(,name ,lv ,v1 ,v2 ,e1 ',q1 ,e2))
+
 (define (make-residual-generator-vqqeqe name v1 q1 q2 e1 q3 e2)
   `(,name ,v1 ',q1 ',q2 ,e1 ',q3 ,e2))
 
@@ -239,6 +242,9 @@
       (list body)))
 
 (define (make-residual-closed-lambda formals free body)
+  `(LAMBDA ,formals ,@(make-lambda-body-list body)))
+
+(define (make-residual-lambda formals fvs body)
   `(LAMBDA ,formals ,@(make-lambda-body-list body)))
 
 (define (make-residual-literal val)

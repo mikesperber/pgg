@@ -206,6 +206,7 @@
 	(if (use-standard-rep memo-level level)
 	    (make-ge-lambda level
 			    vars btv
+			    fvars bts
 			    (loop body))
 	    (let ((poly? (annFetchLambdaPoly e)))
 	      (make-ge-lambda-memo level poly?
