@@ -1,4 +1,9 @@
 ;;; cogen-bta
+;;; $Id$
+;;; $Log$
+;;; Revision 1.3  1995/10/23 16:52:48  thiemann
+;;; continuation based reduction works
+;;;
 
 ;;; binding-time analysis
 ;;; `d*' list of function definitions
@@ -18,8 +23,8 @@
 	 (procsig (bta-c-fetch-ctor-args (tv-get-leq-field proctv))))
     (bta-make-dynamic (car procsig))	;goal-proc returns dynamic
     (map (bta-assert symtab) bts (cdr procsig))
+;;;    (pp (bta-display-d d*))
     (bta-solve-d d*)
-    ;;(pp d*);;display
     d*
     ))
 ;;; assert binding time `bt' for `tv'
@@ -36,7 +41,7 @@
        ((pair? bt)
 	;; might want to cross check #args of constructors
 	(let* ((ctor (caar bt))
-	       (makector (cdr (assoc ctor symtab)))
+	       (makector (cadr (assoc ctor symtab)))
 	       (dummy (makector ctor '()))
 	       (desc (annFetchCtorDesc dummy))
 	       (nt (desc-nt desc))
@@ -46,7 +51,7 @@
 	  (map (lambda (one-ctor)
 		 (let* ((ctor (car one-ctor))
 			(bts (cdr one-ctor))
-			(makector (cdr (assoc ctor symtab)))
+			(makector (cadr (assoc ctor symtab)))
 			(dummy (makector ctor '()))
 			(desc (annFetchCtorDesc dummy))
 			(np (desc-np desc)))
@@ -114,50 +119,57 @@
 	(ecr2 (bta-get-ecr tv2)))
     (if (eq? ecr1 ecr2)
 	ecr1
-	(begin
-	  (if (bta-dynamic? ecr1)
-	      (if (not (bta-dynamic? ecr2))
-		  (bta-make-dynamic ecr2))
-	      (if (bta-dynamic? ecr2)
-		  (bta-make-dynamic ecr1)
-		  ;; only if both are static:
-		  (begin
-		    (tv-add-dependents! ecr1 (tv-get-dependents ecr2))
-		    (let ((leq1 (tv-get-leq-field ecr1))
-			  (leq2 (tv-get-leq-field ecr2)))
-		      (if (and leq1 leq2)
-			  (if (equal? (bta-c-fetch-ctor leq1)
-				      (bta-c-fetch-ctor leq2))
-			      (map bta-equate
-				   (bta-c-fetch-ctor-args leq1)
-				   (bta-c-fetch-ctor-args leq2))
-			      (begin	; different constraints
-				(bta-make-dynamic ecr1)
-				(bta-make-dynamic ecr2)))
-			  ;; at least one of leq1, leq2 is #f
-			  (let* ((constraint (or leq1 leq2))
-				 (ctor (and constraint
-					    (bta-c-fetch-ctor constraint)))
-				 (update
-				  (lambda ()
-				    (tv-set-lift-field!
-				     ecr1
-				     (append (tv-get-lift-field ecr2)
-					     (tv-get-lift-field ecr1))))))
-			    (if (or (not ctor)
-				    (equal? ctor '***static***))
-				(update)
-				(begin
-				  (if leq1
-				      (map (lambda (tv)
-					     (bta-equate tv ecr1))
-					   (tv-get-lift-field ecr2)))
-				  (if leq2
-				      (map (lambda (tv)
-					     (bta-equate tv ecr1))
-					   (tv-get-lift-field ecr1)))))
-			    (tv-set-leq-field! ecr1 constraint)))))))
-	  (tv-set-father! ecr2 ecr1)
+	(let ((dyn1 (bta-dynamic? ecr1))
+	      (dyn2 (bta-dynamic? ecr2)))
+	  (if (or dyn1 dyn2)
+	      (begin
+		(if (not dyn1) (bta-make-dynamic ecr1))
+		(if (not dyn2) (bta-make-dynamic ecr2))
+		(tv-set-father! ecr2 ecr1))
+	      ;; only if both are static:
+	      (begin
+		(tv-set-father! ecr2 ecr1)
+		(tv-add-dependents! ecr1 (tv-get-dependents ecr2))
+		(let ((leq1 (tv-get-leq-field ecr1))
+		      (leq2 (tv-get-leq-field ecr2)))
+;;;		  (display (list "leq1:" (and leq1 (bta-c-fetch-ctor leq1))
+;;;				 "leq2:" (and leq2 (bta-c-fetch-ctor leq2)))) 
+		  (if (and leq1 leq2)
+		      (if (equal? (bta-c-fetch-ctor leq1)
+				  (bta-c-fetch-ctor leq2))
+			  (begin
+			    (map bta-equate
+				 (bta-c-fetch-ctor-args leq1)
+				 (bta-c-fetch-ctor-args leq2))
+;;;			    (display (list "final-leq:"(bta-c-fetch-ctor leq1)))
+			    )
+			  (begin	; different constraints
+			    (bta-make-dynamic ecr1)
+			    (bta-make-dynamic ecr2)
+;;;			    (display (list "final-leq:" #f))
+			    ))
+		      ;; at least one of leq1, leq2 is #f
+		      (let* ((constraint (or leq1 leq2))
+			     (ctor (and constraint
+					(bta-c-fetch-ctor constraint))))
+			(tv-set-leq-field! ecr1 constraint)
+			(tv-set-leq-field! ecr2 constraint)
+;;;			(display (list "final-leq:" ctor))
+			(if (or (not ctor)
+				(equal? ctor '***static***))
+			    (tv-set-lift-field!
+			     ecr1
+			     (append (tv-get-lift-field ecr2)
+				     (tv-get-lift-field ecr1)))
+			    (begin
+			      (if leq1
+				  (map (lambda (tv)
+					 (bta-equate tv ecr1))
+				       (tv-get-lift-field ecr2)))
+			      (if leq2
+				  (map (lambda (tv)
+					 (bta-equate tv ecr1))
+				       (tv-get-lift-field ecr1))))))))))
 	  ecr1))))
 
 (define (bta-dynamic? tv)
@@ -173,7 +185,9 @@
 	(begin
 	  (bta-dynamize! ecr)
 	  (map bta-make-dynamic (tv-get-dependents ecr))
-	  (map bta-make-dynamic (tv-get-lift-field ecr))
+	  (let ((lifts (tv-get-lift-field ecr)))
+	    (tv-set-lift-field! ecr '())
+	    (map (lambda (lift) (bta-equate ecr lift)) lifts))
 	  (if (tv-get-leq-field ecr)
 	      (map bta-make-dynamic
 		   (bta-c-fetch-ctor-args (tv-get-leq-field ecr)))))))
@@ -245,6 +259,7 @@
 	       (pvs (map (lambda (v) (tv-make)) vars))
 	       (po0 (bta-collect (annFetchLambdaBody e)
 				 (append (map cons vars pvs) symtab))))
+	  (bta-equate pi po)
 	  (bta-add-leq pi '-> (cons po0 pvs))
 	  (map (lambda (pp) (bta-add-dependent pi pp)) (cons po0 pvs))))
        ((annIsApp? e)
@@ -263,6 +278,7 @@
 	       (pp (append (nlist nr-pre tv-make)
 			   pos
 			   (nlist nr-post tv-make))))
+	  (bta-equate pi po)
 	  (bta-add-leq pi (desc-type ctorDesc) pp)
 	  (map (lambda (px) (bta-add-dependent pi px)) pp)))
        ((annIsSel? e)
@@ -311,6 +327,60 @@
       (if (bta-dynamic? ecr)
 	  (bta-make-dynamic dep)
 	  (tv-add-dependents! ecr (list dep)))))
+
+;;; display binding-time constraints
+(define (bta-display-d d*)
+  (map (lambda (d)
+	 `(DEFINE (,(annDefFetchProcName d) ,@(annDefFetchProcFormals d))
+	    ,(bta-tv->type (annDefFetchProcBTVar d))
+	    ,(bta-display (annDefFetchProcBody d)))) d*))
+
+(define (bta-display-tv tv)
+  (let ((ecr (bta-get-ecr tv)))
+    (list (tv-get-counter ecr)
+	  (tv-value ecr)
+	  (and (tv-get-leq-field ecr)
+	       (bta-c-fetch-ctor (tv-get-leq-field ecr)))
+	  (map tv-get-counter (map bta-get-ecr (tv-get-dependents ecr)))
+	  (map tv-get-counter (map bta-get-ecr (tv-get-lift-field ecr))))))
+
+(define (bta-display e)
+  (let loop ((e e))
+    (let ((pi (annExprFetchBTi e)) (po (annExprFetchBTo e)))
+      ;; pi and po must be associated with the expression
+      (append
+       (list (bta-display-tv pi) (bta-display-tv po))
+       (cond
+	((annIsVar? e)
+	 (annFetchVar e))
+       ((annIsConst? e)
+	(annFetchConst e))
+       ((annIsCond? e)
+	`(IF ,(loop (annFetchCondTest e))
+	     ,(loop (annFetchCondThen e))
+	     ,(loop (annFetchCondElse e))))
+       ((annIsOp? e)
+	`(,(annFetchOpName e)
+	  ,@(map loop (annFetchOpArgs e))))
+       ((annIsCall? e)
+	`(,(annFetchCallName e)
+	  ,@(map loop (annFetchCallArgs e))))
+       ((annIsLet? e)
+	`(LET ((,(annFetchLetVar e) ,(loop (annFetchLetHeader e))))
+	   ,(loop (annFetchLetBody e))))
+       ((annIsLambda? e)
+	`(LAMBDA ,(annFetchLambdaVars e)
+	   ,(loop (annFetchLambdaBody e))))
+       ((annIsApp? e)
+	`(,(loop (annFetchAppRator e))
+	  ,@(map loop (annFetchAppRands e))))
+       ;; constructor support not yet cast in stone
+       ((annIsCtor? e)
+	`(,(annFetchCtorName e) ,@(map loop (annFetchCtorArgs e))))
+       ((annIsSel? e)
+	`(,(annFetchSelName e) ,(loop (annFetchSelArg e))))
+       ((annIsTest? e)
+	`(,(annFetchTestName e) ,(loop (annFetchTestArg e)))))))))
 
 ;;; bta-solve-d evaluates the normalized constraint set
 (define (bta-solve-d d*)
@@ -373,20 +443,27 @@
 ;;; mainly for debugging
 ;;; (re)construct the binding-time type of a program point
 (define (bta-tv->type tv)
-  (let ((tv (bta-get-ecr tv)))
-  (if (bta-dynamic? tv)
-      'D
-      (let ((leq (tv-get-leq-field tv)))
-	(if leq
-	    (let ((ctor (bta-c-fetch-ctor leq))
-		  (args (bta-c-fetch-ctor-args leq)))
-	      (cond
-	       ((equal? ctor '***static***)
-		'S)
-	       ((equal? ctor '->)
-		(append (map bta-tv->type (cdr args))
-			(list ctor (bta-tv->type (car args)))))
-	       (else
-		(cons ctor (map bta-tv->type (args)))))
-	      )
-	    'S))))) 
+  (let loop ((tv tv) (seen-tvs '()))
+    (let ((tv (bta-get-ecr tv)))
+      (cons
+       (tv-get-counter tv)
+       (if (bta-dynamic? tv)
+	   'D
+	   (let ((leq (tv-get-leq-field tv)))
+	     (if leq
+		 (let ((ctor (bta-c-fetch-ctor leq))
+		       (args (bta-c-fetch-ctor-args leq)))
+		   (cond
+		    ((equal? ctor '***static***)
+		     'S)
+		    ((member tv seen-tvs)
+		     '*)
+		    (else
+		     (let* ((seen-tvs (cons tv seen-tvs))
+			    (local-loop (lambda (tv) (loop tv seen-tvs))))
+		       (if (equal? ctor '->)
+			   (append (map local-loop (cdr args))
+				   (list ctor (local-loop (car args))))
+			   (cons ctor (map local-loop (cdr args)))
+			   )))))
+		 'S))))))) 

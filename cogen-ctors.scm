@@ -10,6 +10,7 @@
 	  (%car (r 'car))
 	  (%define (r 'define))
 	  (%equal? (r 'equal?))
+	  (%if (r 'if))
 	  (%list (r 'list))
 	  (%list-ref (r 'list-ref)))
     (cons %begin
@@ -33,7 +34,9 @@
 			(cons
 			 `(,%define
 			   (,(car sels) x)
-			   (,%list-ref x ,i))
+			   (,%if (,ctor-test x)
+				 (,%list-ref x ,i)
+				 (error "bad selector")))
 			 (loop (cdr sels) (+ i 1)))))))))
 	       (cddr x)))))))
 ;;;
@@ -47,6 +50,9 @@
 ;;; another single expression
 ;;; no there was a format error, furthermore the form (begin <define>
 ;;; ...) is explicitly allowed for (essential syntax)!
+
+(define (ctors-make-test ctor)
+  (string->symbol (string-append (symbol->string ctor) "?")))
 
 (define (ctors-generate-define defconstr-clause)
   (map (lambda (ctor-decl)

@@ -1,0 +1,1 @@
+(defdata my-list (my-nil) (my-cons my-car my-cdr)) 

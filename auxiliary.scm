@@ -16,6 +16,19 @@
 				    (number->string x))))))
 (define gencont (lambda () (gensym 'c)))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; auxiliary
+(define *memolist* '())
+(define *residual-program* '())
+(define (add-to-memolist! item)
+  (set! *memolist* (cons item *memolist*)))
+(define (clear-memolist!)
+  (set! *memolist* '()))
+(define (add-to-residual-program! item)
+  (set! *residual-program* (cons item *residual-program*)))
+(define (clear-residual-program!)
+  (set! *residual-program* '()))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
  
 ;;; list of n results of applying thunk
 (define (nlist n thunk)
@@ -67,4 +80,9 @@
       (let loop ((obj (read)))
 	(if (eof-object? obj)
 	    '()
-	    (cons obj (loop (read)))))))) 
+	    (cons obj (loop (read))))))))
+;;; write a list of Scheme objects
+(define (writelpp l filename)
+  (with-output-to-file filename
+    (lambda ()
+      (for-each p l)))) 

@@ -1,4 +1,8 @@
 ;;; skeleton for multi-level cogen
+;;; $Id$
+;;; $Log$
+;;; Revision 1.3  1995/10/23 16:53:03  thiemann
+;;; continuation based reduction works
 ;;;
 
 ;;; idea: generate new procedure names for the "copies" of the old
@@ -37,7 +41,7 @@
      ((annIsVar? e)
       (annFetchVar e))
      ((annIsConst? e)
-      `(RESULT-C (QUOTE ,(annFetchConst e))))
+      `(_LIFT0 1 ',(annFetchConst e)))
      ((annIsCond? e)
       `(_IF ,(+ 1 (annExprFetchLevel (annFetchCondTest e)))
 	    ,(loop (annFetchCondTest e))
@@ -63,15 +67,16 @@
 	     (fvars (map annFetchVar fvar-exprs))
 	     (bts (map succ (map annExprFetchLevel fvar-exprs))))
 	`(_LAMBDA_MEMO
-	  ,(+ 1 (annExprFetchLevel e))
-	  ,(length (annFetchLambdaVars e))
-	  ,(annFetchLambdaLabel e)
+	  ',(+ 1 (annExprFetchLevel e))
+	  ',(annFetchLambdaVars e)
+	  ',(annFetchLambdaLabel e)
 	  ',fvars
 	  ',bts
-	  (LAMBDA ,(annFetchLambdaVars e)
-	    ,(loop (annFetchLambdaBody e))))))
+	  (LAMBDA ,fvars
+	    (LAMBDA ,(annFetchLambdaVars e)
+	    ,(loop (annFetchLambdaBody e)))))))
      ((annIsApp? e)
-      `(_APP_MEMO ,(+ 1 (annExprFetchLevel e))
+      `(_APP_MEMO ,(+ 1 (annExprFetchLevel (annFetchAppRator e)))
 	     ,(loop (annFetchAppRator e))
 	     ,@(map loop (annFetchAppRands e))))
      ((annIsCtor? e)
@@ -80,12 +85,11 @@
 		   ',(annFetchCtorName e)
 		   ,@(map loop (annFetchCtorArgs e))))
      ((annIsSel? e)
-      `(_SEL_MEMO ,(succ (annExprFetchLevel e))
+      `(_SEL_MEMO ,(succ (annExprFetchLevel (annFetchSelArg e)))
 		  ',(annFetchSelName e)
-		  ,(annFetchSelComp e)
 		  ,(loop (annFetchSelArg e))))
      ((annIsTest? e)
-      `(_TEST_MEMO ,(succ (annExprFetchLevel e))
+      `(_TEST_MEMO ,(succ (annExprFetchLevel (annFetchTestArg e)))
 		   ',(annFetchTestName e)
 		   ,(loop (annFetchTestArg e))))
      ((annIsLift? e)

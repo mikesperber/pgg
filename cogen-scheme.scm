@@ -32,7 +32,7 @@
     (map (lambda (d)
 	   (let* ((formals (cdadr d))
 		  (symtab (append (map (lambda (v)
-					 (list v annMakeApp -1)) formals)
+					 (list v scheme-make-var-app -1)) formals)
 				  symtab)))
 	     (annMakeDef (caadr d)
 			 formals
@@ -54,7 +54,7 @@
      ((not (pair? e))
       (annMakeConst e))
      ((equal? (car e) 'QUOTE)
-      (annMakeConst (cdr e)))
+      (annMakeConst (cadr e)))
      (else
       (let* ((tag (car e))
 	     (args (cdr e))
@@ -93,10 +93,12 @@
 		  (loop body))
 		 ((= 1 (length headers))
 		  (annMakeLet (caaar args)
-			      (cadaar args)
+			      (scheme->abssyn-e
+			       (cadaar args)
+			       symtab)
 			      (scheme->abssyn-e
 			       body
-			       (cons (list (caaar args) annMakeApp -1)
+			       (cons (list (caaar args) scheme-make-var-app -1)
 				     symtab))))
 		 ;; the following case is dead
 		 (else
@@ -123,7 +125,7 @@
 			      (scheme->abssyn-e
 			       `(LET* (,(cdr headers))
 				  ,body)
-			       (cons (list (caaar args) annMakeApp -1)
+			       (cons (list (caaar args) scheme-make-var-app -1)
 				     symtab)))))))
 	     ;; misuse LET for sequencing, too
 	     ;; these LETs may have to be marked as not discardable if
@@ -139,7 +141,7 @@
 	     ((equal? tag 'LAMBDA)
 	      (let* ((formals (car args))
 		     (symtab (append
-			      (map (lambda (var) (list var annMakeApp -1))
+			      (map (lambda (var) (list var scheme-make-var-app -1))
 				   formals)
 			      symtab)))
 		(annMakeLambda
@@ -160,6 +162,9 @@
 	body
 	(let ((v (car formals)))
 	  (annMakeLet v (annMakeVar v) (loop (cdr formals)))))))
+
+(define (scheme-make-var-app var rands)
+  (annMakeApp (annMakeVar var) rands))
 
 ;;; first step: rename variables so that every variable has exactly
 ;;; one binding occurrence, transform LET* and LET into LET with just
