@@ -13,7 +13,7 @@
 (define gensym (lambda (sym)
 		 (set! *gensym-counter* (+ *gensym-counter* 1))
 		 (any->symbol sym "-" *gensym-counter*)))
-(define *gensym-local* '())
+(define *gensym-local* (list 0))
 (define gensym-local-reset! (lambda () (set! *gensym-local* '())))
 (define gensym-local-push! (lambda () (set! *gensym-local* (cons 0 *gensym-local*))))
 (define gensym-local-pop! (lambda () (set! *gensym-local* (cdr *gensym-local*))))
