@@ -116,6 +116,14 @@
 		(loop (cdr bts) formals (cons `',sym actuals) (+ i 1))))))
     *generating-extension*))
 
+;;; test if memoizing code must be generated
+;;; standard representation may be used if the value is memoized at a
+;;; memo-level less than or equal to the level of the value itself
+(define (use-standard-rep memo-level level)
+  (let ((r (and *memo-optimize* (<= memo-level level))))
+    ;;; (display-line "use-standard-rep " memo-level " " level " ==> " r)
+    r))
+
 ;;; transform binding-time annotated expression e 
 ;;; into the generating extension
 (define (generate fname e)
@@ -195,7 +203,7 @@
 	     (memo-level
 	      (ann->bt
 	       (type->memo (node-fetch-type (annExprFetchType e))))))
-	(if (and *memo-optimize* (<= memo-level level))
+	(if (use-standard-rep memo-level level)
 	    (make-ge-lambda level
 			    vars btv
 			    (loop body))
@@ -218,7 +226,7 @@
 	     (memo-level
 	      (ann->bt
 	       (type->memo (node-fetch-type (annExprFetchType e))))))
-	(if (and *memo-optimize* (<= memo-level level))
+	(if (use-standard-rep memo-level level)
 	    (make-ge-vlambda level fixed-vars
 			    var btv
 			    (loop body))
@@ -239,7 +247,8 @@
 	     (the-rator (loop rator))
 	     (the-rands (map loop rands))
 	     (btv (map annExprFetchLevel rands)))
-	(if (and *memo-optimize* (<= memo-level level))
+	;;; (if (annIsVar? rator) (display-line "App " (annFetchVar rator)))
+	(if (use-standard-rep memo-level level)
 	    (make-ge-app level the-rator btv the-rands)
 	    (make-ge-app-memo level the-rator btv the-rands))))
      ((annIsCtor? e)
@@ -249,7 +258,7 @@
 	       (type->memo (node-fetch-type (annExprFetchType e)))))
 	     (desc (annFetchCtorDesc e)))
 	(register-type-desc! desc level)
-	(if (and *memo-optimize* (<= memo-level level))
+	(if (use-standard-rep memo-level level)
 	    (make-ge-ctor level
 			  (annFetchCtorName e)
 			  (map loop (annFetchCtorArgs e)))
@@ -265,7 +274,7 @@
 	      (ann->bt
 	       (type->memo (node-fetch-type (annExprFetchType arg))))))
 	(register-type-desc! (annFetchSelDesc e) level)
-	((if (and *memo-optimize* (<= memo-level level))
+	((if (use-standard-rep memo-level level)
 	     make-ge-sel make-ge-sel-memo)
 	 level
 	 (annFetchSelName e)
@@ -277,7 +286,7 @@
 	      (ann->bt
 	       (type->memo (node-fetch-type (annExprFetchType arg))))))
 	(register-type-desc! (annFetchTestDesc e) level)
-	((if (and *memo-optimize* (<= memo-level level))
+	((if (use-standard-rep memo-level level)
 	     make-ge-test make-ge-test-memo)
 	 level
 	 (annFetchTestName e)
@@ -321,7 +330,7 @@
 	     (memo-level
 	      (ann->bt
 	       (type->memo (node-fetch-type (annExprFetchType e))))))
-	(if (and *memo-optimize* (<= memo-level level))
+	(if (use-standard-rep memo-level level)
 	    (make-ge-op level 'MAKE-CELL (list (loop arg)))
 	    (make-ge-make-cell-memo level label arg-level (loop arg)))))
      ((annIsDeref? e)
@@ -330,7 +339,7 @@
 	     (memo-level
 	      (ann->bt
 	       (type->memo (node-fetch-type (annExprFetchType arg))))))
-	(if (and *memo-optimize* (<= memo-level level))
+	(if (use-standard-rep memo-level level)
 	    (make-ge-op level 'CELL-REF (list (loop arg)))
 	    (make-ge-cell-ref-memo level (loop arg)))))
      ((annIsAssign? e)
@@ -340,7 +349,7 @@
 	     (memo-level
 	      (ann->bt
 	       (type->memo (node-fetch-type (annExprFetchType ref))))))
-	(if (and *memo-optimize* (<= memo-level level))
+	(if (use-standard-rep memo-level level)
 	    (make-ge-op level 'CELL-SET! (list (loop ref) (loop arg)))
 	    (make-ge-cell-set!-memo level (loop ref) (loop arg)))))
      ((annIsCellEq? e)
@@ -349,7 +358,7 @@
 	     (memo-level
 	      (ann->bt
 	       (type->memo (node-fetch-type (annExprFetchType (car args)))))))
-	(if (and *memo-optimize* (<= memo-level level))
+	(if (use-standard-rep memo-level level)
 	    (make-ge-op level 'EQ? (map loop args))
 	    (make-ge-cell-eq?-memo level (map loop args)))))
      ((annIsVector? e)
@@ -361,7 +370,7 @@
 	     (memo-level
 	      (ann->bt
 	       (type->memo (node-fetch-type (annExprFetchType e))))))
-	(if (and *memo-optimize* (<= memo-level level))
+	(if (use-standard-rep memo-level level)
 	    (make-ge-op level 'MAKE-VECTOR (list (loop size) (loop arg)))
 	    (make-ge-make-vector-memo level label arg-level (loop size) (loop arg)))))
      ((annIsVref? e)
@@ -371,7 +380,7 @@
 	     (memo-level
 	      (ann->bt
 	       (type->memo (node-fetch-type (annExprFetchType arg))))))
-	(if (and *memo-optimize* (<= memo-level level))
+	(if (use-standard-rep memo-level level)
 	    (make-ge-op level 'VECTOR-REF (list (loop arg) (loop index)))
 	    (make-ge-vector-ref-memo level (loop arg) (loop index)))))
      ((annIsVlen? e)
@@ -380,7 +389,7 @@
 	     (memo-level
 	      (ann->bt
 	       (type->memo (node-fetch-type (annExprFetchType vec))))))
-	(if (and *memo-optimize* (<= memo-level level))
+	(if (use-standard-rep memo-level level)
 	    (make-ge-op level 'VECTOR-LENGTH (list (loop vec)))
 	    (make-ge-vector-length-memo level (loop vec)))))
      ((annIsVset? e)
@@ -391,7 +400,7 @@
 	     (memo-level
 	      (ann->bt
 	       (type->memo (node-fetch-type (annExprFetchType vec))))))
-	(if (and *memo-optimize* (<= memo-level level))
+	(if (use-standard-rep memo-level level)
 	    (make-ge-op level 'VECTOR-SET! (list (loop vec) (loop index) (loop arg)))
 	    (make-ge-vector-set!-memo level (loop vec) (loop index) (loop arg)))))
      ((annIsVfill? e)
@@ -401,7 +410,7 @@
 	     (memo-level
 	      (ann->bt
 	       (type->memo (node-fetch-type (annExprFetchType vec))))))
-	(if (and *memo-optimize* (<= memo-level level))
+	(if (use-standard-rep memo-level level)
 	    (make-ge-op level 'VECTOR-FILL! (list (loop vec) (loop arg)))
 	    (make-ge-vector-fill!-memo level (loop vec) (loop arg)))))
      (else

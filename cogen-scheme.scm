@@ -124,7 +124,9 @@
     (map (lambda (d) (scheme->abssyn-one-d imp-defined-names* symtab d)) d*))) 
 
 (define (scheme->abssyn-make-call fname args)
-  (annMakeApp (annMakeVar fname) (map ann-maybe-coerce args))
+  (let ((v (annMakeVar fname)))
+    (annSetVarCall! v #t)
+    (annMakeApp v (map ann-maybe-coerce args)))  
   ;; (annMakeCall fname (map ann-maybe-coerce args))
   )
 
@@ -1045,7 +1047,6 @@
 		     ,(loop body))))
 	   (else
 	    (cons (loop tag) (map loop args))))))))
-
 
 ;;; compute the intersection of the free variables in `e' and `vars'
 (define (scheme-freevars e vars)

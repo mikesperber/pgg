@@ -80,7 +80,7 @@
   (vector-set! e 5 bt))
 ;;; variable
 (define (annMakeVar v)
-  (annMakeExpr 'VAR (vector v #f)))
+  (annMakeExpr 'VAR (vector v #f #f)))
 (define (annIsVar? e)
   (eq? 'VAR (annExprFetchTag e)))
 (define (annFetchVar e)
@@ -89,6 +89,10 @@
   (annExprFetchSubobject e 1))
 (define (annSetVarGlobal! e prop)
   (annExprSetSubobject! e 1 prop))
+(define (annFetchVarCall e)
+  (annExprFetchSubobject e 2))
+(define (annSetVarCall! e prop)
+  (annExprSetSubobject! e 2 prop))
 ;;; constant
 (define (annMakeConst c)
   (annMakeExpr 'CONST c))
@@ -427,7 +431,9 @@
   (let loop ((e e))
     (cond
      ((annIsVar? e)
-      (list e))
+      (if (annFetchVarCall e)
+	  '()
+	  (list e)))
      ((annIsConst? e)
       '())
      ((annIsCond? e)

@@ -34,6 +34,8 @@
 	  annFetchVar
 	  annFetchVarGlobal
 	  annSetVarGlobal!
+	  annFetchVarCall
+	  annSetVarCall!
 	  annMakeConst
 	  annIsConst?
 	  annFetchConst
