@@ -24,19 +24,22 @@
       (error "Undefined label")))))
 
 ;;; jump-initial: 1 1 [1]0
-(define-without-memoization (jump-initial module label args)
-  (_load module
+(define-without-memoization (jump-initial modulename name args)
+  (_load modulename
 	 (lambda (mod-name mod-body)
-	   (let loop ((labels (map (lambda (def) (car def)) mod-body)))
-	     (if (pair? labels)
-		 (let ((this-label (car labels)))
-		   (if (eqv? label this-label)
-		       ((jump-global mod-name mod-body) this-label args)
-		       (loop (cdr labels))))
-		 (jump-initial module label args))))))
+	   (if (null? mod-body)
+	       (dyn-error "invalid module name")
+	       (let loop ((names (map (lambda (def) (car def)) mod-body)))
+		 (if (pair? names)
+		     (let ((this-name (car names)))
+		       (if (eqv? name this-name)
+			   ((jump-global mod-name mod-body) this-name args)
+			   (loop (cdr names))))
+		     (jump-initial modulename name args)))))))
 
 ;;; main : 1 1 0 1
-(define (main module label nregs initial_args)
-  (let ((args (copy nregs initial_args)))
-    (jump-initial module label args)))
+(define (main modulename name nargs initial_args)
+  (let ((args (copy nargs initial_args)))
+    (jump-initial modulename name args)))
+    
 

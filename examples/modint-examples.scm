@@ -1,16 +1,33 @@
-(define exported-labels '((add . mod1) (finis . mod2)))
+(define exported-labels '((add . mod1) (finis . mod1) (copy . mod2)))
 
 (define module1
-  '((add . ((jz 1 finis)
+  '((add . ((jz 1 copy)
 	    (decr 1)
 	    (incr 0)
-	    (jump add)))))
+	    (jump add)))
+    (finis . ())))
 
 (define module2
-  '((finis . ())))
+  '((copy . ((jz 2 testadd)
+	     (incr 1)
+	     (decr 2)
+	     (jump copy)))
+    (testadd . ((jz 1 finis)
+		(jump add)))))
 
-(define module1a
-  '((add . ((jz 1 (mod2 . finis))
+;; same example with qualifying module names
+(define module_1
+  '((add . ((jz 1 (mod2 . copy))
 	    (decr 1)
 	    (incr 0)
-	    (jump add)))))
+	    (jump (mod1 . add))))
+    (finis . ())))
+
+(define module_2
+  '((copy . ((jz 2 (mod2 . testadd))
+	     (incr 1)
+	     (decr 2)
+	     (jump (mod2 . copy))))
+    (testadd . ((jz 1 (mod1 . finis))
+		(jump (mod1 . add))))))
+

@@ -4,23 +4,23 @@
 ;;; (load "modint-base.scm")
 
 ;;; jump : 0 1 0 [1]0
-(define (jump-local module-of mod name args)
-  (let ((found (assoc name mod)))
-    (if found
-	(_memo (exec (lambda (name args) (jump-local module-of mod name args))
-		     (cdr found)
-		     args))
-	(jump-global module-of name args))))
+(define (jump-local modulename-of mod)
+  (lambda (name args)
+    (let ((found (assoc name mod)))
+      (if found
+	  (_memo (exec (jump-local modulename-of mod))
+		       (cdr found)
+		       args))
+	  (jump-global modulename-of name args))))
 
-(define (jump-global module-of name args)
-  (_load (module-of name)
+(define (jump-global modulename-of name args)
+  (_load (modulename-of name)
 	 (lambda (mod-name mod-body)
 	   (if (null? mod-body)
 	       (error "Undefined label")
-	       (jump-local module-of mod-body name args)))))
+	       (jump-local modulename-of mod-body name args)))))
 
 ;;; main : 1 0 0 1
-(define (main module-of name nargs initial_args)
+(define (main modulename-of name nargs initial_args)
   (let ((args (copy nargs initial_args)))
-    (jump-global module-of name args)))
-
+    (jump-global modulename-of name args)))
