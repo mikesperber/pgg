@@ -39,8 +39,9 @@
   (set! *scheme->abssyn-mutable-variables* '())
   (set-scheme->abssyn-static-references! #f)
   (let* ((d* (scheme-rename-variables-d d*))
-	 ;; (dummy (p d*))
+	 ;; (dummy (writelpp d* "/tmp/def1.scm"))
 	 (d* (map scheme-wrap-one-d d*))
+	 ;; (dummy (writelpp d* "/tmp/def2.scm"))
 	 (d* (scheme-lambda-lift-d d*))
 	 ;; (dummy (p d*))
 	 (symtab
@@ -285,7 +286,9 @@
   (set! *scheme-rename-counter* '())
   (let ((symtab (map (lambda (d)
 		       (let ((template (cadr d)))
-			 (cons (car template) `(LAMBDA ,(cdr template) ,template))))
+			 (if (pair? template)
+			     (cons (car template) `(LAMBDA ,(cdr template) ,template))
+			     (cons template template))))
 		     d*)))
     (map (lambda (d)
 	   ;;(display "scheme-rename-variables: ") (display (caadr d)) (newline)
@@ -319,6 +322,7 @@
 		    (new-args (map loop args)))
 		(cons new-tag new-args)))
 	     ((equal? tag 'QUOTE)
+	      ;;(display "!!!Q1 ") (display e) (newline)
 	      e)
 	     ;;
 	     ((equal? tag 'CASE)
@@ -424,10 +428,16 @@
 		     (bodies (map cadr (car args)))
 		     (body-list (cdr args))
 		     (new-formals (map scheme-rename-clone formals))
-		     ;; assume all bodies are lambdas
-		     (arities (map (lambda (body) (cadr body)) bodies))
+		     ;; assume [no longer that] all bodies are lambdas
+		     (arities (map (lambda (body)
+				     (and (pair? body)
+					  (eq? 'LAMBDA (car body))
+					  (cadr body)))
+				   bodies))
 		     (munge (lambda (formal new-formal arity)
-			      (cons formal `(LAMBDA ,arity (,new-formal ,@arity)))))
+			      (if arity
+				  (cons formal `(LAMBDA ,arity (,new-formal ,@arity)))
+				  (cons formal new-formal))))
 		     (new-symtab (append (map munge formals new-formals arities) symtab))
 		     (new-bodies (map (lambda (formal body)
 					;;(display "letrec: ") (display formal) (newline)
@@ -436,8 +446,31 @@
 		     (new-body (scheme-rename-variables
 				new-symtab
 				(scheme-body-list->body body-list))))
-		`(LETREC ,(map list new-formals new-bodies)
-		   ,new-body)))
+		(let loop ((new-formals new-formals)
+			   (arities arities)
+			   (new-bodies new-bodies)
+			   (new-headers '())
+			   (final-body new-body))
+		  (if (null? new-formals)
+		      `(LETREC ,(reverse new-headers) ,new-body)
+		      (let ((new-formal (car new-formals))
+			    (arity (car arities))
+			    (new-body (car new-bodies)))
+			(if arity
+			    (loop (cdr new-formals)
+				  (cdr arities)
+				  (cdr new-bodies)
+				  (cons (list new-formal new-body) new-headers)
+				  final-body)
+			    (begin
+			      (scheme->abssyn-mutable-variable! new-formal)
+			      `(LET ((,new-formal #f))
+				 ,(loop (cdr new-formals)
+					(cdr arities)
+					(cdr new-bodies)
+					new-headers
+					`(BEGIN (SET! ,new-formal ,new-body)
+						,final-body))))))))))
 	     ;;
 	     ((equal? tag 'LAMBDA)
 	      (let* ((formals (car args))
@@ -493,14 +526,19 @@
 	    (loop (cdr body-list) (cons (car body-list) definitions))
 	    (let ((real-body (if (= 1 (length body-list))
 				 (car body-list)
-				 `(BEGIN ,@body-list))))
+				 `(BEGIN ,@body-list)))
+		  (def->letrec-clause
+		    (lambda (def)
+		      (let ((template (cadr def))
+			    (inner-body-list (cddr def)))
+			(if (pair? template)
+			    `(,(car template) (LAMBDA ,(cdr template)
+						,@inner-body-list))
+			    `(,template ,(car inner-body-list)))))))
 	      (if (null? definitions)
 		  real-body
 		  `(LETREC
-		       ,(map (lambda (d)
-			       `(,(caadr d)
-				 (LAMBDA ,(cdadr d) ,@(cddr d))))
-			     definitions)
+		       ,(map def->letrec-clause definitions)
 		     ,real-body)))))))
 
 ;;; before second step:
@@ -510,7 +548,7 @@
   (let loop ((new->old new->old))
     (if (null? new->old)
 	body
-	`(LET ((,(caar new->old) (MAKE-CELL ,(cdar new->old))))
+	`(LET ((,(cdar new->old) (MAKE-CELL ,(caar new->old))))
 	   ,(loop (cdr new->old))))))
 
 (define (scheme-wrap-binding bound-vars body build)
@@ -518,14 +556,23 @@
     (if (null? old-vars)
 	(build (reverse new-vars)
 	       (scheme-wrap-mutables new->old body))
-	(let ((old-var (car old-vars))
-	      (old-vars (cdr old-vars)))
-	  (if (member old-var *scheme->abssyn-mutable-variables*)
-	      (let ((new-var (gensym old-var)))
-		(loop old-vars
-		      (cons new-var new-vars)
-		      (cons (cons new-var old-var) new->old)))
-	      (loop old-vars (cons old-var new-vars) new->old))))))
+	(if (pair? old-vars)
+	    (let ((old-var (car old-vars))
+		  (old-vars (cdr old-vars)))
+	      (if (member old-var *scheme->abssyn-mutable-variables*)
+		  (let ((new-var (gensym old-var)))
+		    (loop old-vars
+			  (cons new-var new-vars)
+			  (cons (cons new-var old-var) new->old)))
+		  (loop old-vars (cons old-var new-vars) new->old)))
+	    (let ((old-var old-vars))
+	      (if (member old-var *scheme->abssyn-mutable-variables*)
+		  (let ((new-var (gensym old-var)))
+		    (build (append (reverse new-vars) new-var)
+			   (scheme-wrap-mutables (cons (cons new-var old-var) new->old)
+						 body)))
+		  (build (append (reverse new-vars) old-var)
+			 (scheme-wrap-mutables new->old body))))))))
 
 (define (scheme-wrap-one-d d)
   (let ((definer (car d))
@@ -552,6 +599,7 @@
 		(rands (map scheme-wrap-e args)))
 	    `(,rator ,@rands)))
 	 ((equal? tag 'QUOTE)
+	  ;;(display "!!!Q2 ") (display e) (newline)
 	  e)
 	 ((equal? tag 'SET!)
 	  `(CELL-SET! ,(car args) ,
@@ -571,10 +619,15 @@
 	 ;;
 	 ((equal? tag 'LETREC)
 	  (let* ((headers (car args))
-		 (body (cadr args)))
+		 (body (cadr args))		 
+		 (wrapper (lambda (bound-var)
+			    (if (member bound-var *scheme->abssyn-mutable-variables*)
+				(lambda (body) `(MAKE-CELL ,body))
+				(lambda (body) body)))))
 	    `(LETREC ,(map (lambda (header)
-			     (cons (car header)
-				   (scheme-wrap-e (cdr header))))
+			     (let ((bound-var (car header)))
+			       (cons bound-var
+				     ((wrapper bound-var) (scheme-wrap-e (cdr header))))))
 			   headers)
 	       ,(scheme-wrap-e body))))
 	 ;;
@@ -623,6 +676,7 @@
 			    args)))
 	    `(,rator ,@rands)))
 	 ((equal? tag 'QUOTE)
+	  ;;(display "!!!Q3 ") (display e) (newline)
 	  e)
 	 ;; only one binder in a LET
 	 ((equal? tag 'LET)
@@ -716,6 +770,8 @@
 	       (args (cdr e))
 	       (b/fv* (assoc tag b/free-vars)))
 	  (cond
+	   ((eq? 'QUOTE tag)
+	    e)
 	   (b/fv*
 	    (append b/fv* (map loop args)))
 	   ((member tag '(LET LET* LETREC))
