@@ -141,6 +141,7 @@
 	  annFetchMemoVars
 	  annFetchMemoBody
 	  annFetchMemoLevel
+	  ann-replace
 	  ann-maybe-coerce
 	  annFreeVars
 	  annExprTerminates?

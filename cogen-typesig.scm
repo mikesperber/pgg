@@ -102,7 +102,7 @@
     (list memo-name
 	  (annMakeOp1 #t
 		      (wft-make-memo-property memo-level active-level)
-		      (bta-make-memo-postprocessor memo-level)
+		      (bta-make-memo-postprocessor memo-level active-level)
 		      (parse-type '(all t t)))
 	  1)))
 

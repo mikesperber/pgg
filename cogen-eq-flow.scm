@@ -812,7 +812,8 @@
 		      (bta-note-level!
 		       level
 		       (type-fetch-btann type)))
-		    (cons type type*))))))
+		    (cons type type*))
+	  (wft-depend-property type type*)))))
 
 (define wft-property-table
   `((apply   . ,wft-apply-property)
@@ -850,15 +851,28 @@
     (bta-solve body)
     (bta-introduce-memo body auto-memo?)))
 
-(define (bta-make-memo-postprocessor lv)
-  (lambda (e bt)
-    (let* ((args (annFetchOpArgs e))
-	   (body (car args))
-	   (fvs (filter (make-variable-filter *bta-mutable-defines*)
-			(annFreeVars body))))
-      (annIntroduceMemo1 e bt lv fvs body)
-      (for-each (bta-memo-var lv) fvs)
-      #f)))
+(define (bta-make-memo-postprocessor level active)
+  (let ((not-initialized #t))
+    (lambda (e bt)
+      (if not-initialized
+	  (begin
+	    (set! level ((eval `(lambda (max-level) ,level) (interaction-environment))
+			 *bta-max-bt*))
+	    (set! active ((eval `(lambda (max-level) ,active) (interaction-environment))
+			  *bta-max-bt*))
+	    (if (< level 0) (set! level 0))
+	    (if (>= level *bta-max-bt*) (set! level *bta-max-bt*))
+	    (set! not-initialized #f)))
+      (if (<= active *bta-max-bt*)
+	  (let* ((args (annFetchOpArgs e))
+		 (body (car args))
+		 (fvs (filter (make-variable-filter *bta-mutable-defines*)
+			      (annFreeVars body))))
+	    (annIntroduceMemo1 e bt level fvs body)
+	    (for-each (bta-memo-var level) fvs)
+	    #f)
+	  (let ((arg (car (annFetchOpArgs e))))
+	    (ann-replace e arg))))))
 
 ;;; bta-solve
 ;;; we rely of wft-e to have stored the ecrs everywhere

@@ -334,6 +334,13 @@
   (annExprFetchSubobject e 0))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define (ann-replace e1 e2)
+  (let loop ((i (- (vector-length e1) 1)))
+    (if (>= i 0)
+	(begin
+	  (vector-set! e1 i (vector-ref e2 i))
+	  (loop (- i 1))))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define (ann-maybe-coerce e)
   (if *abssyn-maybe-coerce*
       (annMakeOp INTERNAL-IDENTITY (list e))
