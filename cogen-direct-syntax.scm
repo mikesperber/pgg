@@ -237,19 +237,22 @@
 (define-syntax start-memo
   (syntax-rules ()
     ((_ level fn bts args)
+     (start-memo-internal level 'fn fn bts args))
+    ((_ level fn bts args new-goal)
      (start-memo-internal level 'fn fn bts args))))
 
-(define (nextlevel memo-template args)
+(define (nextlevel memo-template args . new-goal)
   (let ((level (list-ref memo-template 1))
 	(goal-proc (list-ref memo-template 3))
 	(bts (cadr (list-ref memo-template 4))))
-    (start-memo-internal level
-			 goal-proc
-			 (eval goal-proc (interaction-environment))
-			 bts
-			 args)))
+    (apply start-memo-internal level
+                               goal-proc
+			       (eval goal-proc (interaction-environment))
+			       bts
+			       args
+			       new-goal)))
 
-(define (start-memo-internal level fname fct bts args)
+(define (start-memo-internal level fname fct bts args . new-goal)
   (clear-residual-program!) 
   (clear-memolist!)
   (gensym-local-reset!)
@@ -257,6 +260,12 @@
   (let* ((result (multi-memo level fname fct bts args))
 	 (goal-proc (car *residual-program*))
 	 (defn-template (take 2 goal-proc))
+	 ;; kludge alert
+	 (defn-template
+	   (if (null? new-goal)
+	       defn-template
+	       (list (car defn-template)
+		     (cons (car new-goal) (cdadr defn-template)))))
 	 (defn-body (list-tail goal-proc 2)))
     (set! *residual-program*
 	  (list (append defn-template
