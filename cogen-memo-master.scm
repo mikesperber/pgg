@@ -3,41 +3,73 @@
 ;;; The master is the master process which controls the servers which
 ;;; perform the actual specialization work
 
+(define *servers-placeholders* #f)
+(define *servers-placeholders-lock* #f)
+(define *server-aspaces* #f)
+(define *n-servers* #f)
+(define *n-unemployed-servers* #f)
+(define *n-unemployed-servers-lock* #f)
+
+(define *servers-killed* #f)
+
+(define *finished-placeholder* #f)
+
+(define-record pending-root
+  (lock entries killed-local-ids))
 (define-record pending-entry
   (program-point static-skeleton name bts fct server-uid local-id master-entry))
 
-(define *master-pending* #f)
-(define *master-pending-lock* #f)
+(define *master-pending-by-uid* #f)
 (define *master-pending-placeholders* #f)
 (define *master-pending-placeholders-lock* #f)
 
 (define (master-pending-initialize!)
-  (set! *master-pending* '())
-  (set! *master-pending-lock* (make-lock))
+  (set! *master-pending-by-uid*
+	(make-vector (+ 1 (apply max
+				 (map aspace-uid *server-aspaces*)))
+		     #f))
+  (for-each
+   (lambda (aspace)
+     (vector-set! *master-pending-by-uid* (aspace-uid aspace)
+		  (make-pending-root (make-lock) '() '())))
+   *server-aspaces*)
   (set! *master-pending-placeholders* '())
   (set! *master-pending-placeholders-lock* (make-lock)))
 
-(define (master-pending-add! key entry)
+(define (master-pending-add! uid key entry)
   (obtain-lock *master-pending-placeholders-lock*)
   (if (null? *master-pending-placeholders*)
       (begin
 	(release-lock *master-pending-placeholders-lock*)
-	(with-lock
-	 *master-pending-lock*
-	 (lambda ()
-	   (set! *master-pending* (cons (cons key entry) *master-pending*)))))
+	(let ((pending-root (vector-ref *master-pending-by-uid* uid)))
+	  (with-lock
+	   (pending-root->lock pending-root)
+	   (lambda ()
+	     (pending-root->entries!
+	      pending-root
+	      (cons entry (pending-root->entries pending-root)))))))
       (let ((placeholder (car *master-pending-placeholders*)))
 	(set! *master-pending-placeholders* (cdr *master-pending-placeholders*))
 	(set! *n-unemployed-servers* (- *n-unemployed-servers* 1))
 	(release-lock *master-pending-placeholders-lock*)
 	(placeholder-set! placeholder entry))))
 
-(define (master-pending-advance-no-locking!)
-  (if (null? *master-pending*)
-      #f
-      (let ((entry (cdar *master-pending*)))
-	(set! *master-pending* (cdr *master-pending*))
-	entry)))
+(define (master-pending-advance!)
+  (let loop ((aspaces *server-aspaces*))
+    (and (not (null? aspaces))
+	 (let* ((uid (aspace-uid (car aspaces)))
+		(pending-root (vector-ref *master-pending-by-uid* uid))
+		(lock (pending-root->lock pending-root)))
+	   (obtain-lock lock)
+	   (let ((entries (pending-root->entries pending-root)))
+	     (if (null? entries)
+		 (begin
+		   (release-lock lock)
+		   (loop (cdr aspaces)))
+		 (let ((entry (car entries)))
+		   (pending-root->entries! pending-root (cdr entries))
+		   (release-lock lock)
+		   entry)))))))
 
 (define (master-pending-sign-up! placeholder)
   (obtain-lock *master-pending-placeholders-lock*)
@@ -132,12 +164,13 @@
    (lambda (id+aspace)
      (let* ((id (car id+aspace))
 	    (kill-uid (aspace-uid (cdr id+aspace)))
-	    (p (vector-ref *servers-killed* kill-uid)))
+	    (root (vector-ref *master-pending-by-uid* kill-uid)))
        (if (not (= kill-uid uid))
 	   (with-lock
-	    (car p)
+	    (pending-root->lock root)
 	    (lambda ()
-	      (set-cdr! p (cons id (cdr p))))))))
+	      (pending-root->killed-local-ids!
+	       root (cons id (pending-root->killed-local-ids root))))))))
    (master-entry->ids+aspaces entry)))
 
 (define (can-server-work-on? uid local-id) ; sync
@@ -150,11 +183,11 @@
 	     (let ((can-I? (can-I-work-on-master-entry? entry)))
 	       (if can-I?
 		   (kill-master-entry-except-on! entry uid))
-	       (let* ((p (vector-ref *servers-killed* uid))
-		      (lock (car p)))
+	       (let* ((root (vector-ref *master-pending-by-uid* uid))
+		      (lock (pending-root->lock root)))
 		 (obtain-lock lock)
-		 (let ((killed (cdr p)))
-		  (set-cdr! p '())
+		 (let ((killed (pending-root->killed-local-ids root)))
+		  (pending-root->killed-local-ids! root '())
 		  (release-lock lock)
 		  (values can-I? killed))))))
        (else				; wait until local name registered
@@ -219,19 +252,15 @@
 		 (master-cache-add-no-locking! static-skeleton master-entry local-id)
 		 (release-lock *master-cache-lock*)
 		 (set-placeholders)
-		 (master-pending-add! static-skeleton pending-entry)))))))
+		 (master-pending-add! uid static-skeleton pending-entry)))))))
 
   ;; (display "Registration of local id ") (display local-id) (display " complete") (newline)
   )
 
-
 (define (server-is-unemployed uid)
   ;; (display "Server ") (display uid) (display " says it's unemployed") (newline)
   (let loop ()
-    (let ((entry (with-lock
-		  *master-pending-lock*
-		  (lambda ()
-		    (master-pending-advance-no-locking!)))))
+    (let ((entry (master-pending-advance!)))
       (if entry
 	  (if (can-I-work-on-master-entry? (pending-entry->master-entry entry))
 	      (begin
@@ -258,17 +287,6 @@
 
 ;; Specialization driver
 
-(define *servers-placeholders* #f)
-(define *servers-placeholders-lock* #f)
-(define *server-aspaces* #f)
-(define *n-servers* #f)
-(define *n-unemployed-servers* #f)
-(define *n-unemployed-servers-lock* #f)
-
-(define *servers-killed* #f)
-
-(define *finished-placeholder* #f)
-
 (define (servers-placeholders-initialize!)
   (set! *servers-placeholders*
 	(make-vector (+ 1 (apply max
@@ -281,16 +299,6 @@
      (vector-set! *servers-placeholders* (aspace-uid aspace) (make-placeholder)))
    *server-aspaces*))
 
-(define (servers-killed-initialize!)
-  (set! *servers-killed*
-	(make-vector (+ 1 (apply max
-				 (map aspace-uid *server-aspaces*)))
-		     #f))
-  (for-each
-   (lambda (aspace)
-     (vector-set! *servers-killed* (aspace-uid aspace) (cons (make-lock) '())))
-   *server-aspaces*))
-
 (define (start-specialization server-uids
 			      level fname fct bts args)
     (set! *server-aspaces* (map uid->aspace server-uids))
@@ -301,7 +309,6 @@
     (master-cache-initialize!)
     (master-pending-initialize!)
     (servers-placeholders-initialize!)
-    (servers-killed-initialize!)
 
     (let* ((program-point (wrap-program-point (cons fname args) bts))
 	   (new-name (gensym fname)))
