@@ -12,7 +12,7 @@ BATCH_ENTRYPOINT = cogen-main
 
 all: $(INTERACTIVE_IMAGE)
 
-cogen_packages = pgg pgg-residual
+cogen_packages = pgg pgg-residual pgg-library
 cogen_generate_packages = pgg signals pretty-print
 cogen_specialize_packages = auxiliary pgg-library
 batch_packages = signals handle i/o conditions extended-ports

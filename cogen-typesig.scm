@@ -89,13 +89,20 @@
 			 )))
     st-entry))
 
+;;; (define-memo M level [active])
+;;; - M		name of the function
+;;; - level	binding time of the memoization point
+;;; - active	memo point is active in specializations with level >= active
 (define (one-defmemo dm)
   (let* ((memo-name (cadr dm))
-	 (level (caddr dm)))
+	 (memo-level (caddr dm))
+	 (active-level (if (pair? (cdddr dm))
+			   (cadddr dm)
+			   0)))
     (list memo-name
 	  (annMakeOp1 #t
-		      (wft-make-memo-property level)
-		      (bta-make-memo-postprocessor level)
+		      (wft-make-memo-property memo-level active-level)
+		      (bta-make-memo-postprocessor memo-level)
 		      (parse-type '(all t t)))
 	  1)))
 

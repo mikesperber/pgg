@@ -62,6 +62,10 @@
 			(list template scheme->abssyn-make-call -1))))
 		d*)
 	   (list (list 'EVAL annMakeEval 2)
+		 (list 'SET! (lambda (tag args)
+			       (annMakeFullOp tag #f 'opaque #f #f
+					      (list (car args)
+						    (ann-maybe-coerce (cadr args))))) 2)
 		 (list 'MAKE-CELL (lambda (tag args)
 				    (scheme->abssyn-static-references-yes!)
 				    (annMakeRef
@@ -841,17 +845,20 @@
   (set! *scheme-lambda-lift-definitions*
 	(cons d *scheme-lambda-lift-definitions*)))
 (define (scheme-lambda-lift-d d*)
+  (define (scheme-lambda-lift-one-d d)
+    (let ((definer (car d))
+	  (template (cadr d)))
+      `(,definer ,template
+		 ,(scheme-lambda-lift (caddr d)
+				      (if (pair? template)
+					  (cdr template)
+					  '())
+				      definer))))
+  
   (set! *scheme-lambda-lift-definitions* '())
   (let ((old-d* (map scheme-lambda-lift-one-d d*)))
     (append old-d* *scheme-lambda-lift-definitions*)))
 
-(define (scheme-lambda-lift-one-d d)
-  (let ((definer (car d))
-	(template (cadr d)))
-  `(,definer ,template
-     ,(scheme-lambda-lift (caddr d)
-			  (if (pair? template) (cdr template) '())
-			  definer))))
 
 (define (lambda->definer symbol definer)
   (if (eq? symbol 'lambda)

@@ -20,6 +20,8 @@
 (define (bta-note-level! lv ann)
   (set! *bta-bt-points* (cons (cons lv ann) *bta-bt-points*)))
 
+(define *bta-mutable-defines* '())
+
 ;;; binding-time analysis
 ;;; `d*' list of function definitions
 ;;; `symtab' is an initial symbol table where only constructors,
@@ -35,6 +37,8 @@
     (type->btann! the-top-type (make-ann))
     (set! *bta-bt-points* '())
     (bta-note-dynamic! (type->btann the-top-type))
+    (set! *bta-mutable-defines*
+	  (collect-mutable-def-names d*))
     (let* ((d (annDefLookup goal-proc d*))
 	   (formals (or (annDefFetchProcFormals d)
 			(let ((body (annDefFetchProcBody d)))
@@ -143,6 +147,21 @@
 				   (annMakeConst name))
 		       defs)))
 	      (loop d* defs))))))
+
+(define (collect-mutable-def-names d*)
+  (let loop ((d* d*) (names '()))
+    (if (null? d*)
+	names
+	(let ((def (car d*))
+	      (d* (cdr d*)))
+	  (if (annIsDefMutable? def)
+	      (let ((name (annDefFetchProcName def)))
+		(loop d* (cons name names)))
+	      (loop d* names))))))
+
+(define (make-variable-filter names)
+  (lambda (var)
+    (not (memq (annFetchVar var) names))))
 
 ;;; step 1
 ;;; type inference
@@ -667,6 +686,9 @@
 		   (arg-stann (type-fetch-stann arg-type)))
 	      (ann+>dlist! (type-fetch-btann type) arg-btann)
 	      (ann+>dlist! (type-fetch-stann type) arg-stann)))
+	   ((and (symbol? op-property)
+		 (assoc op-property wft-property-table))
+	    => (lambda (sym/prop) ((cdr sym/prop) type op-arg-types)))
 	   (else
 	    (wft-depend-property type op-arg-types)))))
        ((annIsCall? e)
@@ -773,10 +795,10 @@
 		(bta-note-level! *bta-max-bt* (type-fetch-btann arg-type)))
 	      type*)))
 
-(define (wft-make-memo-property level)
+(define (wft-make-memo-property level active)
   (lambda (type type*)
     (for-each (lambda (type)
-		(if (<= level *bta-max-bt*)
+		(if (<= active *bta-max-bt*)
 		    (bta-note-level!
 		     level
 		     (type-fetch-btann type))))
@@ -822,7 +844,8 @@
   (lambda (e bt)
     (let* ((args (annFetchOpArgs e))
 	   (body (car args))
-	   (fvs (annFreeVars body)))
+	   (fvs (filter (make-variable-filter *bta-mutable-defines*)
+			(annFreeVars body))))
       (annIntroduceMemo1 e bt lv fvs body)
       (for-each (bta-memo-var lv) fvs)
       #f)))
@@ -912,7 +935,8 @@
 	      need-memo)
 	     (need-memo
 	      (if auto-memo
-		  (let ((fvs (annFreeVars e)))
+		  (let ((fvs (filter (make-variable-filter *bta-mutable-defines*)
+				     (annFreeVars e))))
 		    (annIntroduceMemo e bt level fvs)
 		    (for-each (bta-memo-var level) fvs)))
 	      #f)
@@ -937,7 +961,8 @@
 	  (let* ((dyn-lambda (< 0 bt))
 		 (body (new-loop (annFetchLambdaBody e) (not dyn-lambda))))
 	    (if (and dyn-lambda body auto-memo)
-		(let ((fvs  (annFreeVars e)))
+		(let ((fvs  (filter (make-variable-filter *bta-mutable-defines*)
+				    (annFreeVars e))))
 		  (annIntroduceMemo e bt bt fvs)
 		  (for-each (bta-memo-var bt) fvs))))
 	  #f)
@@ -945,7 +970,8 @@
 	  (let* ((dyn-lambda (< 0 bt))
 		 (body (new-loop (annFetchVLambdaBody e) (not dyn-lambda))))
 	    (if (and dyn-lambda body auto-memo)
-		(let ((fvs  (annFreeVars e)))
+		(let ((fvs  (filter (make-variable-filter *bta-mutable-defines*)
+				    (annFreeVars e))))
 		  (annIntroduceMemo e bt bt fvs)
 		  (for-each (bta-memo-var bt) fvs))))
 	  #f)
