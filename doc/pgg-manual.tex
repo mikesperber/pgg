@@ -1264,9 +1264,12 @@ specially. Writing \texttt{(-> t1 ... tn t0)} declares a Scheme function that
 takes \texttt{n} parameters ($\texttt{n} \ge 0$) and delivers a result of type
 \texttt{t0}. 
  
-The properties
-\texttt{dynamic}, \texttt{error}, \texttt{opaque} are synonyms. Each
-of them forces the binding time of \texttt{O} to be dynamic.
+The properties \texttt{dynamic} and \texttt{opaque} are synonyms. Each
+of them forces the binding time of \texttt{O}'s result to be dynamic. The
+property \texttt{error} advises the binding-time analysis that the result of the
+operation can assume any type whatsoever (because an error primitive raises an
+exception and never returns a value) and that its binding time is determined
+from the binding times of the arguments as with any primitive operation.
 The remaining properties advise the specializer what to do when it
 residualizes the operator.
 The \texttt{pure} property states that the operator does not have side
