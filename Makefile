@@ -12,31 +12,34 @@ BATCH_ENTRYPOINT = cogen-main
 
 all: $(INTERACTIVE_IMAGE)
 
-cogen_packages = pgg
+cogen_packages = pgg pgg-residual
 cogen_generate_packages = pgg signals pretty-print
 cogen_specialize_packages = auxiliary pgg-library
 batch_packages = signals handle i/o conditions extended-ports
-cogen_base_files = pp.scm \
+cogen_base_files = \
 	auxiliary.scm \
-	cogen-globals.scm \
-	cogen-record.scm \
-	cogen-env.scm \
-	cogen-macro.scm \
 	cogen-abssyn.scm \
-	cogen-scheme.scm \
-	cogen-labset-bylist.scm \
-	cogen-eq-flow.scm cogen-effect.scm \
-	cogen-typesig.scm \
-	cogen-oca.scm \
 	cogen-boxops.scm \
-	cogen-library.scm \
-	shift-reset.scm \
-	cogen-residual.scm \
 	cogen-completer.scm \
+	cogen-ctors.scm \
+	cogen-driver.scm \
+	cogen-effect.scm \
+	cogen-env.scm \
+	cogen-eq-flow.scm \
+	cogen-globals.scm \
+	cogen-labset-bylist.scm \
+	cogen-library.scm \
+	cogen-macro.scm \
 	cogen-memo-standard.scm \
+	cogen-oca.scm \
+	cogen-record.scm \
+	cogen-residual.scm \
+	cogen-scheme.scm \
 	cogen-skeleton.scm \
 	cogen-terminate.scm \
-	cogen-driver.scm \
+	cogen-typesig.scm \
+	pp.scm \
+	shift-reset.scm \
 	scheme-standard-macros.scm
 
 cogen_cps_files = cogen-cps.scm
@@ -103,7 +106,9 @@ $(BATCH_IMAGE) : $(cogen_files) $(batch_files) cogen-load-s48.scm
 $(INTERACTIVE_IMAGE) : $(cogen_files) $(config_file)
 	(echo ",bench on"; \
 	 echo ",config,load $(config_file)"; \
-	 echo ",load-package $(cogen_packages)"; \
+	 for package in $(cogen_packages) ; do \
+	 echo ",load-package $$package"; \
+	 done ; \
 	 echo ",open $(cogen_generate_packages)"; \
 	 echo ",open $(cogen_specialize_packages)"; \
 	 echo ",collect"; \

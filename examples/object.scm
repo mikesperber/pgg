@@ -1,7 +1,7 @@
 (define-data tuple3
   (object set get add))
 
-(define (main dummy)
+(define (main)
   (let ((counter-class
 	 (lambda ()
 	   (let* ((slot 0)

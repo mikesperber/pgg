@@ -1,4 +1,4 @@
-;;; $Id$
+;;; 
 ;;; direct style version of the continuation-based multi-level
 ;;; compiler generator (with control operators)
 ;;;
@@ -325,15 +325,15 @@
 
 (define-syntax _eval
   (syntax-rules ()
-    ((_ 0 0 body)
+    ((_eval 0 0 body)
      (eval body (interaction-environment)))
-    ((_ 0 1 body)
-     (_complete body))
-    ((_ 0 diff body)
+    ((_eval 0 1 body)
+     (_complete-maybe body))
+    ((_eval 0 diff body)
      (_complete `(_EVAL 0 ,(pred diff) ',body)))
-    ((_ 1 0 body)
+    ((_eval 1 0 body)
      (_complete `(EVAL ,body (INTERACTION-ENVIRONMENT))))
-    ((_ 1 1 body)
+    ((_eval 1 1 body)
      body)				;;;?????????? _complete ??????????
-    ((_ lv diff body)
+    ((_eval lv diff body)
      (_complete `(_EVAL ,(pred lv) ,diff ,body)))))

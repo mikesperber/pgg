@@ -635,7 +635,7 @@
   (files cogen-ctors))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define-interface cogen-completers-interface
-  (export ((_complete _complete-serious) :syntax)))
+  (export ((_complete _complete-serious _complete-maybe) :syntax)))
 
 (define-structure cogen-completers
   cogen-completers-interface
