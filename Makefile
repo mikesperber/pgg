@@ -5,9 +5,14 @@ COGEN_VERSION = 1.0
 DISTRIBUTION = pgg-$(COGEN_VERSION).tar.gz
 GENEXT_DISTRIBUTION = genext-$(COGEN_VERSION).tar.gz
 prefix = /usr/local
+INSTALL_ROOT = /home/proglang/packages
+INSTALL_DIR = $(INSTALL_ROOT)/pgg-$(COGEN_VERSION)
+LIBDIR = $(INSTALL_DIR)/lib
+BINDIR = $(INSTALL_DIR)/bin
+EXECUTABLE = pgg.sh
 SCHEME48 = scheme48
-INSTALL_DATE = install -c
-INTERACTIVE_HEAPSIZE = 4000000
+INSTALL = install -c
+INTERACTIVE_HEAPSIZE = 10000000
 BATCH_HEAPSIZE = 6000000
 BATCH_ENTRYPOINT = cogen-main
 
@@ -15,6 +20,15 @@ all: $(INTERACTIVE_IMAGE)
 
 distribution: $(DISTRIBUTION)
 genext-distribution: $(GENEXT_DISTRIBUTION)
+
+install: $(INTERACTIVE_IMAGE) $(EXECUTABLE)
+	mkdir -p $(LIBDIR) $(BINDIR)
+	$(INSTALL) -m 644 $(INTERACTIVE_IMAGE) $(LIBDIR)
+	$(INSTALL) -m 755 $(EXECUTABLE) $(BINDIR)
+
+$(EXECUTABLE): Makefile
+	echo "#!/bin/sh" > $(EXECUTABLE)
+	echo '$(SCHEME48) -h $(INTERACTIVE_HEAPSIZE) -i $(LIBDIR)/$(INTERACTIVE_IMAGE) $$@' >> $(EXECUTABLE)
 
 cogen_packages = pgg pgg-residual pgg-library
 cogen_generate_packages = pgg signals
