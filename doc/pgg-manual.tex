@@ -408,7 +408,7 @@ Load structure pgg-residual (y/n)? y
 [pgg-residual
 cogen-ctors.scm ]
 Newly accessible in user: (define-data)
-(eval `(begin ,@genext) (interaction-environment))
+> (eval `(begin ,@genext) (interaction-environment))
 > (specialize '($goal 0 0 1) '(5 () values))
 '($goal-1 values)
 > (p *residual-program*)
@@ -701,7 +701,7 @@ It contains the example programs \texttt{lazy1} and \texttt{lazy2}.
 > (specialize '($goal) '())
 \end{verbatim}
 \end{small}
-\item \texttt{pm} Olivier Danvy's pattern matcher
+\item \texttt{pm} Olivier Danvy's pattern matcher \cite{Danvy1991}
   \begin{small}
 \begin{verbatim}
 > (define genext (cogen-driver (list "examples/pm.scm") '(match 0 1)))
@@ -1012,12 +1012,22 @@ The \texttt{apply} property states that the operator \texttt{O} is the
 \label{sec:define-memo}
 
 \begin{verbatim}
-D ::= (define-memo M Number)
+D ::= (define-memo M Number [Active])
 \end{verbatim}
 Defines \texttt{M} as a unary operator indicating a memoization point at
-level \texttt{Number}. For two-level specialization this number is
+level \texttt{Number}. This is also the binding time of the memoization point.
+For two-level specialization this number is
 \texttt{1}. Useful in connection with
-\texttt{define-without-memoization}.\indextt{define-without-memoization} 
+\texttt{define-without-memoization}.\indextt{define-without-memoization}
+The optional parameter \texttt{Active} defines the minimum level of
+specialization at which the specialization point is active. The default is
+\texttt{0}, that is, the specialization point is always active. Useful in
+connection with multi-level specialization if the same program is specialized
+with different levels.\indextt{multi-level specialization}
+
+Both parameters, \texttt{Number} and \texttt{Active} may be integer expressions 
+using the free variable \texttt{max-level}, which is bound to the maximum
+binding-time presently in use. 
 
 Example: Similix defines the operator \texttt{\_sim-memoize} as an indicator
 for memoization points. To achieve the same 
@@ -1160,7 +1170,8 @@ at the top-level Scheme48 prompt.
 \subsection{Settable options}
 \label{sec:options}
 
-These options are accessible in module \texttt{cogen-globals}. Some of
+These options are accessible in module \texttt{cogen-globals} except where
+otherwise noted. Some of
 them only make sense for programmers who want to use the frontend
 separately. 
 
@@ -1197,6 +1208,22 @@ separately.
   Instructs the frontend to insert provisional lift expressions at
   certain places. The backend eliminates these later on if they are
   useless. Can be turned of for using the frontend separately.
+\item \verb+(set-generate-flat-program! b)+ Default: \texttt{\#f}.
+  \dindextt{set-generate-flat-program"!}
+
+  Instructs the generating extension to produce flat programs. By default, the
+  residual programs have exaclty one top-level definition, all others are
+  nested inside and invisible to the outside.
+\item \verb+(gensym-ignore-name-stubs!)+ (module \texttt{cogen-gensym})
+  \dindextt{gensym-ignore-name-stubs"!}
+
+  Instructs the generating extension to ignore name stubs when generating fresh 
+  symbols.
+\item \verb+(gensym-use-name-stubs!)+ (module \texttt{cogen-gensym}) Default.
+  \dindextt{gensym-use-name-stubs"!}
+
+  Instructs the generating extension to use provided name stubs wherever
+  possible. 
 \end{itemize}
 
 
