@@ -1,5 +1,5 @@
-- analyze which lambdas and ctors are really memoized
-- incorporate the residual program in the goal function
++ analyze which lambdas and ctors are really memoized
++ incorporate the residual program in the goal function
 + make a macro out of the (_ i ...) functions
 - put type annotations to work: enforce types of primitives in bta-eq-flow
 - type annotation for arity of operators

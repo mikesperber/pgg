@@ -67,6 +67,8 @@
   (syntax-rules ()
     ((_app 0 f arg ...)
      (f arg ...))
+    ((_app 1 f arg ...)
+     `(,(maybe-reset f) ,(maybe-reset arg) ...))
     ((_app lv f arg ...)
      `(_APP ,(pred lv) ,(maybe-reset f) ,(maybe-reset arg) ...))))
 
@@ -85,31 +87,32 @@
 	`(_LAMBDA ,(pred lv) ',arity ,fun))))
 
 (define (_lambda_memo lv arity label vvs bts f)
-  (let* ((vars (map gensym-local arity)))
-    (let* ((dynamics (project-dynamic (cons label vvs) bts))
-	   (new-vvs (apply append dynamics))
-	   (new-bts (binding-times dynamics))
-	   (freevars (map (lambda (bt vv)
-			    (gensym-local 'var))
-			  new-bts new-vvs)))
-      (if (= lv 1)
-	  `(STATIC-CONSTRUCTOR
-	    ',label
-	    (LAMBDA ,freevars
-	      (LAMBDA ,vars
-		,(reset (apply (apply f vvs) vars))))
-	    (LIST ,@new-vvs)
-	    ',new-bts)
-	  ;; > lv 1
-	  `(_LAMBDA_MEMO
-	    ,(- lv 1)
-	    ',arity
-	    ',(gensym 'cls)
-	    (LIST ,@new-vvs)
-	    ',new-bts
-	    (LAMBDA ,freevars
-	      (LAMBDA ,vars
-		,(reset (apply (apply f vvs) vars)))))))))
+  (let* ((vars (map gensym-local arity))
+	 (lambda-pp (cons label vvs))
+	 (cloned-pp (clone-dynamic lambda-pp bts))
+	 (cloned-vvs (cdr cloned-pp))
+	 (dynamics (project-dynamic lambda-pp bts))
+	 (new-vvs (apply append dynamics))
+	 (new-bts (binding-times dynamics))
+	 (freevars (apply append (project-dynamic cloned-pp bts))))
+    (if (= lv 1)
+	`(STATIC-CONSTRUCTOR
+	  ',label
+	  (LAMBDA ,freevars
+	    (LAMBDA ,vars
+	      ,(reset (apply (apply f cloned-vvs) vars))))
+	  (LIST ,@new-vvs)
+	  ',new-bts)
+	;; > lv 1
+	`(_LAMBDA_MEMO
+	  ,(- lv 1)
+	  ',arity
+	  ',(gensym 'cls)
+	  (LIST ,@new-vvs)
+	  ',new-bts
+	  (LAMBDA ,freevars
+	    (LAMBDA ,vars
+	      ,(reset (apply (apply f cloned-vvs) vars))))))))
 
 (define (_vlambda lv arity var f)
   (let* ((vars (map gensym-local arity))
@@ -141,7 +144,7 @@
     ((_ 0 bts ctor arg ...)
      (static-constructor 'ctor ctor (list arg ...) 'bts))
     ((_ lv (bt ...) ctor arg ...)
-     `(_CTOR_MEMO ,(pred lv) (,(pred bt) ...) ctor ,arg ...))))
+     `(_CTOR_MEMO ,(pred lv) (,(pred bt) ...) ctor ,(maybe-reset arg) ...))))
 
 (define-syntax _sel_memo
   (syntax-rules ()
@@ -161,13 +164,17 @@
   (syntax-rules ()
     ((_ 0 ctor arg ...)
      (ctor arg ...))
+    ((_ 1 ctor arg ...)
+     `(ctor ,(maybe-reset arg) ...))
     ((_ lv ctor arg ...)
-     `(_CTOR ,(pred lv) ctor ,arg ...))))
+     `(_CTOR ,(pred lv) ctor ,(maybe-reset arg) ...))))
 
 (define-syntax _sel
   (syntax-rules ()
     ((_ 0 sel v)
      (sel v))
+    ((_ 1 sel v)
+     `(sel ,(maybe-reset v)))
     ((_ lv sel v)
      `(_SEL ,(pred lv) sel ,(maybe-reset v)))))
 
@@ -175,6 +182,8 @@
   (syntax-rules ()
     ((_ 0 ctor-test v)
      (ctor-test v))
+    ((_ 1 ctor-test v)
+     `(ctor-test ,(maybe-reset v)))
     ((_ lv ctor-test v)
      `(_TEST ,(pred lv) ctor-test ,(maybe-reset v)))))
 
@@ -182,6 +191,10 @@
   (syntax-rules ()
     ((_if 0 e1 e2 e3)
      (if e1 e2 e3))
+    ((_if 1 e1 e2 e3)
+     (shift k `(IF ,(maybe-reset e1)
+		   ,(reset (k e2))
+		   ,(reset (k e3)))))
     ((_if lv e1 e2 e3)
      (shift k `(_IF ,(pred lv)
 		    ,(maybe-reset e1)
@@ -190,6 +203,8 @@
 
 (define-syntax _op
   (syntax-rules ()
+    ((_op 0 op arg ...)
+     (op arg ...))
     ((_op 1 op arg ...)
      `(op ,(maybe-reset arg) ...))
     ((_op lv op arg ...)

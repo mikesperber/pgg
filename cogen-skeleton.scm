@@ -1,8 +1,8 @@
 ;;; skeleton for multi-level cogen
 ;;; $Id$
 ;;; $Log$
-;;; Revision 1.13  1996/07/31 07:10:10  thiemann
-;;; included memo analysis
+;;; Revision 1.14  1996/08/01 07:07:06  thiemann
+;;; fixed _lambda_memo
 ;;;
 ;;; Revision 1.12  1996/07/30 08:56:34  thiemann
 ;;; bugfixes in BTA and preprocessor
@@ -41,6 +41,7 @@
 ;;; updated as new definitions are available to cater for
 ;;; memo-functions 
 (define *generating-extension* '())
+(define memo-optimize #t)
 
 ;;; transform a multi-level programm into a program generator
 (define (generate-d d*)
@@ -111,7 +112,7 @@
 	     (memo-level
 	      (ann->bt
 	       (type->memo (node-fetch-type (full-ecr (annExprFetchType e)))))))
-	(if (< memo-level level)
+	(if (and memo-optimize (< memo-level level))
 	    (make-ge-lambda (+ 1 level)
 			    vars btv
 			    (loop body))
@@ -142,7 +143,7 @@
 	     (memo-level
 	      (ann->bt
 	       (type->memo (node-fetch-type (full-ecr (annExprFetchType rator)))))))
-	(if (< memo-level level)
+	(if (and memo-optimize (< memo-level level))
 	    (make-ge-app (+ 1 level)
 			 (loop rator)
 			 (map loop rands))
@@ -157,7 +158,7 @@
 	       (type->memo (node-fetch-type (full-ecr
 					     (annExprFetchType
 					      e)))))))
-	(if (< memo-level level)
+	(if (and memo-optimize (< memo-level level))
 	    (make-ge-ctor (+ 1 level)
 			  (annFetchCtorName e)
 			 (map loop (annFetchCtorArgs e)))
@@ -171,7 +172,8 @@
 	     (memo-level
 	      (ann->bt
 	       (type->memo (node-fetch-type (full-ecr (annExprFetchType arg)))))))
-	((if (< memo-level level) make-ge-sel make-ge-sel-memo)
+	((if (and memo-optimize (< memo-level level))
+	     make-ge-sel make-ge-sel-memo)
 	 (succ level)
 	 (annFetchSelName e)
 	 (loop (annFetchSelArg e)))))
@@ -181,7 +183,8 @@
 	     (memo-level
 	      (ann->bt
 	       (type->memo (node-fetch-type (full-ecr (annExprFetchType arg)))))))
-	((if (< memo-level level) make-ge-test make-ge-test-memo)
+	((if (and memo-optimize (< memo-level level))
+	     make-ge-test make-ge-test-memo)
 	 (succ level)
 	 (annFetchTestName e)
 	 (loop (annFetchTestArg e)))))

@@ -7,7 +7,9 @@
 (define *bta-user-memoization* #f)
 (define *bta-max-bt* #f)
 (define *bta-dynamic-points* '())
-(define *bta-display-level* 0)
+
+;;; debugging and trace aids
+(define *bta-display-level* 1)
 (define-syntax debug-level
   (syntax-rules ()
     ((_ level arg ...)
@@ -26,7 +28,7 @@
 ;;; `def-opsig*' is a list of type signature of primitive operators
 ;;; `def-memo' is an optional memoization definition
 (define (bta-run d* symtab skeleton def-typesig* def-opsig* def-memo)
-  (display "bta-run") (newline)
+  (debug-level 1 (display "bta-run") (newline))
   (set! *bta-user-memoization*
 	(and def-memo
 	     (= 3 (length def-memo))
@@ -598,25 +600,25 @@
 ;;; error
 (define btc-propagate
   (lambda (bt ann)
-    (debug-level 2 (display "btc-propagate ") (display bt) (display " ("))
+    (debug-level 3 (display "btc-propagate ") (display bt) (display " ("))
     (let loop ((ann ann))
-      (debug-level 2 (display (ann->visited ann)) (display " "))
+      (debug-level 3 (display (ann->visited ann)) (display " "))
       (if (< (ann->bt ann) bt)
 	  (let ((dlist (ann->dlist ann)))
-	    (debug-level 2 (display (map ann->visited dlist)) (display " "))
+	    (debug-level 3 (display (map ann->visited dlist)) (display " "))
 	    (ann->bt! ann bt)
 	    (if dlist
 		(for-each loop dlist)))))
-    (debug-level 2 (display ")") (newline))))
+    (debug-level 3 (display ")") (newline))))
 
 ;;; step 3
 ;;; bta-solve-d* evaluates the normalized constraint set and inserts
 ;;; memoization points unless manually overridden.
 (define (bta-solve-d* d*)
-  (display "bta-solve") (newline)
-  (debug-level 1 (display-bts-d* d*) (newline))
+  (debug-level 1 (display "bta-solve") (newline))
+  (debug-level 2 (display-bts-d* d*) (newline))
   (for-each (lambda (d) (bta-solve (annDefFetchProcBody d))) d*)
-  (display "bta-solve done") (newline)) 
+  (debug-level 1 (display "bta-solve done") (newline))) 
 
 ;;; bta-solve returns #t for serious expressions
 ;;; only dynamic ifs and lambdas which guard serious expressions are

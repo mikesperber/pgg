@@ -62,6 +62,7 @@
 (define level1 (start-memo 2 $goal '(1 1 2) (list 'grammar 'k 'input)))
 (writelpp *residual-program* "examples/cps-lr-d1.scm")
 (load "examples/cps-lr-d1.scm")
+(load "../lr-essence/examples/grammars.scm")
 (define level2 (nextlevel level1 (list g10-attrib 1 'input)))
 (writelpp *residual-program* "examples/cps-lr-d2.scm")
 (load "examples/cps-lr-d2.scm")
