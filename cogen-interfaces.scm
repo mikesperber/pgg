@@ -1,3 +1,4 @@
+
 (define-interface cogen-abssyn-interface
   (export annMakeDef
 	  annMakeDefWithoutMemoization
@@ -550,9 +551,10 @@
 
 (define-structure cogen-memo-distributed
   (compound-interface cogen-memo-interface
-		      (export start-specialization
+		      (export multi-memo
+			      start-specialization
 			      collect-residual-program))
-  (open scheme shift-reset auxiliary
+  (open scheme shift-reset auxiliary big-scheme
 	cogen-library cogen-record cogen-completers cogen-residual
 	message-low aspaces proxies threads threads-internal locks placeholders)
   (files cogen-distributed-utils
