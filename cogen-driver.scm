@@ -53,7 +53,8 @@
   (let* ((user-open '())
 	 (user-files '())
 	 (user-export '())
-	 (user-options '()))
+	 (user-options '())
+	 (user-main-sym #f))
     (let loop ((options options))
       (and (not (null? options))
 	   (let ((option (car options)))
@@ -66,9 +67,10 @@
 		  (set! user-open (append user-open (cdr option))))
 		 ((files)
 		  (set! user-files (append user-files (cdr option))))
+		 ((goal)
+		  (set! user-main-sym (cadr option)))
 		 (else
-		  (set! user-options (cons option user-options))))
-	       (loop (cdr options)))
+		  (set! user-options (cons option user-options)))))
 	      ((string? option)
 	       (let* ((suffix-stripped (strip-path-suffix option))
 		      (option (strip-path-prefix suffix-stripped))
@@ -91,13 +93,18 @@
 			    '$goal))
 		       (p
 			`(define-interface ,interface-sym
-			   (export ,main-sym ,@user-export)))
+			   (export ,(or user-main-sym main-sym) ,@user-export)))
 		       (p
 			`(define-structure ,structure-sym ,interface-sym
 			   (open scheme signals define-data pgg-library
 				 ,@user-open)
 			   ,@(reverse user-options)
-			   (files ,@user-files ,structure-sym))))))))))))))
+			   (files ,@user-files ,structure-sym)
+			   ,@(if user-main-sym
+				 `((begin (define ,user-main-sym ,main-sym)))
+				 '())))))))))
+	      (loop (cdr options)))))))
+	       
 
 ;;; TO DO:
 ;;; - error recognition & handling
