@@ -1,5 +1,6 @@
 \documentclass[11pt]{article}
 
+\usepackage{alltt}
 \usepackage{makeidx}
 \usepackage[latin1]{inputenc}
 \usepackage{url}
@@ -8,11 +9,13 @@
 \newcommand{\indextt}[1]{\index{#1@\texttt{#1}}}
 \newcommand{\dindextt}[1]{\index{#1@\texttt{#1}|textbf}}
 
+\newcommand{\meta}[1]{\ensuremath{\langle\textit{#1}\rangle}}
+
 \makeindex
 %%% makeindex -s pgg-manual.ist pgg-manual.idx
 \begin{document}
 \title{The PGG System---User Manual}
-\author{Peter Thiemann\\
+\author{Peter Thiemann\thanks{Copyright \copyright~Peter Thiemann, 1998-2000}\\
   Universität Freiburg\\
   thiemann@informatik.uni-freiburg.de}
 \maketitle
@@ -41,7 +44,7 @@ It has the following features
 \item fast specialization (the system produces generating extensions);
 \item multi-level specialization.
 \end{itemize}
-As a non-feature, the system does not have a post-processor.
+The system does not have a post-processor.
 This manual does not contain explanatory material about offline
 partial evaluation. Section~\ref{sec:partial-evaluation} gives some
 pointers to relevant literature.
@@ -57,83 +60,48 @@ pointers to relevant literature.
 
 To use the system, you first have to install the Scheme48 system
 \cite{KelseyRees1995}, which is available from Richard Kelsey's homepage
-\url{http://www.neci.nj.nec.com/homepages/kelsey/}. The current version is
-0.53; PGG has been known to work with versions $\ge$ 0.42.
+\url{http://www.s48.org/}. The current version 0.57 is required to run PGG.
 
 Once you have installed Scheme48, unpack the distribution file by 
-\begin{verbatim}
-hanauma> mkdir pgg-1.1
-hanauma> cd pgg-1.1 
-hanauma> zcat <PATH_TO>pgg-1.1.tar.gz | tar xvf -
-\end{verbatim}
-(with \verb+hanauma>+ being the shell's prompt)
-This creates the directory \texttt{pgg-1.1} in the current directory.
+\begin{alltt}
+kailua> mkdir pgg-1.3
+kailua> cd pgg-1.3 
+kailua> zcat \meta{path-where-you-downloaded}/pgg-1.3.tar.gz | tar xvf -
+\end{alltt}
+(with \verb+kailua>+ being the shell's prompt)
+This creates the directory \texttt{pgg-1.3} in the current directory.
 
 Next, you should build yourself an image file of the system, to speed
 up loading later on. To do this type:
 \begin{verbatim}
-hanauma> cd pgg-1.1
-hanauma> make
+kailua> cd pgg-1.3
+kailua> make
 (echo ",bench on"; \
  echo ",config,load genext-packages.scm pgg-packages.scm"; \
  for package in pgg-residual pgg ; do \
-   echo ",load-package $package";  done ; \
+ echo ",load-package $package"; \
+ done ; \
  echo ",open pgg signals"; \
- echo ",open auxiliary pgg-library cogen-specialize pp"; \
+ echo ",open auxiliary pgg-library pgg-specialize pp"; \
  echo ",collect"; \
- echo ",dump pgg.image \"(PGG-1.1 made by $LOGNAME `date`)\"";
- echo ",exit" )  | scheme48 -h 10000000
-Welcome to Scheme 48 0.51 (made by pjt on Wed Jun 24 08:54:28 BST 1998).
-Copyright (c) 1993, 1994 by Richard Kelsey and Jonathan Rees.
-Copyright (c) 1996 by NEC Research Institute, Inc.
+ echo ",dump pgg.image \"(PGG-1.2 made by $LOGNAME `date`)\""; \
+ echo ",exit" ) \
+| scheme48 -h 10000000
+Welcome to Scheme 48 0.57 (made by thiemann on Fri Aug  8 16:50:56 CEST 2003).
+Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees.
 Please report bugs to scheme-48-bugs@martigny.ai.mit.edu.
 Type ,? (comma question-mark) for help.
-> Will compile some calls in line
-> genext-packages.scm
-pgg-packages.scm
-
-Undefined: (anf-specializer anf-specializer-interface)
-> [pp /usr/local/lib/scheme48/big/pp.scm]
-[auxiliary auxiliary.scm]
-[cogen-gensym cogen-gensym.scm]
-[cogen-boxops cogen-boxops.scm]
-[cogen-globals cogen-globals.scm]
-[cogen-specialize cogen-specialize.scm]
-[cogen-library cogen-library.scm]
-[shift-reset shift-reset.scm]
-[cogen-residual cogen-residual.scm]
-[cogen-completers cogen-completer.scm]
-[cogen-record cogen-record.scm]
-[cogen-memo-standard cogen-memo-standard.scm]
-[pgg-library cogen-direct-anf.scm]
-[define-data cogen-ctors.scm]
-[pgg-residual]
-> [cogen-env cogen-env.scm]
-[cogen-macro cogen-macro.scm]
-[cogen-abssyn cogen-abssyn.scm]
-[cogen-scheme cogen-scheme.scm]
-[cogen-labset cogen-labset-bylist.scm]
-[cogen-bta cogen-effect.scm cogen-eq-flow.scm
-Undefined: (parse-type desc-np desc-nc desc-nt desc-type btann)
-]
-[cogen-typesig cogen-typesig.scm]
-[cogen-oca cogen-oca.scm]
-[cogen-construct-genext cogen-construct-genext.scm]
-[cogen-skeleton cogen-skeleton.scm]
-[cogen-terminate cogen-terminate.scm]
-[pgg cogen-driver.scm]
-> > > Before: 2377611 words free in semispace
-After:  3560836 words free in semispace
+> will compile some calls in line
+> > > > > > Before: 2527559 words free in semispace
+After:  4203309 words free in semispace
 > Writing pgg.image
-> 20.221u 0.572s 0:24.01 86.5%  103+50335k 0+90io 27pf+0w
-hanauma>
+> 
+kailua>
 \end{verbatim}
-Do not worry about the \texttt{Undefined:} messages, they result from
-mutually recursive modules.
 
 Next time you want to use PGG, type
 \begin{verbatim}
-hanauma> scheme48 -h 6000000 -i pgg.image
+kailua> scheme48 -h 6000000 -i pgg.image
 \end{verbatim}
 to save the time spent with loading and compiling the system. You
 might want to put the above into a shell script. The \texttt{-h}
@@ -180,33 +148,37 @@ the binding times \texttt{1} (dynamic) for the base \texttt{x} and \texttt{0}
 bta-run
 bta-solve
 bta-solve done
-'((define (power x_1 n_1) (_if 0 1 (_op 0 = '0 n_1) (_lift ...
+'((define (specialize-$goal x2) ...
 > 
 \end{verbatim}
-\end{small}
+\end{small}%%$
 PGG's answer is the corresponding generating extension. Pretty
 printing yields:
 \begin{small}
 \begin{verbatim}
-(define (power x_1 n_1)
-   (_if 0 1
-        (_op 0 = 0 n_1)
-        (_lift 0 1 1)
-        (_op 1 * x_1 (power x_1 (_op 0 - n_1 1)))))
- (define ($goal x_1 n_1) (power x_1 n_1)))
+ (define (specialize-$goal x2)
+   (specialize $goal '(power 1 0) (list 'x1 x2)))
+ (define (power x_1 n_1)
+   (if (_op 0 = 0 n_1)
+       (_lift 0 1 1)
+       (_op 1 * x_1 (power x_1 (_op 0 - n_1 1)))))
+ (define ($goal x_1 n_1)
+   (power x_1 n_1))
 \end{verbatim}
-\end{small}
+\end{small}%%$
 To use the generating extension, we need to compile it. There are
 several ways to do that:
 \indextt{cogen-driver}
 \begin{small}
 \begin{verbatim}
 > (define genext
->   (cogen-driver (list "examples/power.scm") '(power 1 0)))
+    (cogen-driver (list "examples/power.scm") '(power 1 0)))
 bta-run
 bta-solve
 bta-solve done
+; no values returned
 > (load-program genext)
+; no values returned
 >
 \end{verbatim}
 \end{small}
@@ -215,93 +187,91 @@ and then load and compile the file.
 \begin{small}
 \begin{verbatim}
 > (writelpp genext "/tmp/power-10.scm")
+#{Unspecific}
 > (load "/tmp/power-10.scm")
 /tmp/power-10.scm 
+; no values returned
 > 
 \end{verbatim}
 \end{small}
-This approach is recommended if the source program does not yet
+The latter approach is recommended if the source program does not yet
 specialize satisfactorily. In this case, inspection of the generating
 extension reveals possible problems. For this reason, the syntax of
 the generating extension is as close as possible to binding-time
 annotated Scheme.
 
 Now that we have loaded the generating extension, we are ready to
-specialize. The \texttt{specialize} function takes as parameters the
-binding-time skeleton \texttt{'(\$goal 1 0)} and an
-argument template \texttt{'(ignored 0)}. The binding-time skeleton names the
-entry point and lists the binding times. The argument template lists \emph{all}
-arguments, one for each binding time in the skeleton. The arguments
-corresponding to non-zero binding times
-must be symbols, because they serve as stubs for variable names. The
-arguments corresponding to zero binding times serve as the static inputs.
+specialize. This is facilitated by the \texttt{specialize-\$goal} function %$
+provided as part of the generating extension.
 \begin{small}
 \begin{verbatim}
-> (specialize $goal '($goal 1 0) '(ignored 0))
-'($goal-1 ignored)
+> (specialize-$goal 0)
+'(power-2 x1)
 > *residual-program*
-'((define ($goal-1 ignored-1) 1))
+'((define (power-2 x-3) 1))
 > 
 \end{verbatim}
-\end{small}
+\end{small}%%$
 The specializer responds with the call template for the residual
-program, \texttt{'(\$goal-1 ignored)}, indicating that \texttt{\$goal-1}
+program, \texttt{'(power-2 x1)}, indicating that \texttt{power-2}
 is the entry point of the residual program and that it takes one
 parameter. 
 The specializer puts the residual program in variable
 \indextt{*residual-program*}\texttt{*residual-program*}, for further
-examination, compilation, 
-or to save it to a file.
+examination, compilation, or to save it to a file.
 
 Here is a more interesting run, specializing \texttt{power} for
 \texttt{n=4}.
 \begin{small}
 \begin{verbatim}
-> (specialize $goal '($goal 1 0) '(x 4))
-'($goal-1 x)
+> (specialize-$goal 4)
+'(power-2 x1)
 > (p *residual-program*)
-(define ($goal-1 x-1)
-  (let* ((mlet-5 (* x-1 1))
-         (mlet-4 (* x-1 mlet-5))
-         (mlet-3 (* x-1 mlet-4)))
-    (* x-1 mlet-3)))
+((define (power-2 x-3)
+   (let* ((mlet-11 (* x-3 1))
+          (mlet-9 (* x-3 mlet-11))
+          (mlet-7 (* x-3 mlet-9)))
+     (* x-3 mlet-7))))
 \end{verbatim}
-\end{small}
+\end{small}%%$
 (The function \texttt{p} invokes the pretty printer.)
 
 This residual program looks more complicated than we expected. The
 reason is that PGG---by default---avoids to duplicate or to reorder
 residual code. This feature makes it easy to have impure
 (side-effecting) primitives. In the present case, we know that
-\texttt{*} is pure and that no code duplication arises from it. Given
-an appropriate declaration as in  the file \texttt{"examples/pure-arith.scm"},
+\texttt{*} is pure and that no code duplication arises from it. 
+An appropriate declaration,
 \begin{small}
 \begin{verbatim}
 (define-primitive * - pure)
 \end{verbatim}
 \end{small}
+as provided in the file \texttt{"examples/pure-arith.scm"}, instructs PGG that
+\texttt{*} is indeed a pure function.
 Now we can say
 \begin{small}
 \begin{verbatim}
 > (define genext
->   (cogen-driver (list "examples/power.scm"
->                       "examples/pure-arith.scm") '(power 1 0)))
+    (cogen-driver (list "examples/power.scm"
+                        "examples/pure-arith.scm") '(power 1 0)))
 ...
 > (load-program genext)
-> (specialize $goal '($goal 1 0) '(x 4))
+; no values returned
+> (specialize-$goal 4)
 \end{verbatim}
-\end{small}
+\end{small}%%$
 and PGG generates the expected code:
 \begin{small}
 \begin{verbatim}
-(define ($goal-1 x-1)
-  (* x-1 (* x-1 (* x-1 (* x-1 1))))
+(define (power-2 x-3)
+  (* x-3 (* x-3 (* x-3 (* x-3 1)))))
 \end{verbatim}
 \end{small}
 A post-processor would have reduced the expression \texttt{(* x-1 1)}
 to \texttt{x-1}. This example demonstrates that there is none. It is
 nevertheless possible to obtain the same effect by slightly rewriting
-the source program.
+the source program. This is left as as exercise.
 
 
 \subsection{Lambda interpreter}
@@ -415,10 +385,11 @@ the binding-time analysis with
 \begin{small}
 \begin{verbatim}
 > (define genext 
->   (cogen-driver (list "examples/int.scm") '(main 0 0 1)))
+    (cogen-driver (list "examples/int.scm") '(main 0 0 1)))
 bta-run
 bta-solve
 bta-solve done
+; no values returned
 > 
 \end{verbatim}
 \end{small}
@@ -427,51 +398,45 @@ To load this generating extension, we need to load the
 \begin{small}\indextt{define-data}
 \begin{verbatim}
 > ,open pgg-residual
-Load structure pgg-residual (y/n)? y
-[pgg-residual
-cogen-ctors.scm ]
-Newly accessible in user: (define-data)
 > (load-program genext)
-> (specialize $goal '($goal 0 0 1) '(5 () values))
-'($goal-1 values)
+> (specialize-$goal 5 '())
+'(main-2 x3)
 > (p *residual-program*)
-((define ($goal-1 values-1) 5))
-32
-> (specialize $goal '($goal 0 0 1) '((+ x y) (x y) values))
-'($goal-1 values)
+((define (main-2 x-3) 5))
+> (specialize-$goal '(+ x y) '(x y))
+'(main-2 x3)
 > (p *residual-program*)
-((define ($goal-1 values-1)
-   (let* ((mlet-2 (cdr values-1))
-          (mlet-3 (car values-1))
-          (mlet-4 (cdr mlet-2))
-          (mlet-5 (car mlet-2)))
-     (+ mlet-3 mlet-5))))
-26
-> (specialize $goal '($goal 0 0 1) '((lambda (x) (+ x y)) (y) values))
-'($goal-1 values)
+((define (main-2 x-3)
+   (let* ((mlet-5 (cdr x-3))
+          (mlet-7 (car x-3))
+          (mlet-9 (cdr mlet-5))
+          (mlet-11 (car mlet-5)))
+     (+ mlet-7 mlet-11))))
+> (specialize-$goal '(lambda (x) (+ x y)) '(y))
+'(main-2 x3)
 > (p *residual-program*)
-((define ($goal-1 values-1)
-   (define (loop_2-3-2 mlet-3-1)
-     (lambda (y_1-2)
-       (+ y_1-2 mlet-3-1)))
-   (let* ((mlet-2 (cdr values-1))
-          (mlet-3 (car values-1)))
-     (loop_2-3-2 mlet-3))))
-28
+((define (main-2 x-3)
+   (define (loop-4 mlet-3)
+     (lambda (y_1-5)
+       (+ y_1-5 mlet-3)))
+   (let* ((mlet-5 (cdr x-3)) (mlet-7 (car x-3)))
+     (loop-4 mlet-7))))
 > 
 \end{verbatim}
-\end{small}
+\end{small}%%$
 The examples demonstrate that the environment is specialized
 away. Only the dynamic values survive and become parameters (this is
 called ``arity raising'').
 Furthermore, \texttt{eval} and \texttt{apply} have been specialized
 satisfactorily, as demonstrated by the last two specializations:
-\texttt{(+ mlet-3 mlet-5)} and \texttt{(+ y\_1-2 mlet-3-1)} is the
+\texttt{(+ mlet-7 mlet-11)} and \texttt{(+ y\_1-5 mlet-3)} is the
 corresponding residual code. 
 
-We can get rid of the auxiliary definition of \verb+loop_2-3-2+ by
-turning off memoization for the function \texttt{int}. We just change
-the first line of its definition to 
+The auxiliary definition of \verb+loop-4+ is introduced automatically by the
+specializer to avoid a non-terminating specialization. In the example, there is
+no danger of non-termination because the recursive calls only decompose the
+source expression. Hence, it is safe to turn off memoization for the function
+\texttt{int} by changing the first line of its definition to 
 \indextt{define-without-memoization}
 \begin{small}
 \begin{verbatim}
@@ -479,8 +444,7 @@ the first line of its definition to
   ...)
 \end{verbatim}
 \end{small}
-After constructing a new generating extension, we obtain a
-satisfactory residual program.
+After constructing a new generating extension, we obtain a simpler residual program.
 \begin{small}
 \begin{verbatim}
 (define ($goal-1 values-1)
@@ -520,44 +484,43 @@ what happens.
 \begin{small}
 \begin{verbatim}
 > (define genext
->   (cogen-driver (list "examples/cyclic.scm") '(main 1)))
+    (cogen-driver (list "examples/cyclic.scm") '(main 1)))
 bta-run
 effect analysis: fixpointing done
 bta-solve
 bta-solve done
 > (p genext)
-((define-data
-   my-list
-   (my-nil)
-   (my-cons my-car my-cdr))
+((define-data my-list (my-nil) (my-cons my-car my-cdr))
+ (define (specialize-$goal)
+   (specialize $goal '(main 1) (list 'x1)))
  (define (main d_2)
-   (let ((cycle_1
-           (_ctor_memo 0 (0 0)
-             my-cons
-             1
-             (_make-cell_memo 0 3 0 (_ctor_memo 0 () my-nil)))))
-     (_cell-set!_memo 0
-       (_s_t_memo 0 my-cdr cycle_1)
-       cycle_1)
+   (let ((cycle_1 (_ctor_memo 0
+                              (0 0)
+                              #f
+                              my-cons
+                              1
+                              (_make-cell_memo 0
+                                               3
+                                               0
+                                               (_ctor_memo 0
+                                                           ()
+                                                           #f
+                                                           my-nil)))))
+     (_message!_memo 0 (_s_t_memo 0 my-cdr cycle_1) cell-set! cycle_1)
      (zip d_2 cycle_1)))
  (define (zip d_1 s_1)
-   (multi-memo 1 'zip-4 zip-4 '(1 0) (list d_1 s_1)))
- (define (zip-4 d_1 s_1)
-   (_if 1 1
+   (multi-memo 1 1 'zip-2 zip-2 #f '(1 0) (list d_1 s_1)))
+ (define (zip-2 d_1 s_1)
+   (_if 1
         (_op 1 null? d_1)
         (_lift 0 1 '())
         (_op 1
              cons
-             (_op 1
-                  cons
-                  (_op 1 car d_1)
-                  (_lift 0 1 (_s_t_memo 0 my-car s_1)))
+             (_op 1 cons (_op 1 car d_1) (_lift 0 1 (_s_t_memo 0 my-car s_1)))
              (zip (_op 1 cdr d_1)
                   (_s_t_memo 0 cell-ref (_s_t_memo 0 my-cdr s_1))))))
  (define ($goal d_2)
-   (begin
-     (_op 0 _define_data '(my-list (my-nil) (my-cons my-car my-cdr)))
-     (main d_2))))
+   (main d_2)))
 >
 \end{verbatim}
 \end{small}
@@ -585,24 +548,24 @@ Load structure pgg-residual (y/n)? y
 cogen-ctors.scm ]
 Newly accessible in user: (define-data)
 > (load-program genext)
-> (specialize $goal '($goal 1) '(x))
-'($goal-1 x)
+> (specialize-$goal)
+'(main-2 x1)
 > (p *residual-program*)
-((define ($goal-1 x-1)
-   (define (zip-4-2 x-1-1)
-     (let ((mlet-2 (null? x-1-1)))
-       (if mlet-2
-         '()
-         (let* ((mlet-5 (car x-1-1))
-                (mlet-4 (cons mlet-5 1))
-                (mlet-6 (cdr x-1-1))
-                (mlet-7 (zip-4-2 mlet-6)))
-           (cons mlet-4 mlet-7)))))
-   (zip-4-2 x-1)))
+((define (main-2 x-3)
+   (define (zip-4 x-3)
+     (let ((mlet-5 (null? x-3)))
+       (if mlet-5
+           '()
+           (let* ((mlet-11 (car x-3))
+                  (mlet-9 (cons mlet-11 1))
+                  (mlet-13 (cdr x-3))
+                  (mlet-15 (zip-4 mlet-13)))
+             (cons mlet-9 mlet-15)))))
+   (zip-4 x-3)))
 \end{verbatim}
 \end{small}
 The cyclic structure vanishes on specialization. The construction of
-the pair \texttt{(x . 1)} is implemented by \texttt{(cons mlet-5 1)}.
+the pair \texttt{(x . 1)} is implemented by \texttt{(cons mlet-11 1)}.
 
 
 \subsection{Guide to the other examples}
@@ -615,7 +578,7 @@ the pair \texttt{(x . 1)} is implemented by \texttt{(cons mlet-5 1)}.
 \begin{small}
 \begin{verbatim}
 > (define genext
->   (cogen-driver (list "examples/2lazy.scm") '(lazy-2int 0 0 0 1)))
+    (cogen-driver (list "examples/2lazy.scm") '(lazy-2int 0 0 0 1)))
 > (load-program genext)
 \end{verbatim}
 \end{small}
@@ -658,11 +621,12 @@ It contains the example programs \texttt{lazy1} and \texttt{lazy2}.
   \begin{small}
 \begin{verbatim}
 > (define genext (cogen-driver (list "examples/dotprod.scm")
->                              '(dotprod 0 1 2 3)))
+                               '(dotprod 0 1 2 3)))
 > (load-program genext)
-> (specialize $goal '($goal 0 1 2 3) '(2 v1 v2 v3))
-'(multi-memo 2 '$goal-1 $goal-1 '(0 1 2) (list v1 v2 v3))
+> (specialize-$goal 2)
+'(multi-memo 2 2 'dotprod-2 dotprod-2 #f '(0 1 2) (list x2 x3 x4))
 \end{verbatim}
+    %%$
   \end{small}
   This answer indicates that the residual program is again a
   generating extension, which can be loaded and specialized
@@ -670,48 +634,48 @@ It contains the example programs \texttt{lazy1} and \texttt{lazy2}.
   \begin{small}
 \begin{verbatim}
 > (p *residual-program*)
-((define ($goal-1 v1-3 v2-2 v3-1)
-   (let* ((mlet-7 (car v1-3))
-          (mlet-8 (_op 1 car v2-2))
-          (mlet-6 (_op 1 * (_lift0 1 mlet-7) mlet-8))
-          (mlet-9 (_op 2 car v3-1))
-          (mlet-5 (_op 2 * (_lift 1 1 mlet-6) mlet-9))
-          (mlet-10 (cdr v1-3))
-          (mlet-11 (_op 1 cdr v2-2))
-          (mlet-12 (_op 2 cdr v3-1))
-          (mlet-16 (car mlet-10))
-          (mlet-17 (_op 1 car mlet-11))
-          (mlet-15 (_op 1 * (_lift0 1 mlet-16) mlet-17))
-          (mlet-18 (_op 2 car mlet-12))
-          (mlet-14 (_op 2 * (_lift 1 1 mlet-15) mlet-18))
-          (mlet-19 (cdr mlet-10))
-          (mlet-20 (_op 1 cdr mlet-11))
-          (mlet-21 (_op 2 cdr mlet-12))
-          (mlet-13 (_op 2 + mlet-14 (_lift0 2 '0))))
-     (_op 2 + mlet-5 mlet-13))))
+((define (dotprod-2 x-7 x-5 x-3)
+   (let* ((mlet-15 (car x-7))
+          (mlet-17 (_op 1 car x-5))
+          (mlet-13 (_op 1 * (_lift0 1 mlet-15) mlet-17))
+          (mlet-19 (_op 2 car x-3))
+          (mlet-11 (_op 2 * (_lift 1 1 mlet-13) mlet-19))
+          (mlet-21 (cdr x-7))
+          (mlet-23 (_op 1 cdr x-5))
+          (mlet-25 (_op 2 cdr x-3))
+          (mlet-33 (car mlet-21))
+          (mlet-35 (_op 1 car mlet-23))
+          (mlet-31 (_op 1 * (_lift0 1 mlet-33) mlet-35))
+          (mlet-37 (_op 2 car mlet-25))
+          (mlet-29 (_op 2 * (_lift 1 1 mlet-31) mlet-37))
+          (mlet-39 (cdr mlet-21))
+          (mlet-41 (_op 1 cdr mlet-23))
+          (mlet-43 (_op 2 cdr mlet-25))
+          (mlet-27 (_op 2 + mlet-29 (_lift0 2 0))))
+     (_op 2 + mlet-11 mlet-27))))
 \end{verbatim}
   \end{small}
   This time, we have to \emph{load the residual program} to continue
   specializing. The answer from the previous specialization step tells
-  us the name \texttt{\$goal-1} of the entry point.
+  us the name \texttt{dotprod-2} of the entry point.
   \begin{small}
 \begin{verbatim}
 > (load-program *residual-program*)
-> (specialize $goal-1 '($goal-1 0 1 2) '((111 222) v2 v3))
-'(multi-memo 1 '$goal-1-1 $goal-1-1 '(0 1) (list v2 v3))
+> (specialize dotprod-2 '(dotprod-2-1 0 1 2) '((111 222) v2 v3))
+'(multi-memo 1 1 'dotprod-2-1 dotprod-2-1 #f '(0 1) (list v2 v3))
 > (load-program *residual-program*)
-> (specialize $goal-1-1 '($goal-1-1 0 1) '((333 444) v3))
-'($goal-1-1-1 v3)
+> (specialize dotprod-2-1 '(dotprod-2-1-1 0 1) '((333 444) v3))
+'(dotprod-2-1-1 v3)
 > (p *residual-program*)
-((define ($goal-1-1-1 v3-1)
-   (let* ((mlet-2 (car v3-1))
-          (mlet-3 (* 36963 mlet-2))
-          (mlet-4 (cdr v3-1))
-          (mlet-5 (car mlet-4))
-          (mlet-6 (* 98568 mlet-5))
-          (mlet-7 (cdr mlet-4))
-          (mlet-8 (+ mlet-6 0)))
-     (+ mlet-3 mlet-8))))
+((define (dotprod-2-1-1 v-3)
+   (let* ((mlet-5 (car v-3))
+          (mlet-7 (* 36963 mlet-5))
+          (mlet-9 (cdr v-3))
+          (mlet-11 (car mlet-9))
+          (mlet-13 (* 98568 mlet-11))
+          (mlet-15 (cdr mlet-9))
+          (mlet-17 (+ mlet-13 0)))
+     (+ mlet-7 mlet-17))))
 \end{verbatim}
   \end{small}
   This is the final specialized program after three steps.
@@ -721,7 +685,7 @@ It contains the example programs \texttt{lazy1} and \texttt{lazy2}.
 \begin{verbatim}
 > (define genext (cogen-driver (list "examples/object.scm") '(main)))
 > (load-program genext)
-> (specialize $goal '($goal) '())
+> (specialize-$goal)
 \end{verbatim}
 \end{small}
 \item \texttt{pm} Olivier Danvy's pattern matcher \cite{Danvy1991}
@@ -736,10 +700,10 @@ It contains the example programs \texttt{lazy1} and \texttt{lazy2}.
 \begin{verbatim}
 > (define genext (cogen-driver (list "examples/unify.scm") '(main 0 1)))
 > (load-program genext)
-> (specialize $goal '($goal 0 1) (list  '(cst 555) 'YYY))
-> (specialize $goal '($goal 0 1) (list  '(var 555) 'YYY))
-> (specialize $goal '($goal 0 1) (list  '(bin (var 1) (var 1)) 'YYY))
-> (specialize $goal '($goal 0 1) (list  '(bin (var 1) (bin (cst 4711) (var 1))) 'YYY))
+> (specialize-$goal '(cst 555))
+> (specialize-$goal '(var 555))
+> (specialize-$goal '(bin (var 1) (var 1)))
+> (specialize-$goal '(bin (var 1) (bin (cst 4711) (var 1))))
 \end{verbatim}
   \end{small}
 \end{itemize}
@@ -816,60 +780,83 @@ Section~\ref{sec:cogen-driver} in the reference part lists a number of
 options to gain more control over the module declaration.
 
 
-\subsection{Specialization with respect to modular data}
+\subsection{Specialization with respect to indexed data}
 \label{sec:modular-data}
 
-It is possible to regard a list of static data as a temporal stream. This
-means that only one element of the list is available for every single run of
-a specialization. The most striking application for this feature is
-the compilation of modular programs by specializing an interpreter.
+It is possible to split the static data into an indexed set of data
+fragments. The main catch is that only one particular indexed value is
+available to each single run of the specializer, the current world. The
+specializer can request arbitrary elements (worlds) from this set using a special
+construct. If the request concerns the current world then the specializer
+continues right away. Otherwise, it checks the memoization cache. If the
+requested world has already been seen in the past, it might be possible to
+resolve the request. Otherwise, the specializer generates a new memoization
+point which waits until the requested world becomes available to the
+specializer, possibly for the second time.
+
+The most striking application for this feature is
+the separate compilation of modular programs by specializing an interpreter. In 
+this application, the index values are the names of modules and the standard
+semantics of the special construct is to load the module's text into memory.
 
 An an example, we consider the compilation of a simple register machine
-language. Here is an example program.
+language. Here is an example session.
 \begin{verbatim}
 > (load "examples/modint-examples.scm")
 examples/modint-examples.scm
 > (p module1)
-((add (jz 1 finis)
+((add (jz 1 copy)
       (decr 1)
       (incr 0)
-      (jump add)))
+      (jump add))
+ (finis))
 > (p module2)
-((finis))
+((copy (jz 2 test)
+       (incr 1)
+       (decr 2)
+       (jump copy))
+ (test (jz 1 finis)
+       (jump add)))
 \end{verbatim}
-The \texttt{main} function of the interpreter accepts four parameters. The
-stream of modules, the entry label, the number of registers, and the
-initial contents of the registers. All inputs but the last one are assumed to
-be statically known. The idea is that the modules (the elements of the stream)
-are supplied as they become available. Specialization proceeds until the next
-module is required.
+The \texttt{main} function of the interpreter for this register-machine
+language accepts four parameters, a function that maps a label to a module
+name, \texttt{modulename-of}, the  entry label, \texttt{name}, the number of
+registers, \texttt{nargs}, and the
+initial contents of the registers, \texttt{initial\_args}. The \texttt{name}
+and \texttt{nargs}  inputs are known statically, the other inputs are dynamic. 
 \begin{verbatim}
-> (define genext (cogen-driver '("examples/modint.scm") '(main 0 0 0 1)))
+> (define genext
+    (cogen-driver '("examples/modint-base.scm" "examples/modint.scm")
+                  '(main 1 0 0 1)))
 bta-run
+interpret-type: #(type-all t #(type-app -> (#(type-app b ()) #(type-app -> (#(type-app b ()) #(type-app b ()) #(type-var t))) #(type-var t))))
+interpret-type: #(type-all t #(type-var t))
 bta-solve
 bta-solve done
 > ,open pgg-residual
 > (writelpp genext "/tmp/modint0.scm")
 > (load "/tmp/modint0.scm")
-> (specialize-$goal "mods" 'add 2)
-'(main-1 x4)
+> (specialize-$goal 'add 2)
+'(main-1 x1 x4)
 \end{verbatim}
-Specialization stops right before the first module. So far, it generated code
-for transferring the input list into the registers:
+Specialization stops right before loading the first module. So far, it
+generated code for transferring the input list into the registers:
 \begin{verbatim}
 > (p *residual-program*)
-((define (main-1 x-1)
-   (let* ((mlet-2 (car x-1))
-          (mlet-3 (cdr x-1))
-          (mlet-4 (car mlet-3))
-          (mlet-5 (cdr mlet-3)))
-     (jump-2 mlet-2 mlet-4))))
+((define (main-1 x-2 x-1)
+   (let* ((mlet-3 (car x-1))
+          (mlet-4 (cdr x-1))
+          (mlet-5 (car mlet-4))
+          (mlet-6 (cdr mlet-4))
+          (mlet-7 (x-2 'add)))
+     (jump-global-2 x-2 mlet-3 mlet-5))))
 \end{verbatim}
-The call to \texttt{jump2} calls code that will be generated as soon as the
-next module becomes available. This fact is signalled to the system via the
+The call to \texttt{jump-global-2} refers to code that will be generated as
+soon as the next module becomes available. This fact is signalled to the system
+via the 
 \texttt{continue} function.\indextt{continue}
 \begin{verbatim}
-> (continue "mods" (list module2))
+> (continue 'mod1 module1)
 \end{verbatim}
 
 At any point between invocations of \texttt{continue} it is possible to suspend 
@@ -886,14 +873,75 @@ loading the generating extension and reading the suspended file using
 > (load "examples/modint-examples.scm")
 > (resurrect "/tmp/suspended.scm")
 #t
-> (continue "mods" (list module1))
-> (continue "mods" (list ))
+> (continue 'mod2 module2)
+> (continue 'mod1 module1)
 \end{verbatim}
 
 The last two calls to \texttt{continue} complete the specialization of the
 interpreter of modular register machine programs.
 
+The file \texttt{modint-mutual.scm} contains a more sophisticated
+implementation that compiles each module only once. Here is a transcript:
+\begin{verbatim}
+> (define genext
+    (cogen-driver '("examples/modint-base.scm" "examples/modint-mutual.scm")
+                  '(main 0 1 0 1)))
+bta-run
+interpret-type: #(type-all t #(type-app -> (#(type-app b ()) #(type-app -> (#(type-app b ()) #(type-app b ()) #(type-var t))) #(type-var t))))
+interpret-type: #(type-app -> (#(type-app b ()) #(type-app b ())))
+bta-solve
+bta-solve done
+> (writelpp genext "/tmp/regcompiler2.scm")
+> (load "/tmp/regcompiler2.scm")
+/tmp/regcompiler2.scm
+> (specialize-$goal exported-labels 3)
+'(main-1 x2 x4)
+\end{verbatim}
+Here is the startup code for the compiled program:
+\begin{verbatim}
+> (p *residual-program*)
+((define (main-1 x-2 x-1)
+   (let* ((mlet-3 (car x-1))
+          (mlet-4 (cdr x-1))
+          (mlet-5 (car mlet-4))
+          (mlet-6 (cdr mlet-4))
+          (mlet-7 (car mlet-6))
+          (mlet-8 (cdr mlet-6)))
+     (case x-2
+       ((add) (jump-2 mlet-3 mlet-5 mlet-7))
+       ((finis) (jump-3 mlet-3 mlet-5 mlet-7))
+       ((copy) (jump-4 mlet-3 mlet-5 mlet-7))
+       (else (dyn-error "Unknown name"))))))
+\end{verbatim}
+Here is the code for the first module:
+\begin{verbatim}
+> (continue 'mod1 module1)
+> (p *residual-program*)
+((define (jump-2 mlet-3 mlet-2 mlet-1)
+   (if (zero? mlet-2)
+       (jump-4 mlet-3 mlet-2 mlet-1)
+       (jump-2 (+ mlet-3 1) (- mlet-2 1) mlet-1)))
+ (define (jump-3 mlet-3 mlet-2 mlet-1)
+   mlet-3))
+\end{verbatim}
+Here is the code for the second module:
+\begin{verbatim}
+> (continue 'mod2 module2)
+> (p *residual-program*)
+((define (jump-5 mlet-3 mlet-2 mlet-1)
+   (if (zero? mlet-2)
+       (jump-3 mlet-3 mlet-2 mlet-1)
+       (jump-2 mlet-3 mlet-2 mlet-1)))
+ (define (jump-4 mlet-3 mlet-2 mlet-1)
+   (if (zero? mlet-1)
+       (jump-5 mlet-3 mlet-2 mlet-1)
+       (jump-4 mlet-3 (+ mlet-2 1) (- mlet-1 1)))))
+\end{verbatim}
 
+The input for this section, along with one more example, can be found in file
+\texttt{examples/sample\_modules\_session.scm}. 
+
+\clearpage
 \section{Reference manual}
 \label{sec:reference}
 
@@ -920,7 +968,7 @@ recursion. The type language comprises the types
 \item basic, for every expression that \emph{never} evaluates to a
   function or an element of an algebraic datatype as defined by
   \texttt{define-data};\indextt{define-data}
-\item $[\tau_1,\dots,\tau_n]\to\tau_0$, for every expression that
+\item $[\tau_1,\dots,\tau_n]\rightarrow\tau_0$, for every expression that
   \emph{always} evaluates to a function;
 \item $\texttt{TC}[\tau_1,\dots,\tau_n]$, for every expression that
   \emph{always} evaluates to an element of the algebraic datatype
@@ -1031,7 +1079,7 @@ memoization points can be defined and inserted manually
 
 
 
-\subsection{Special operators}
+\subsection{Special expressions}
 \label{sec:special-operations}
 
 
@@ -1065,6 +1113,28 @@ into
 \end{verbatim}
 To this end, it is necessary to declare \texttt{cons} as \texttt{pure}\indextt{pure}
 (see~\ref{sec:define-primitive}). 
+
+\subsubsection{lambda-poly}\dindextt{lambda-poly}
+
+In addition to the standard lambda abstraction there is a polyvariant memoizing 
+abstraction operator.
+\begin{verbatim}
+E ::= (lambda-poly (V*) E*)
+\end{verbatim}
+The specializer treats a dynamic \texttt{lambda-poly} just like an ordinary
+\texttt{lambda}. A static \texttt{lambda-poly} specializes to a vector of all
+required specializations of the abstraction. The specializer constructs a
+partially static value consisting of a memoization map and a reference to
+the vector. Both, the vector and the memoization map, are initially
+empty. Whenever the specializer applies a \texttt{lambda-poly} it looks up the
+static skeleton of the arguments in the memoization map. If a specialization
+for this skeleton is already present in the map, it constructs a reference to
+the corresponding position in the vector. Otherwise, it extends the memoization 
+map, constructs a new specialization of the \texttt{lambda-poly}, and inserts
+it into the vector.
+
+This construct implements a first-class memoization mechanism and it could be
+used to replace the usual memoization. 
 
 \subsection{Predefined operators}
 \label{sec:extra}
@@ -1102,7 +1172,7 @@ The directives are only allowed at the top-level of a source program.
 
 \begin{verbatim}
 D ::= (define-without-memoization (P V*) D0* E*)
-    | (define-without-memoization P E)
+  |   (define-without-memoization P E)
 \end{verbatim}
 Define procedure \texttt{P}. The specializer does not to automatically
 insert memoization points in the body of \texttt{P}.
@@ -1169,14 +1239,34 @@ is eta-expanded by the frontend according to its declaration.
 \label{sec:define-primitive}
 
 \begin{verbatim}
-D ::= (define-primitive O T [dynamic|error|opaque|pure|apply])
+D ::= (define-primitive O T [dynamic|error|opaque|pure|apply|Number])
 \end{verbatim}
 \dindextt{dynamic}\dindextt{error}\dindextt{opaque}\dindextt{pure}\dindextt{apply}
 Declares the operator \texttt{O}  of type \texttt{T} with an optional
-property. The type \texttt{T} is currently ignored. The properties
-\texttt{dynamic}, \texttt{error}, \texttt{opaque} are synonyms. Each
-of them forces the binding time of \texttt{O} to be dynamic. 
+property.
 
+The parameter \texttt{T} declares the type of the operator.  
+It can be either \texttt{-}, indicating that the type of
+\texttt{O} is not restricted, or it can specify a polymorphic type for
+\texttt{O}. The grammar is as follows:
+\begin{verbatim}
+T  ::=  - | T0
+T0 ::=  (all TV T0) | (rec TV T0) | (TC T0*) | TV
+\end{verbatim}
+Here, \texttt{TV} stands for a type variable (an arbitrary symbol) and
+\texttt{TC} stands for a type constructor (an arbitrary symbol). The syntax,
+\texttt{(all TV T0)}, declares that variable \texttt{TV} is all-quantified in
+\texttt{T0}, like $\forall alpha.\tau_0$. The syntax, \texttt{(rec TV T0)},
+declares a recursive type, like $\mu\alpha.\tau_0$. The remaining cases are
+type constructor application and occurrence of a type variable. For
+convenience, the function type constructor, \texttt{->}, is treated
+specially. Writing \texttt{(-> t1 ... tn t0)} declares a Scheme function that
+takes \texttt{n} parameters ($\texttt{n} \ge 0$) and delivers a result of type
+\texttt{t0}. 
+ 
+The properties
+\texttt{dynamic}, \texttt{error}, \texttt{opaque} are synonyms. Each
+of them forces the binding time of \texttt{O} to be dynamic.
 The remaining properties advise the specializer what to do when it
 residualizes the operator.
 The \texttt{pure} property states that the operator does not have side
@@ -1185,6 +1275,10 @@ effects. Instead of creating a let-binding for the expression
 discarding or duplicating the expression.
 The \texttt{apply} property states that the operator \texttt{O} is the
 \texttt{apply} function as defined in the Scheme standard.
+
+If the property is a \texttt{Number} it declares the least binding time of the
+operator. 
+\index{binding time!specification of}
 
 
 \subsubsection{define-memo}
@@ -1397,15 +1491,15 @@ suspended at a deferred memoization point.
 \begin{verbatim}
 (continue Name Arg)
 \end{verbatim}
-The parameter \texttt{Name} identifies the value that the specialization waits
-for. It must be equal to the symbolic value used as a placeholder for the
-stream value. The example in Section~\ref{sec:modular-data} use the string
-\texttt{"mods"} for this purpose.
+The parameter \texttt{Name} identifies the index that the specialization waits
+for. It is used to match the index value in pending deferred memoization
+points. The example in Section~\ref{sec:modular-data} uses the symbols
+\texttt{'mod1} and \texttt{'mod2} for this purpose.
 
-The parameter \texttt{Arg} is the next value in the stream. The representation
-of this value and the indication of the end of the stream is up to the
-programmer. The example in Section~\ref{sec:modular-data} use the empty list to 
-indicate end-of-stream and a one-element list for the next item in the stream.
+The parameter \texttt{Arg} is the indexed value. This is a value of base type
+and its representation is completely up to the
+programmer. The example in Section~\ref{sec:modular-data} uses the empty list
+to indicate an empty world.
 
 
 \subsubsection{Suspend a deferred specialization}
@@ -1507,7 +1601,10 @@ separately.
 \item \verb+(set-lambda-is-toplevel! v)+ Default: \texttt{\#f}.
   \dindextt{set-lambda-is-toplevel"!}
 
-  Generate a toplevel function for each memoized lambda abstraction if set.
+  Generate a toplevel function for each memoized lambda abstraction if
+  set. Required for \texttt{suspend}\indextt{suspend} and
+  \texttt{resurrect}\indextt{resurrect} to work properly. 
+
 \end{itemize}
 
 
