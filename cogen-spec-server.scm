@@ -191,14 +191,14 @@
 	       server-registers-memo-point!
 	       (local-aspace-uid) program-point name local-id bts fct))
 
-(define (can-I-work-on? local-id)	; synchronous
+(define (can-I-work-on local-id)	; synchronous
   (call-with-values
    (lambda ()
      (remote-apply *server-master-aspace*
-		   can-server-work-on? (local-aspace-uid) local-id))
-   (lambda (can-I? killed)
+		   can-server-work-on (local-aspace-uid) local-id))
+   (lambda (maybe-can-I? killed)
      (for-each server-kill-local-id! killed)
-     can-I?)))
+     maybe-can-I?)))
 
 (define (I-am-working-on local-id)	; asynchronous
   (remote-run! *server-master-aspace*
@@ -231,11 +231,15 @@
 	  (if maybe-entry
 	      (begin
 		;; (display "Asking master if I can work on ") (display (server-entry->local-id maybe-entry)) (newline)
-		(if (can-I-work-on? (server-entry->local-id maybe-entry))
-		    (begin
-		      ;; (display "Master says I can work on ") (display (server-entry->local-id maybe-entry)) (newline)
-		      (loop maybe-entry))
-		    (inner-loop)))
+		(cond
+		 ((can-I-work-on (server-entry->local-id maybe-entry))
+		  => (lambda (maybe-local-id)
+		       (if (number? maybe-local-id)
+			   (let ((entry (local-pending-lookup maybe-local-id)))
+			     (server-entry->killed?! entry #t)
+			     (loop entry))
+			   (loop maybe-entry))))
+		 (else (inner-loop))))
 	      (I-am-unemployed)))))))
 
 (define last-wrapped-pp #f)

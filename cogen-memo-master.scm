@@ -54,22 +54,27 @@
 	(release-lock *master-pending-placeholders-lock*)
 	(placeholder-set! placeholder entry))))
 
+(define (uid-pending-advance! uid)
+  (let* ((pending-root (vector-ref *master-pending-by-uid* uid))
+	 (lock (pending-root->lock pending-root)))
+    (obtain-lock lock)
+    (let ((entries (pending-root->entries pending-root)))
+      (if (null? entries)
+	  (begin
+	    (release-lock lock)
+	    #f)
+	  (let ((entry (car entries)))
+	    (pending-root->entries! pending-root (cdr entries))
+	    (release-lock lock)
+	    entry)))))
+
 (define (master-pending-advance!)
   (let loop ((aspaces *server-aspaces*))
     (and (not (null? aspaces))
-	 (let* ((uid (aspace-uid (car aspaces)))
-		(pending-root (vector-ref *master-pending-by-uid* uid))
-		(lock (pending-root->lock pending-root)))
-	   (obtain-lock lock)
-	   (let ((entries (pending-root->entries pending-root)))
-	     (if (null? entries)
-		 (begin
-		   (release-lock lock)
-		   (loop (cdr aspaces)))
-		 (let ((entry (car entries)))
-		   (pending-root->entries! pending-root (cdr entries))
-		   (release-lock lock)
-		   entry)))))))
+	 (or (uid-pending-advance! (aspace-uid (car aspaces)))
+	     (loop (cdr aspaces))))))
+
+  
 
 (define (master-pending-sign-up! placeholder)
   (obtain-lock *master-pending-placeholders-lock*)
@@ -140,9 +145,11 @@
 
 ;; messages sent from server to master
 
+;; THIS CURRENTLY LOSES ('cause can-server-work-on changed)
+
 (define (server-working-on uid local-id) ; async
   ;; make sure that local-name is already registered with the master
-  (if (not (can-server-work-on? uid local-id))
+  (if (not (can-server-work-on uid local-id))
       'lose
       ;;(remote-run! (uid->aspace uid) server-kill-specialization! local-id)
       ))
@@ -173,7 +180,7 @@
 	       root (cons id (pending-root->killed-local-ids root))))))))
    (master-entry->ids+aspaces entry)))
 
-(define (can-server-work-on? uid local-id) ; sync
+(define (can-server-work-on uid local-id) ; sync
   (let loop ()
     ;; (display (list "can-server-work-on?" uid local-id)) (newline)
     (let ((placeholder (vector-ref *servers-placeholders* uid)))
@@ -189,7 +196,10 @@
 		 (let ((killed (pending-root->killed-local-ids root)))
 		  (pending-root->killed-local-ids! root '())
 		  (release-lock lock)
-		  (values can-I? killed))))))
+		  (if can-I?
+		      (values can-I? killed)
+		      (values (uid-pending-advance! uid) killed)))))))
+						   
        (else				; wait until local name registered
 	;; (display "Server ") (display uid) (display " suspends on: ")(display (list "can-server-work-on?" local-id)) (newline)
 	(placeholder-value placeholder)
