@@ -805,7 +805,7 @@
 	    (set! active ((eval `(lambda (max-level) ,active) (interaction-environment))
 			  *bta-max-bt*))
 	    (if (< level 0) (set! level 0))
-	    (if (>= level *bta-max-bt*) (set! level (- *bta-max-bt* 1)))
+	    (if (>= level *bta-max-bt*) (set! level *bta-max-bt*))
 	    (set! not-initialized #f)))
       (if (<= active *bta-max-bt*)
 	  (for-each (lambda (type)
