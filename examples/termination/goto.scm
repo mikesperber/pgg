@@ -1,0 +1,35 @@
+(define-data my-list (nil) (cons hd tl)) 
+
+(define (run pgm x y)
+  (int pgm pgm x y))
+(define (int pgm e x y)
+  (let ((hde (hd (hd e))))
+    (cond
+     ((eq? hde 'Y) y)
+     ((eq? hde 'X) x)
+     ((eq? hde 'X=X+1) (int pgm (tl e) (cons x 1) y))
+     ((eq? hde 'Y=Y+1) (int pgm (tl e) x (cons y 1)))
+     ((eq? hde 'GOTO) (int pgm (nth pgm (hd (tl (hd e)))) x y))
+     ((eq? hde 'GOTOX) (gotox pgm x y))
+     ((eq? hde 'IFX=0THEN) (if (eq? x 0)
+			       (int pgm (nth pgm (hd (tl (hd e))) x y))
+			       (int pgm (tl e) x y)))
+     ((eq? hde 'IFY=0THEN) (if (eq? y 0)
+			       (int pgm (nth pgm (hd (tl (hd e))) x y))
+			       (int pgm (tl e) x y)))
+     (else 'ERROR))))
+(define (nth xs n)
+  (if (nil? xs)
+      xs
+      (if (eq? n 0)
+	  xs
+	  (nth (tl xs) (- n 1)))))
+
+(define (gotox pgm x y)
+  (gotox1 pgm pgm x y 1))
+(define (gotox1 pgm ptail x y n)
+  (if (nil? ptail)
+      'ERROR
+      (if (equal? x n)
+	  (int pgm ptail x y)
+	  (gotox1 pgm (tl ptail) x y (+ n 1)))))
