@@ -1,7 +1,8 @@
 + inspect the lambda lifter (dependency analysis?)
 - insert LET only if the variable appears more than once in the body
 - reconsider LET insertion strategy (constructor arguments!)
-- how many memoization points are really necessary?
+- how many memoization points are really necessary? you may want to
+  read Malmkjaer's PEPM'93 paper
 + support for EVAL
 - complete the above (preprocessor, bta, skeleton)
 + check whether it still performs continuation-based reduction :-)
@@ -13,7 +14,7 @@
 + handle nested (define ...)
 - analyze which lambdas and ctors are really memoized
 - specialize project-static, project-dynamic, and friends
-- use delay/force in project-* functions
++ use delay/force in project-* functions
 + write the library functions in direct style using shift/reset to
   achieve continuation-based reduction
 + printout mechanism for bt analyzed program?
@@ -25,3 +26,12 @@
   and a synthesized attribute which indicates the "seriousness" of the
   code. The idea is that functions with non-serious body are unfolded
   on the fly. 
+- post unfolding: keep track of # calls in the memo table by storing
+  an indirection to the call in the residual program. After generation
+  of the residual program we traverse the memo table once, performing
+  the unfoldings.
+- allow user control over caching. 
+- implement more a efficient caching mechanism.
+- implement parameterized abstract syntax: first define some macros,
+  then define ast accessors and constructors using them. How about
+  using some record facility?

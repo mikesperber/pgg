@@ -3,18 +3,6 @@
 ;;; representation to accomplish proper function memoization in the
 ;;; presence of dynamic free variables
 ;;; $Id$
-;;; $Log$
-;;; Revision 1.4  1995/11/03 17:12:20  thiemann
-;;; more sophisticated type signatures
-;;; correct handling of direct-style if and let
-;;; extended syntax (nested defines allowed)
-;;;
-;;; Revision 1.3  1995/10/23  16:59:06  thiemann
-;;; type annotations (may) work
-;;; standard memoization may be circumvented
-;;;
-;;; Revision 1.1  1995/10/13  16:13:17  thiemann
-;;; *** empty log message ***
 ;;;
 
 ;;; the following types are involved:
@@ -34,26 +22,34 @@
 ;;; application with arbitrary many arguments
 ;;; _app : Level \times K Code \times (K Code)^* -> K Code
 (define (_app lv fc . argsc)
-  (lambda (kappa)
-    (fc (lambda (f)
-	  (lib-arg-list
-	   argsc
-	   (lambda (args)
-	     (if (zero? lv)
-		 ((apply f args) kappa)
-		 (kappa `(_APP ,(- lv 1) ,f ,@args)))))))))
+  (if (zero? lv)
+      (lambda (kappa)
+	(fc (lambda (f)
+	      (lib-arg-list
+	       argsc
+	       (lambda (args)
+		 ((apply f args) kappa))))))
+      (lambda (kappa)
+	(kappa
+	 `(_APP ,(- lv 1)
+		,(fc id)
+		,@(map (lambda (ac) (ac id)) argsc))))))
 
 ;;; dito for memoized functions
 ;;; _app_memo : Level \times K Code \times (K Code)^* -> K Code
 (define (_app_memo lv fc . argsc)
-  (lambda (kappa)
-    (fc (lambda (f)
-	  (lib-arg-list
-	   argsc
-	   (lambda (args)
-	     (if (zero? lv)
-		 ((apply (f 'value) args) kappa)
-		 (kappa `(_APP_MEMO ,(- lv 1) ,f ,@args)))))))))
+  (if (zero? lv)
+      (lambda (kappa)
+	(fc (lambda (f)
+	      (lib-arg-list
+	       argsc
+	       (lambda (args)
+		 ((apply (f 'value) args) kappa))))))
+      (lambda (kappa)
+	(kappa
+	 `(_APP_MEMO ,(- lv 1)
+		     ,(fc id)
+		     ,@(map (lambda (ac) (ac id)) argsc))))))
 
 ;;; lambda abstraction with arbitrary arity
 ;;;
@@ -135,47 +131,51 @@
 
 ;;; constructors with memoization
 (define (_ctor_memo lv bts ctor . argsc)
-  (lambda (kappa)
-    (lib-arg-list
-     argsc
-     (lambda (args)
-       (let ((bts (map pred bts)))
-	 (if (zero? lv)
+  (let ((bts (map pred bts)))
+    (if (zero? lv)
+	(lambda (kappa)
+	  (lib-arg-list
+	   argsc
+	   (lambda (args)
 	     (kappa
 	      (STATIC-CONSTRUCTOR ctor
 				  (eval ctor (interaction-environment))
 				  args
-				  bts))
-	     (kappa
-	      `(_CTOR_MEMO ,(- lv 1) ',bts ',ctor ,@args))))))))
+				  bts)))))
+	(lambda (kappa)
+	  (kappa
+	   `(_CTOR_MEMO ,(- lv 1) ',bts ',ctor
+			,@(map (lambda (ac) (ac id)) argsc)))))))
 
 ;;; selectors for constructors with memoization
 (define (_sel_memo lv sel argc)
-  (lambda (kappa)
-    (argc
-     (lambda (v)
-       (kappa
-	(cond
-	 ((zero? lv)
-	  (sel (v 'VALUE)))
-	 ((= lv 1)
-	  `(_SEL_MEMO ,(- lv 1)  ,sel ,v))
-	 (else
-	  `(_SEL_MEMO ,(- lv 1) ',sel ,v))))))))
+  (if (zero? lv)
+      (lambda (kappa)
+	(argc
+	 (lambda (v)
+	   (kappa (sel (v 'VALUE))))))
+      (lambda (kappa)
+	(kappa
+	 (cond
+	  ((= lv 1)
+	   `(_SEL_MEMO ,(- lv 1)  ,sel ,(argc id)))
+	  (else
+	   `(_SEL_MEMO ,(- lv 1) ',sel ,(argc id))))))))
 
 ;;; test for constructors with memoization
-(define (_test_memo level ctor-test arg)
-  (lambda (kappa)
-    (arg
-     (lambda (v)
-       (kappa
-	(cond
-	 ((zero? level)
-	  (ctor-test (v 'value)))
-	 ((= level 1)
-	  `(_TEST_MEMO ,(- level 1) ,ctor-test ,v))
-	 (else
-	  `(_TEST_MEMO ,(- level 1) ',ctor-test ,v))))))))
+(define (_test_memo level ctor-test argc)
+  (if (zero? level)
+      (lambda (kappa)
+	(argc
+	 (lambda (v)
+	   (kappa (ctor-test (v 'value))))))
+      (lambda (kappa)
+	(kappa
+	 (cond
+	  ((= level 1)
+	   `(_TEST_MEMO ,(- level 1) ,ctor-test ,(argc id)))
+	  (else
+	   `(_TEST_MEMO ,(- level 1) ',ctor-test ,(argc id))))))))
 
 ;;; conditional
 (define (_If level e1c e2c e3c)
@@ -187,18 +187,19 @@
 
 ;;; primitive operators
 (define (_Op level op . argsc)
-  (lambda (kappa)
-    (lib-arg-list
-     argsc
-     (lambda (args)
-       (kappa
-	(cond
-	 ((zero? level)
-	  (apply op args))
-	 ((= 1 level)
-	  `(_OP 0 ,op ,@args))
-	 (else
-	  `(_OP ,(- level 1) ',op ,@args))))))))
+  (if (zero? level)
+      (lambda (kappa)
+	(lib-arg-list
+	 argsc
+	 (lambda (args)
+	   (kappa (apply op args)))))
+      (lambda (kappa)
+	(kappa
+	 (cond
+	  ((= 1 level)
+	   `(_OP 0 ,op ,@(map (lambda (ac) (ac id)) argsc)))
+	  (else
+	   `(_OP ,(- level 1) ',op ,@(map (lambda (ac) (ac id)) argsc))))))))
 
 ;;; differing from [GJ1995] we need two different lift operators, as
 ;;; the 2nd argument of _Lift is a number and not some syntactic construct

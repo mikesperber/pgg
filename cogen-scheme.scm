@@ -34,20 +34,31 @@
 	   (list 'EVAL annMakeEval 2)
 	   (append
 	    (map (lambda (d)
-		   (list (caadr d) annMakeCall (length (cdadr d))))
+		   (let ((template (cadr d)))
+		     (if (pair? template)
+			 (list (car template) annMakeCall (length (cdr template)))
+			 (list template annMakeCall -1))))
 		 d*)
 	    ctor-symtab))))
-    (map (lambda (d)
-	   (let* ((formals (cdadr d))
-		  (symtab (append (map (lambda (v)
-					 (list v scheme-make-var-app -1)) formals)
-				  symtab)))
-	     (annMakeDef (caadr d)
-			 formals
-			 (scheme->abssyn-wrap-in-let
-			  formals
-			  (scheme->abssyn-e (caddr d) symtab)))))
-	 d*))) 
+    (map (lambda (d) (scheme->abssyn-one-d symtab d)) d*))) 
+
+(define (scheme->abssyn-one-d symtab d)
+  (let ((template (cadr d)))
+    (if (pair? template)
+	(let* ((procname (car template))
+	       (formals (cdr template))
+	       (symtab (append
+			(map (lambda (v)
+			       (list v scheme-make-var-app -1)) formals)
+			symtab)))
+	  (annMakeDef procname
+		      formals
+		      (scheme->abssyn-wrap-in-let
+		       formals
+		       (scheme->abssyn-e (caddr d) symtab))))
+	(annMakeDef template
+		    #f
+		    (scheme->abssyn-e (caddr d) symtab)))))
 
 (define (scheme->abssyn-e e symtab)
   (let loop ((e e))
@@ -146,7 +157,8 @@
 		     `(LET ((,(gensym 'BEGIN) ,(car args)))
 			,(loop (cdr args)))))
 	       symtab))
-	     ((equal? tag 'LAMBDA)
+	     ((and (equal? tag 'LAMBDA)
+		   (list? (car args)))
 	      (let* ((formals (car args))
 		     (symtab (append
 			      (map (lambda (var) (list var scheme-make-var-app -1))
@@ -158,6 +170,26 @@
 		 (scheme->abssyn-wrap-in-let formals
 					     (scheme->abssyn-e (cadr args)
 							       symtab)))))
+	     ((equal? tag 'LAMBDA)
+	      (let loop ((fixed-formals '())
+			 (rest (car args)))
+		(if (pair? rest)
+		    (loop (cons (car rest) fixed-formals) (cdr rest))
+		    (let* ((fixed-formals (reverse fixed-formals))
+			   (var-formal rest)
+			   (formals (cons var-formal fixed-formals))
+			   (symtab (append
+				    (list (list var-formal scheme-make-var-app -1))
+				    (map (lambda (var) (list var scheme-make-var-app -1))
+					 formals)
+				    symtab)))
+		      (annMakeVLambda
+		       (scheme->abssyn-make-label)
+		       fixed-formals
+		       var-formal
+		       (scheme->abssyn-wrap-in-let formals
+						   (scheme->abssyn-e (cadr args)
+								     symtab)))))))
 	     ((pair? tag)
 	      (annMakeApp (loop tag) (map loop args)))
 	     (else
@@ -193,15 +225,17 @@
   (let ((symtab (map (lambda (d) (cons (caadr d) (caadr d))) d*)))
     (map (lambda (d)
 	   ;;(display "scheme-rename-variables: ") (display (caadr d)) (newline)
-	   (let* ((fname (caadr d))
-		  (formals (cdadr d))
+	   (let* ((template (cadr d))
+		  (is-proc-def (pair? template))
+		  (fname (if is-proc-def (car template) template))
+		  (formals (if is-proc-def (cdr template) '()))
 		  (body-list (cddr d))
 		  (body (scheme-body-list->body body-list))
 		  (new-formals (map scheme-rename-clone formals))
-		  (new-symtab (append (map cons formals new-formals)
-				      symtab))
-		  (new-body (scheme-rename-variables new-symtab body)))
-	   `(DEFINE (,fname ,@new-formals) ,new-body))) d*)))
+		  (new-symtab (append (map cons formals new-formals) symtab))
+		  (new-body (scheme-rename-variables new-symtab body))
+		  (new-template (if is-proc-def (cons fname new-formals) fname)))
+	   `(DEFINE ,new-template ,new-body))) d*)))
 
 (define (scheme-rename-variables symtab e)
   (if (symbol? e)
@@ -216,6 +250,27 @@
 	    (cond
 	     ((equal? tag 'QUOTE)
 	      e)
+	     ;;
+	     ((equal? tag 'CASE)
+	      (scheme-rename-variables
+	       symtab
+	       (let ((var (gensym 'CASE))
+		     (key (car args))
+		     (clauses (cdr args)))
+	       `(LET ((,var ,key))
+		  (COND
+		   ,@(let loop ((clauses clauses))
+		       (if (null? clauses)
+			   '()
+			   (let ((clause (car clauses)))
+			     (if (equal? (car clause) 'ELSE)
+				 (list clause)
+				 (let ((data (car clause))
+				       (commands (cdr clause)))
+				   (cons
+				    `((MEMV ,var ',data)
+				      ,@commands)
+				    (loop (cdr clauses)))))))))))))
 	     ;;
 	     ((equal? tag 'COND)
 	      (scheme-rename-variables
@@ -308,15 +363,36 @@
 	      (let* ((formals (car args))
 		     (body-list (cdr args))
 		     (body (scheme-body-list->body body-list))
-		     (new-formals (map scheme-rename-clone formals))
-		     (new-symtab (append (map cons formals new-formals)
-				      symtab))
+		     (new-formals (let loop ((formals formals))
+				    (cond
+				     ((pair? formals)
+				      (cons (scheme-rename-clone (car formals))
+					    (loop (cdr formals))))
+				     ((null? formals)
+				      '())
+				     (else
+				      (scheme-rename-clone formals)))))
+		     (new-symtab (append (map cons
+					      (scheme-formals->vars formals)
+					      (scheme-formals->vars new-formals))
+					 symtab))
 		     (new-body (scheme-rename-variables new-symtab body)))
 		`(LAMBDA ,new-formals ,new-body)))
 	     (else
 	      (cons tag (map (lambda (e) (scheme-rename-variables
 					  symtab e)) args))))))))
 
+(define (scheme-formals->vars formals)
+  (let loop ((formals formals) (acc '()))
+    (cond
+     ((pair? formals)
+      (loop (cdr formals) (cons (car formals) acc)))
+     ((null? formals)
+      acc)
+     (else
+      (cons formals acc)))))
+
+;;; attention: inner definitions must have form (define (P V*) D0* E) 
 (define (scheme-body-list->body body-list)
   ;;(display (list "body-list:" body-list)) (newline)
   (if (= 1 (length body-list))
@@ -346,11 +422,14 @@
 	(cons d *scheme-lambda-lift-definitions*)))
 (define (scheme-lambda-lift-d d*)
   (set! *scheme-lambda-lift-definitions* '())
-  (let ((old-d* (map (lambda (d)
-		       `(DEFINE ,(cadr d)
-			  ,(scheme-lambda-lift (caddr d) (cdadr d))))
-		     d*)))
+  (let ((old-d* (map scheme-lambda-lift-one-d d*)))
     (append old-d* *scheme-lambda-lift-definitions*)))
+
+(define (scheme-lambda-lift-one-d d)
+  (let ((template (cadr d)))
+  `(DEFINE ,template
+     ,(scheme-lambda-lift (caddr d)
+			  (if (pair? template) (cdr template) '())))))
 
 ;;; scheme-lambda-lift lifts all LETREC expressions
 (define (scheme-lambda-lift e vars)
@@ -409,7 +488,7 @@
 	 ;;
 	 ((equal? tag 'LAMBDA)
 	  (let* ((bound-vars (car args))
-		 (vars (append bound-vars vars))
+		 (vars (append (scheme-formals->vars bound-vars) vars))
 		 (body (cadr args)))
 	    `(LAMBDA ,bound-vars ,(scheme-lambda-lift body vars))))
 	 (else
@@ -528,7 +607,7 @@
 			 headers)))
 	    bound-vars)))
 	 ((equal? tag 'LAMBDA)
-	  (let* ((bound-vars (car args))
+	  (let* ((bound-vars (scheme-formals->vars (car args)))
 		 (vars (append bound-vars vars))
 		 (body (cadr args))) 
 	    (set-difference (scheme-freevars body vars)
@@ -551,20 +630,27 @@
   (- (length ctor) 1))
 (define (scheme->abssyn-nt ctors)
   (apply + (map scheme->abssyn-nc ctors)))
-(define (scheme->abssyn-define-type dc*)
-  (apply append
-	 (map (lambda (dc)
-		(let* ((type-name (cadr dc))
-		       (ctors (cddr dc))
-		       (nt (scheme->abssyn-nt ctors)))
-		  (let loop ((ctors ctors) (np 0))
-		    (if (null? ctors)
-			'()
-			(let* ((ctor (car ctors))
-			       (nc (scheme->abssyn-nc ctor)))
-			  (append (scheme->abssyn-one-ctor
-				   (list type-name np nc nt) ctor)
-				  (loop (cdr ctors) (+ np nc)))))))) dc*)))
+;; scheme->abssyn-define-type constructs a symbol table for conversion
+;; to abstract syntax out of 
+;; dc* - list of (defdata ...) forms
+;; dt* - list of (deftype ...) forms
+(define (scheme->abssyn-define-type dc* dt* do*)
+  (append
+   (map scheme->abssyn-one-deftype dt*)
+   (map scheme->abssyn-one-defop do*)
+   (apply append (map scheme->abssyn-one-defdata dc*))))
+(define (scheme->abssyn-one-defdata dc)
+  (let* ((type-name (cadr dc))
+	 (ctors (cddr dc))
+	 (nt (scheme->abssyn-nt ctors)))
+    (let loop ((ctors ctors) (np 0))
+      (if (null? ctors)
+	  '()
+	  (let* ((ctor (car ctors))
+		 (nc (scheme->abssyn-nc ctor)))
+	    (append (scheme->abssyn-one-ctor
+		     (list type-name np nc nt) ctor)
+		    (loop (cdr ctors) (+ np nc))))))))
 (define (scheme->abssyn-one-ctor desc ctor)
   (let* ((the-ctor (car ctor))
 	 (the-test (string->symbol
@@ -580,4 +666,15 @@
 	  (cons
 	   (list (car selectors) (annMakeSel1 the-ctor desc i) 1)
 	   (loop (cdr selectors) (+ i 1))))))))) 
-
+;;; process (define-type (P B1 ... Bn) B0)
+(define (scheme->abssyn-one-deftype dt)
+  (let ((template (cadr dt))
+	(result-type (caddr dt)))
+    (list (car template) annMakeCall (length (cdr template)))))
+;;; process (define-operator O B0) and (define-operator (O B1 ... Bn) B0)
+(define (scheme->abssyn-one-defop dt)
+  (let ((template (cadr dt))
+	(result-type (caddr dt)))
+    (if (pair? template)
+	(list (car template) (annMakeOp1 #f result-type) (length (cdr template)))
+	(list template (annMakeOp1 #f result-type) -1))))

@@ -1,44 +1,21 @@
 ;;; cogen-bta
 ;;; $Id$
-;;; $Log$
-;;; Revision 1.8  1995/12/12 14:37:50  thiemann
-;;; Bugfixes and efficiency improvements in the binding-time analysis
-;;;
-;;; Revision 1.7  1995/11/06  15:40:47  thiemann
-;;; handle eval, fix bug in lambda lifter
-;;;
-;;; Revision 1.6  1995/11/03  17:12:19  thiemann
-;;; more sophisticated type signatures
-;;; correct handling of direct-style if and let
-;;; extended syntax (nested defines allowed)
-;;;
-;;; Revision 1.5  1995/10/27  08:52:24  thiemann
-;;; fixed problem in binding-time analysis
-;;;
-;;; Revision 1.4  1995/10/23  16:59:04  thiemann
-;;; type annotations (may) work
-;;; standard memoization may be circumvented
 ;;;
 
 (define *bta-user-memoization* #f)
-(define *bta-dynamic-ops* '())
-(define *bta-op-types-alist* '())
 
 ;;; binding-time analysis
 ;;; `d*' list of function definitions
 ;;; `symtab' is an initial symbol table where only constructors,
 ;;; selectors, and constructor test are defined
 ;;; `skeleton' function call with arguments replaced by binding times
-(define (bta-run d* symtab skeleton def-typesig* def-memo)
+(define (bta-run d* symtab skeleton def-typesig* def-opsig* def-memo)
   ;;(display "bta-run") (newline)
   (set! *bta-user-memoization*
-	(and def-memo (cadr def-memo)))
-  (set! *bta-dynamic-ops*
-	(if *bta-user-memoization* (list *bta-user-memoization*) '()))
-  (set! *bta-op-types-alist* '())
-  (display (list "*bta-user-memoization*" *bta-user-memoization*
-		 "*bta-dynamic-ops*" *bta-dynamic-ops*
-		 "*bta-op-types-alist*" *bta-op-types-alist*))
+	(and def-memo
+	     (= 3 (length def-memo))
+	     (equal? (caddr def-memo) 'ONLY)))
+  ;;(display (list "*bta-user-memoization*" *bta-user-memoization*))
   (let* ((goal-proc (car skeleton))
 	 (bts (cdr skeleton))
 	 (d (annDefLookup goal-proc d*))
@@ -66,11 +43,7 @@
 	  (let* ((proctv (bta-get-ecr (annDefFetchProcBTVar d)))
 		 (procsig (bta-c-fetch-ctor-args (tv-get-leq-field proctv))))
 	    ((bta-assert symtab) bt-result (car procsig))
-	    (for-each (bta-assert symtab) bts (cdr procsig)))
-	  (if (equal? 'D bt-result)
-	      (set! *bta-dynamic-ops* (cons proc *bta-dynamic-ops*))
-	      (set! *bta-op-types-alist*
-		    (cons (list proc (cons bt-result bts)) *bta-op-types-alist*)))))))
+	    (for-each (bta-assert symtab) bts (cdr procsig)))))))
 ;;; assert binding time `bt' for `tv'
 (define (bta-assert symtab)
   (lambda (bt tv0)
@@ -98,8 +71,11 @@
 			(makector (cadr (assoc ctor symtab)))
 			(dummy (makector ctor '()))
 			(desc (annFetchCtorDesc dummy))
-			(np (desc-np desc)))
-		   (for-each loop bts (list-tail tvs np)))) bt)))))))
+			(np (desc-np desc))
+			(nc (desc-nc desc)))
+		   (for-each loop bts (take nc (list-tail tvs np))))) bt)))
+       (else
+	(error "bta-assert: bad binding time" bt))))))
 ;;; syntax of constraints
 (define (bta-c-make-ctor ctor ps)
   (list ctor ps)) 
@@ -196,25 +172,28 @@
 		      ;; at least one of leq1, leq2 is #f
 		      (let* ((constraint (or leq1 leq2))
 			     (ctor (and constraint
-					(bta-c-fetch-ctor constraint))))
+					(bta-c-fetch-ctor
+					 constraint)))
+			     (lifts1 (tv-get-lift-field ecr1))
+			     (lifts2 (tv-get-lift-field ecr2))
+			     (lifts0 (if leq1 lifts2 lifts1)))
 			(tv-set-leq-field! ecr1 constraint)
 			(tv-set-leq-field! ecr2 constraint)
 ;;;			(display (list "final-leq:" ctor))
-			(if (or (not ctor)
-				(equal? ctor '***static***))
-			    (tv-set-lift-field!
-			     ecr1
-			     (append (tv-get-lift-field ecr2)
-				     (tv-get-lift-field ecr1)))
-			    (begin
-			      (if leq1
-				  (for-each (lambda (tv)
-					 (bta-equate tv ecr1))
-				       (tv-get-lift-field ecr2)))
-			      (if leq2
-				  (for-each (lambda (tv)
-					 (bta-equate tv ecr1))
-				       (tv-get-lift-field ecr1))))))))))
+			(cond
+			 ((not ctor)
+			  (tv-set-lift-field!
+			   ecr1
+			   (append lifts2 lifts1)))
+			 ((equal? ctor '***static***)
+			  (tv-add-dependents! ecr1 (append lifts1 lifts2))
+			  (for-each (lambda (tv)
+				      (bta-add-leq tv '***static*** '()))
+				      lifts0))
+			 (else
+			  (for-each (lambda (tv)
+				      (bta-equate tv ecr1))
+				    lifts0))))))))
 	  ecr1))))
 
 (define (bta-dynamic? tv)
@@ -252,18 +231,19 @@
 	       d*)
 	  symtab)))
     (map (lambda (d)
-	   (let* ((argtvs
-		   (map (lambda (v)
-			  (cons v (tv-make)))
-			(annDefFetchProcFormals d)))
+	   (let* ((formals (annDefFetchProcFormals d))
+		  (argtvs
+		   (or (and formals (map (lambda (v) (cons v (tv-make))) formals)) '()))
 		  (bodytv
 		   (bta-collect (annDefFetchProcBody d)
 				(append argtvs symtab)))
 		  (proctv
 		   (annDefFetchProcBTVar d)))
-	     (bta-add-leq 
-	      proctv
-	      '-> (cons bodytv (map cdr argtvs)))))
+	     (if formals
+		 (bta-add-leq 
+		  proctv
+		  '-> (cons bodytv (map cdr argtvs)))
+		 (bta-equate proctv bodytv))))
 	 d*)))
 
 ;;; bta-collect returns the outer binding-time type variable of e
@@ -289,27 +269,38 @@
 	  (bta-equate pi po2)
 	  (bta-equate pi po3)))
        ((annIsOp? e)
-	(let ((pos (map loop (annFetchOpArgs e)))
-	      (found (assoc (annFetchOpName e) *bta-op-types-alist*)))
-	  (if found
-	      (let ((tv-internal (tv-make))
-		    (type-sig (cadr found)))
-		(for-each (lambda (phi type)
-			    (cond
-			     ((equal? type '-)
-			      (bta-add-dependent phi tv-internal)
-			      (bta-add-dependent tv-internal phi))
-			     ((equal? type '*)
-			      (bta-equate phi tv-internal))
-			     (else
-			      (bta-equate phi tv-internal)
-			      (bta-make-dynamic tv-internal)))) (cons pi pos) type-sig)
-		(bta-add-leq tv-internal '***static*** '()))
+	(let* ((pos (map loop (annFetchOpArgs e)))
+	       (property (annFetchOpProperty e))
+	       (tv-internal (tv-make))
+	       (process
+		(lambda (phi bt)
+		  (cond
+		   ((equal? bt '*)
+		    (bta-equate phi tv-internal))
+		   ((equal? bt 'd)
+		    (bta-make-dynamic phi))
+		   ((equal? bt '-)
+		    '())
+		   (else
+		    (error "bad type of operator"))))))
+	  (bta-add-leq tv-internal '***static*** '())
+	  (if property
+	      (cond
+	       ((member property '(D MEMO))
+		(for-each (lambda (phi) (bta-equate tv-internal phi)) pos)
+		(bta-equate tv-internal pi)
+		(bta-make-dynamic tv-internal))
+	       ((pair? property)
+		(for-each process pos (car property))
+		(process po (cadr property)))
+	       (else
+		;; an error-primitive
+		(bta-add-dependent tv-internal pi)
+		(bta-add-dependent pi tv-internal)))
+	      ;; no property: standard treatment
 	      (begin
-		(for-each (lambda (phi) (bta-equate pi phi)) pos)
-		(if (member (annFetchOpName e) *bta-dynamic-ops*)
-		    (bta-make-dynamic pi)
-		    (bta-add-leq pi '***static*** '()))))))
+		(bta-equate tv-internal pi)
+		(for-each (lambda (po) (bta-equate tv-internal po)) pos)))))
        ((annIsCall? e)
 	(let ((pos (map loop (annFetchCallArgs e))))
 	  (bta-add-leq (cdr (assoc (annFetchCallName e) symtab))
@@ -334,7 +325,6 @@
 	       (pos (map loop (annFetchAppRands e))))
 	  (bta-add-leq po0 '-> (cons pi pos))
 	  (for-each (lambda (pp) (bta-add-dependent po0 pp)) (cons pi pos))))
-       ;; constructor support not yet cast in stone
        ((annIsCtor? e)
 	(let* ((pos (map loop (annFetchCtorArgs e)))
 	       (ctor (annFetchCtorName e))
@@ -390,7 +380,11 @@
 	  (let ((lifts (tv-get-lift-field ecr)))
 	    (tv-set-lift-field! ecr '())
 	    (if (equal? ctor '***static***)
-		(for-each (lambda (pp) (bta-add-leq pp ctor args)) lifts)
+		(begin
+		  (tv-add-dependents! ecr lifts)
+		  (for-each (lambda (pp)
+			      (bta-add-leq pp ctor args))
+			    lifts))
 		(for-each (lambda (pp) (bta-equate pp ecr)) lifts)))
 	  ;; maybe mark all further lifts to become equalities?
 	  )))) 
@@ -482,8 +476,8 @@
 	  (bta-solve (annFetchLiftBody e)))
 	(begin
 	  (annExprSetLevel! e (tv-value pi))
-	  (annExprSetBTi! e (tv-get-counter pi))
-	  (annExprSetBTo! e (tv-get-counter po))
+	  ;;(annExprSetBTi! e (tv-get-counter pi))
+	  ;;(annExprSetBTo! e (tv-get-counter po))
 	  (cond
 	   ((annIsVar? e)
 	    #f)
@@ -507,15 +501,18 @@
 		  (not dyn-test))
 		#f)))
 	   ((annIsOp? e)
-	    (let ((args (map bta-solve (annFetchOpArgs e))))
-	      (if (and *bta-user-memoization*
-		       (equal? *bta-user-memoization*
-			       (annFetchOpName e)))
-		  (let* ((args (annFetchOpArgs e))
-			 (lv (annFetchConst (car args)))
-			 (body (cadr args)))
-		    (annIntroduceMemo1 e lv (annFreeVars body) body)
-		    #f)
+	    (let ((args (map bta-solve (annFetchOpArgs e)))
+		  (property (annFetchOpProperty e)))
+	      (if property
+		  (cond
+		   ((equal? property 'MEMO)
+		    (let* ((args (annFetchOpArgs e))
+			   (lv (annFetchConst (car args)))
+			   (body (cadr args)))
+		      (annIntroduceMemo1 e lv (annFreeVars body) body)
+		      #f))
+		   (else
+		    (any? args)))
 		  (any? args))))
 	   ((annIsCall? e)
 	    (for-each bta-solve (annFetchCallArgs e))

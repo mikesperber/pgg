@@ -1,13 +1,6 @@
 ;;; $Id$
 ;;; projection functions for memoization
 ;;; parameterized over `result'
-;;; $Log$
-;;; Revision 1.5  1995/11/10 15:30:23  thiemann
-;;; improved unfolding and gensym
-;;;
-;;; Revision 1.4  1995/10/23  16:59:11  thiemann
-;;; type annotations (may) work
-;;; standard memoization may be circumvented
 ;;;
 
 
@@ -16,26 +9,28 @@
 ;;; improvements:
 ;;; - specialize this guy wrt `label' and `bts', as well
 ;;;   as project-static, project-dynamic, and clone-dynamic!
-;;; - use delay/force to memoize project-static and project-dynamic
+;;; - use delay/force to memoize value, static and dynamic
 ;;;
 ;;; static-constructor : Ident \times (2Value^* -> (K Code)^* -> K
 ;;; Code) \times 2Value^* \times BT^* -> Value
 (define (static-constructor ctor closed-value vvs bts)
   ;; (let ((closed-value (lambda fvs (lambda (arg) body)))) ...)
-  (let ((ctor-vvs (cons ctor vvs)))
+  (let* ((ctor-vvs (cons ctor vvs))
+	 (value   (delay (apply closed-value vvs)))
+	 (static  (delay (project-static ctor-vvs bts)))
+	 (dynamic (delay (project-dynamic ctor-vvs bts))))
      (lambda (what)
-       (cond
-	((equal? what 'value)
-	 (apply closed-value vvs))
-	((equal? what 'static)
-	 (project-static ctor-vvs bts))
-	((equal? what 'dynamic)
-	 (project-dynamic ctor-vvs bts))
-	((equal? what 'clone)
-	 (static-constructor ctor
-			     closed-value
-			     (cdr (clone-dynamic ctor-vvs bts))
-			     bts)))))) 
+       (case what
+	 ((value)   (force value))
+	 ((static)  (force static))
+	 ((dynamic) (force dynamic))
+	 ((clone)
+	  (static-constructor ctor
+			      closed-value
+			      (cdr (clone-dynamic ctor-vvs bts))
+			      bts))
+	 (else
+	  (error "static-constructor: bad argument ~a" what)))))) 
 
 ;;; extract the static parts out of a partially static value which
 ;;; starts with some static tag and the rest of which is described by
@@ -130,3 +125,64 @@
 	      (loop (cdr blocks) (+ i 1))
 	      (cons i (inner-loop (cdr values))))))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; generators for the projection functions
+;;; ctor : D
+;;; closed-value : D
+;;; vvs : list D
+;;; bts : list S
+(define (static-constructor-gen ctor closed-value vvs bts)
+  (let ((ctor-vvs (cons ctor vvs)))
+    (_let 1 'value
+	  (_op 1 'delay (_op 1 'apply closed-value vvs)) (lambda (value)
+      (_let 1 'static
+	    (_op 1 'delay (project-static-gen ctor-vvs bts)) (lambda (static)
+	(_let 1 'dynamic
+	      (_op 1 'delay (project-dynamic-gen ctor-vvs bts)) (lambda (dynamic)
+   (_lambda 1 '(what)
+     (lambda (what)
+       (_if 1 (_op 1 'equal? what (_lift0 1 'value))
+	    (_op 1 'force value)
+	    (_if 1 (_op 1 'equal? what (_lift0 1 'static))
+		 (_op 1 'force static)
+		 (_if 1 (_op 1 'equal? what (_lift0 1 'dynamic))
+		      (_op 1 'force dynamic)
+		      (_if 1 (_op 1 'equal? what (_lift0 1 'clone))
+			   (static-constructor
+			    ctor
+			    closed-value
+			    (cdr (clone-dynamic ctor-vvs bts))
+			    bts))))))))))))))) 
+;;; value : list D
+;;; bt-args : list S
+(define (project-static-gen value bt-args)
+  (_op 1 'cons (car value)
+	(let loop ((values (cdr value))
+		   (bt-args bt-args))
+	  (if (null? values)
+	      (_lift0 1 '())
+	      (let ((skeleton (loop (cdr values)
+				    (cdr bt-args))))
+		(if (= 0 (car bt-args))
+		    (let ((s-value (car values)))
+		      (_if 1 (_op 1 'procedure? s-value)
+			     (_op 1 'append (_app 1 s-value (_lift0 1 'STATIC))
+				           skeleton)
+			     (_op 1 'cons s-value skeleton)))
+		    skeleton))))))
+;;; value : list D
+;;; bts : list S
+(define (clone-dynamic-gen value bts)
+  (_op 1 'cons (car value)
+	(let loop ((values (cdr value)) (bts bts))
+	  (if (null? values)
+	      (_lift0 1 '())
+	      (let ((skeleton (loop (cdr values) (cdr bts))))
+		(if (= 0 (car bts))
+		    (let ((s-value (car values)))
+		      (_if 1 (_op 1 'procedure? s-value)
+			  (_op 1 'cons (_app 1 s-value (_lift0 1 'CLONE))
+			               skeleton)
+			  (_op 1 'cons s-value skeleton)))
+		    (_op 1 'cons (_op 1 'gensym-local (_lift0 1 'clone))
+			 skeleton)))))))

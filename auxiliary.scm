@@ -41,8 +41,8 @@
 (define (clear-residual-program!)
   (set! *residual-program* '()))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
- 
 ;;; list of n results of applying thunk
+
 (define (nlist n thunk)
   (let loop ((n n))
     (if (zero? n)
@@ -114,6 +114,12 @@
 (define (any? l)
   (and (pair? l)
        (or (car l) (any? (cdr l)))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define (take n l)
+  (let loop ((n n) (l l) (acc '()))
+    (if (or (zero? n) (null? l))
+	(reverse acc)
+	(loop (- n 1) (cdr l) (cons (car l) acc)))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; I/O: read a list of Scheme objects
 (define (file->list filename)

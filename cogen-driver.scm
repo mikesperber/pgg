@@ -25,16 +25,24 @@
 	   (filter (lambda (defn) (equal? (car defn) 'defdata))
 		   full-source))
 	 (def-typesig*
-	   (filter (lambda (defn) (equal? (car defn) 'deftype))
+	   (filter (lambda (defn) (equal? (car defn) 'define-type))
+		   full-source))
+	 (def-opsig*
+	   (filter (lambda (defn) (equal? (car defn) 'define-operator))
 		   full-source))
 	 (def-memo (assoc 'defmemo full-source))
+	 (def-opsig*
+	   (if def-memo
+	       (cons `(DEFINE-OPERATOR ,(cadr def-memo) MEMO) def-typesig*)
+	       def-opsig*))
 	 (symbol-table
-	  (scheme->abssyn-define-type def-datatype*))
+	  (scheme->abssyn-define-type def-datatype* def-typesig* def-opsig*))
 	 (d*
 	  (bta-run (scheme->abssyn-d def-function* symbol-table)
 		   symbol-table
 		   skeleton
 		   def-typesig*
+		   def-opsig*
 		   def-memo)))
     (generate-d d*)
     (append def-datatype*

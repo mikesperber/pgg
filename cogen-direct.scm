@@ -1,39 +1,38 @@
 ;;; $Id$
 ;;; direct style version of the continuation-based multi-level
 ;;; compiler generator (with control operators)
-;;; $Log$
-;;; Revision 1.9  1995/12/12 14:37:51  thiemann
-;;; Bugfixes and efficiency improvements in the binding-time analysis
-;;;
-;;; Revision 1.8  1995/12/08  10:50:27  sperber
-;;; Fixed trivial bug wrt. lambda labels.
-;;;
-;;; Revision 1.7  1995/11/10  15:30:22  thiemann
-;;; improved unfolding and gensym
-;;;
-;;; Revision 1.6  1995/11/09  16:48:02  thiemann
-;;; implemented simple occurrence count analysis
-;;;
-;;; Revision 1.5  1995/11/06  15:40:48  thiemann
-;;; handle eval, fix bug in lambda lifter
-;;;
-;;; Revision 1.4  1995/11/03  17:12:21  thiemann
-;;; more sophisticated type signatures
-;;; correct handling of direct-style if and let
-;;; extended syntax (nested defines allowed)
-;;;
-;;; Revision 1.3  1995/10/27  08:52:24  thiemann
-;;; fixed problem in binding-time analysis
-;;;
-;;; Revision 1.2  1995/10/23  16:59:07  thiemann
-;;; type annotations (may) work
-;;; standard memoization may be circumvented
 ;;;
 
 ;;; set result to the unit of the identity monad
 (define result id)
-;;; set creation of conditional arms
-(define (make-conditional-arm e) `(LAMBDA () ,e))
+;;; interface to create generating extensions
+(define (make-ge-var v)
+  v)
+(define (make-ge-const c)
+  `(_LIFT0 1 ',c))
+(define (make-ge-cond l c t e)
+  `(_IF ,l ,c (LAMBDA () ,t) (LAMBDA () ,e)))
+(define (make-ge-op l o args)
+  `(_OP ,l ',o ,@args))
+(define (make-ge-call f args)
+  `(,f ,@args))
+(define (make-ge-let l v e body)
+  `(_LET ,l ',v ,e (LAMBDA (,v) ,body)))
+(define (make-ge-lambda-memo l vars label fvars bts body)
+  `(_LAMBDA_MEMO ',l ',vars ',label (LIST ,@fvars) ',bts
+		 (LAMBDA ,fvars (LAMBDA ,vars ,body))))
+(define (make-ge-app-memo l f args)
+  `(_APP_MEMO ,l ,f ,@args))
+(define (make-ge-ctor-memo l bts ctor args)
+  `(_CTOR_MEMO ,l ',bts ',ctor ,@args))
+(define (make-ge-sel-memo l sel a)
+  `(_SEL_MEMO ,l ',sel ,a))
+(define (make-ge-test-memo l tst a)
+  `(_TEST_MEMO ,l ',tst ,a))
+(define (make-ge-lift l diff a)
+  `(_LIFT ,l ,diff ,a))
+(define (make-ge-eval l diff a)
+  `(_EVAL ,l ,diff ,a))
 
 ;;; cogen functions
 (define (_app lv f . args)
@@ -59,14 +58,14 @@
 	   (new-vvs (apply append dynamics))
 	   (new-bts (binding-times dynamics))
 	   (freevars (map (lambda (bt vv)
-			    (if (zero? bt) vv (gensym-local 'var)))
+			    (gensym-local 'var))
 			  new-bts new-vvs)))
       (if (= lv 1)
 	  `(STATIC-CONSTRUCTOR
 	    ',label
 	    (LAMBDA ,freevars
 	      (LAMBDA ,vars
-		,(reset (apply (apply f freevars) vars))))
+		,(reset (apply (apply f vvs) vars))))
 	    (LIST ,@new-vvs)
 	    ',new-bts)
 	  ;; > lv 1
@@ -80,8 +79,8 @@
 	      (LAMBDA ,vars
 		,(reset (apply (apply f vvs) vars)))))))))
 
-(define (_let lv e f)
-  (let ((var (gensym-local 'var)))
+(define (_let lv orig-var e f)
+  (let ((var (gensym-local orig-var)))
     (cond
      ((zero? lv)
       (f e))
@@ -93,8 +92,9 @@
 	  (f e)))
      (else
       (shift k
-	     `(_LET ,(pred lv) ,e (LAMBDA (,var)
-				    ,(reset (k (f var))))))))))
+	     `(_LET ,(pred lv) ',orig-var
+		    ,e (LAMBDA (,var)
+			 ,(reset (k (f var))))))))))
 
 (define (_ctor_memo lv bts ctor . args)
   (let ((new-bts (map pred bts)))

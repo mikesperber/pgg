@@ -1,2 +1,3 @@
-(define (f1 x y) x) 
-(define (f2 x y) y) 
+(define (f1 s d) s) 
+(define (f2 s d) d) 
+(define (f3 s d) (if #f s d))

@@ -34,10 +34,6 @@
       (cons (mycar l)
 	    (my-list->list (mycdr l)))))
 
-;;; handle input
-(define (input-char p) (car p))
-(define (input-attr p) (cdr p))
-
 ;;; utilities
 
 (define (filter-2 pred? list)

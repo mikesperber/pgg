@@ -1,3 +1,7 @@
+;;; handle input
+
+(define (input-char p) (car p))
+(define (input-attr p) (cdr p))
 
 ;;; primitives
 

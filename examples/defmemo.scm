@@ -1,4 +1,4 @@
-(defmemo _sim-memoize)
+(defmemo _sim-memoize only)
 (define (app x y)
   (_sim-memoize 1
    (if (null? x)
