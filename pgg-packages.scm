@@ -1,6 +1,6 @@
-;;; cogen-interfaces.scm
+;;; pgg-packages.scm
 
-;;; copyright © 1996, 1997, 1998 by Peter Thiemann
+;;; copyright © 1996, 1997, 1998, 1999 by Peter Thiemann
 ;;; non-commercial use is free as long as the original copright notice
 ;;; remains intact
 
@@ -217,7 +217,7 @@
 
 (define-structure cogen-construct-genext
   cogen-construct-genext-interface
-  (open scheme cogen-residual)
+  (open scheme cogen-residual cogen-globals)
   (files cogen-construct-genext))
 
 (define-interface cogen-directives-interface

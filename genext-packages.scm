@@ -129,6 +129,8 @@
 	  specialize
 	  continue
 	  nextlevel
+	  suspend
+	  resurrect
 	  multi-memo
 	  multi-memo-no-result))
 
@@ -190,6 +192,7 @@
 	  *termination-analysis*
 	  *generate-flat-program*
 	  *lambda-is-pure*
+	  *lambda-is-toplevel*
 	  set-generate-flat-program!
 	  set-bta-display-level!
 	  set-effect-display-level!
@@ -202,15 +205,16 @@
 	  set-abssyn-maybe-coerce!
 	  set-termination-analysis!
 	  set-lambda-is-pure!
+	  set-lambda-is-toplevel!
 	  ))
 
 (define-interface cogen-specialize-interface
   (export *memolist* *residual-program* *support-code*
-	  add-to-memolist! clear-memolist! lookup-memolist
+	  add-to-memolist! clear-memolist! lookup-memolist for-each-memolist
 	  set-residual-program! add-to-residual-program! clear-residual-program!
 	  add-to-support-code! clear-support-code!
 	  add-to-deferred-list! clear-deferred-list!
-	  lookup-deferred-list get-deferred-list
+	  lookup-deferred-list for-each-deferred-list
 	  gen-address-reset! gen-address
 ))
 

@@ -1,6 +1,6 @@
 ;;; cogen-skeleton
 
-;;; copyright © 1996, 1997, 1998 by Peter Thiemann
+;;; copyright © 1996, 1997, 1998, 1999 by Peter Thiemann
 ;;; non-commercial use is free as long as the original copright notice
 ;;; remains intact
 
@@ -318,7 +318,7 @@
 	      (cons `(DEFINE (,memo-fname ,@vars)
 		       ,generated-body)
 	       *generating-extension*))
-	`(MULTI-MEMO ,(annFetchMemoLevel e)
+	`(MULTI-MEMO ,(annFetchMemoLevel e) ,(annExprFetchLevel e)
 		     ',memo-fname ,memo-fname
 		     ,maybe-var
 		     ',bts

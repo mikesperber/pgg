@@ -1,4 +1,4 @@
-;;; copyright by Peter Thiemann 1998
+;;; copyright by Peter Thiemann 1998, 1999
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; identity

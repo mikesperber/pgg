@@ -1,14 +1,17 @@
 ;;; cogen-gensym.scm
 
-;;; copyright © 1996, 1997, 1998 by Peter Thiemann
+;;; copyright © 1996, 1997, 1998, 1999 by Peter Thiemann
 ;;; non-commercial use is free as long as the original copright notice
 ;;; remains intact
 
 
 ;;; symbol generation
 (define *gensym-counter* 0)
-(define (gensym-reset!)
-  (set! *gensym-counter* 0))
+(define (gensym-reset! . rest)
+  (set! *gensym-counter*
+	(if (and (pair? rest) (number? (car rest)))
+	    (car rest)
+	    0)))
 (define gensym
   (lambda (sym)
     (set! *gensym-counter* (+ *gensym-counter* 1))

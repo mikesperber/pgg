@@ -32,7 +32,7 @@ $(EXECUTABLE): Makefile
 	echo "#!/bin/sh" > $(EXECUTABLE)
 	echo '$(SCHEME48) -h $(INTERACTIVE_HEAPSIZE) -i $(LIBDIR)/$(INTERACTIVE_IMAGE) $$@' >> $(EXECUTABLE)
 
-cogen_packages = pgg pgg-residual
+cogen_packages = pgg-residual pgg
 cogen_generate_packages = pgg signals
 cogen_specialize_packages = auxiliary pgg-library cogen-specialize pp
 batch_packages = signals handle i/o conditions extended-ports
@@ -102,6 +102,7 @@ cogen_examples = \
 	examples/unify-aux.scm \
 	examples/unify.scm \
 	examples/modint.scm \
+	examples/modint-forward.scm \
 	examples/modint-examples.scm
 additional_files = Makefile
 
@@ -122,7 +123,9 @@ $(BATCH_IMAGE) : $(cogen_files) $(batch_files) cogen-load-s48.scm
 	(echo ",batch on"; \
 	 echo ",bench on"; \
 	 echo ";; ,flush source maps"; \
-	 echo ",load-package $(cogen_packages)"; \
+	 for package in $(cogen_packages) ; do \
+	 echo ",load-package $$package"; \
+	 done ; \
 	 echo ",open $(cogen_generate_packages)"; \
 	 echo ",open $(cogen_specialize_packages)"; \
 	 echo ",open $(batch_packages)"; \

@@ -1,6 +1,6 @@
 ;;; cogen-globals.scm
 
-;;; copyright © 1996, 1997, 1998 by Peter Thiemann
+;;; copyright © 1996, 1997, 1998, 1999 by Peter Thiemann
 ;;; non-commercial use is free as long as the original copright notice
 ;;; remains intact
 
@@ -23,6 +23,8 @@
 (define *generate-flat-program* #f)	;do not create a flat program
 
 (define *lambda-is-pure* #t)		;consider lambda as pure
+
+(define *lambda-is-toplevel* #f)	;generate a toplevel function for each memoized lambda
 
 ;;; setter functions
 
@@ -57,3 +59,6 @@
 
 (define (set-lambda-is-pure! v)
   (set! *lambda-is-pure* v))
+
+(define (set-lambda-is-toplevel! v)
+  (set! *lambda-is-toplevel* v))

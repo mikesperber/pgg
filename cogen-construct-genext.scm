@@ -31,8 +31,15 @@
       (make-residual-begin e1 e2)
       `(_BEGIN ,hl ,prop? ,e1 ,e2)))
 (define (make-ge-lambda-memo l vars btv label fvars bts body)
-  `(_LAMBDA_MEMO ,l ',vars ',label (LIST ,@fvars) ',bts
-		 (LAMBDA ,fvars (LAMBDA ,vars ,body))))
+  (if *lambda-is-toplevel*
+      (let ((name (string->symbol (string-append "lambda-" (number->string label)))))
+	(set-generating-extension!
+	 (cons `(DEFINE ,name (LAMBDA ,fvars (LAMBDA ,vars ,body)))
+	       *generating-extension*))
+	`(_LAMBDA_MEMO ,l ',vars ',name (LIST ,@fvars) ',bts
+		       ,name))
+      `(_LAMBDA_MEMO ,l ',vars ',label (LIST ,@fvars) ',bts
+		     (LAMBDA ,fvars (LAMBDA ,vars ,body)))))
 (define (make-ge-vlambda-memo l fixed-vars var btv label fvars bts body)
   `(_VLAMBDA_MEMO ,l ',fixed-vars ',var ',label (LIST ,@fvars) ',bts
 		  (LAMBDA ,fvars

@@ -1,6 +1,6 @@
 ;;; cogen-specialize.scm
 
-;;; copyright © 1996, 1997, 1998 by Peter Thiemann
+;;; copyright © 1996, 1997, 1998, 1999 by Peter Thiemann
 ;;; non-commercial use is free as long as the original copright notice
 ;;; remains intact
 
@@ -51,6 +51,19 @@
 			  memolist
 			  (loop cdr-key (- n 1) (cddr entry))))))
 	      (else #f)))))
+(define (for-each-memolist proc)
+  (let loop ((n *memolist-stages*) (prefix '()) (memolist *memolist*))
+    (if (zero? n)
+	(for-each (lambda (k-v)
+		    (proc (append prefix (car k-v)) (cdr k-v)))
+		  (cdr memolist))
+	(for-each (lambda (k-m)
+		    (let ((key (car k-m))
+			  (rest (cdr k-m)))
+		      (if (eq? (car rest) '***)
+			  (proc (append prefix (list key)) rest)
+			  (loop (- n 1) (append prefix (list key)) rest))))
+		  (cdr memolist)))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define (set-residual-program! prg)
   (set! *residual-program* prg))
@@ -70,6 +83,7 @@
   (set! *gen-address-counter* (+ *gen-address-counter* 1))
   (cons label *gen-address-counter*))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define (clear-deferred-list!)
   (set! *deferred-list* '()))
 (define (add-to-deferred-list! key value)
@@ -79,5 +93,5 @@
   (cond
    ((assoc key *deferred-list*) => cdr)
    (else #f)))
-(define (get-deferred-list)
-  *deferred-list*)
+(define (for-each-deferred-list proc)
+  (for-each (lambda (k-v) (proc (car k-v) (cdr k-v))) *deferred-list*))

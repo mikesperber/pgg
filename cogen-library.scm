@@ -1,6 +1,6 @@
 ;;; cogen-library.scm
 
-;;; copyright © 1996, 1997, 1998 by Peter Thiemann
+;;; copyright © 1996, 1997, 1998, 1999 by Peter Thiemann
 ;;; non-commercial use is free as long as the original copright notice
 ;;; remains intact
 
@@ -67,12 +67,14 @@
 (define (serialize-one val bt)
   (if (procedure? val)
       (val 'serialize)
-      val))
+      (if (zero? bt)
+	  (if (or (symbol? val) (pair? val) (null? val))
+	      `',val
+	      val)
+	  ''dyn)))
 
 (define (serialize pp bts)
-  (list 'quasiquote
-	(cons (car pp)
-	      (map serialize-one (cdr pp) bts))))
+  `(LIST ',(car pp) ,@(map serialize-one (cdr pp) bts)))
 
 ;;; extract the static parts out of a partially static value which
 ;;; starts with some static tag and the rest of which is described by
