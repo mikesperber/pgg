@@ -4,62 +4,6 @@
 ;;; non-commercial use is free as long as the original copright notice
 ;;; remains intact
 
-(define-interface cogen-cps-genext-interface
-  (export _app
-	  _app_memo
-	  ((_lambda_memo _let _ctor_memo _st_memo _op _lift0 _lift start-memo)
-	   :syntax)
-	  _lambda
-	  _begin
-	  _If
-	  _Eval
-	  nextlevel
-	  start-memo-internal
-	  multi-memo
-	  multi-memo-no-result
-	  ))
-
-(define-interface cogen-direct-syntax-interface
-  (export _vlambda
-	  nextlevel
-	  start-memo-internal
-	  multi-memo
-	  multi-memo-no-result
-	  ((_app
-	    _app_memo
-	    _lambda
-	    _lambda_memo
-	    _let
-	    _begin
-	    _ctor_memo
-	    _s_t_memo
-	    _if
-	    _op
-	    _lift0
-	    _lift
-	    _eval
-	    start-memo)
-	   :syntax)))
-
-(define-interface cogen-direct-interface
-  (export _app
-	  _app_memo
-	  _lambda
-	  _lambda_memo
-	  _let
-	  _begin
-	  _ctor_memo
-	  _s_t_memo
-	  _If
-	  _If1
-	  _Op
-	  _Lift0
-	  _Lift
-	  _Eval
-	  start-memo
-	  multi-memo
-	  multi-memo-no-result))
-
 (define-interface cogen-direct-anf-interface
   (export ((_app
 	    _app_memo
@@ -87,14 +31,10 @@
 
 (define-interface cogen-anf-compile-interface
   (export _vlambda
-	  start-memo-internal
-	  multi-memo
-	  multi-memo-no-result
 	  ((_app
 	    _app_memo
 	    _lambda
 	    _lambda_memo
-	    _let
 	    _begin
 	    _ctor_memo
 	    _s_t_memo
@@ -103,33 +43,11 @@
 	    _op_serious
 	    _lift0
 	    _lift
-	    _eval
-	    _var
-	    start-memo)
+	    _eval)
 	   :syntax)))
 
 (define-interface cogen-incremental-interface
   (export multi-memo
-	  multi-memo-no-result))
-
-(define-interface cogen-intro-interface
-  (export ((_var
-	    _app
-	    _lambda
-	    _lambda_memo
-	    _begin
-	    _ctor_memo
-	    _sel_memo
-	    _if
-	    _op
-	    _lift0
-	    _lift
-	    _eval
-	    start-memo)
-	   :syntax)
-	  _let
-	  nextlevel
-	  multi-memo
 	  multi-memo-no-result))
 
 (define-interface cogen-memo-interface
@@ -309,8 +227,7 @@
 	cogen-completers cogen-specialize cogen-gensym cogen-boxops)
   (files cogen-library))
 
-(define-structure cogen-residual
-  cogen-residual-interface
+(define-structure cogen-residual cogen-residual-interface
   (open scheme cogen-gensym cogen-specialize)
   (files cogen-residual))
 
@@ -328,22 +245,23 @@
   (open scheme signals)
   (files cogen-record))
 
-(define-structure cogen-memo-standard
-  cogen-memo-interface
+(define-structure cogen-memo-standard cogen-memo-interface
   (open scheme auxiliary signals shift-reset
 	cogen-specialize cogen-globals cogen-record cogen-gensym
 	cogen-library cogen-completers cogen-residual)
   (files cogen-memo-standard))
 
-(define-structure pgg-library
-  (compound-interface cogen-residual-interface
-		      cogen-direct-anf-interface
-		      cogen-memo-interface
-		      cogen-boxops-interface)
+(define-structure pgg-library cogen-direct-anf-interface
   (open scheme escapes signals auxiliary threads placeholders
 	cogen-gensym cogen-boxops cogen-globals cogen-library
-	shift-reset cogen-completers cogen-memo-standard cogen-residual )
+	shift-reset cogen-completers cogen-memo-standard cogen-residual)
   (files cogen-direct-anf))
+
+(define-structure pgg-compiler-library cogen-anf-compile-interface
+  (open scheme escapes signals auxiliary
+	cogen-gensym cogen-boxops cogen-globals cogen-library
+	shift-reset cogen-completers cogen-memo-standard cogen-residual)
+  (files cogen-anf-compile))
 
 (define-structure pgg-residual
   (export ((start-memo define-data) :syntax)

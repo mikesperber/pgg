@@ -423,19 +423,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-structure pgg-compiler-library
-  (compound-interface cogen-construct-genext-interface
-		      anf-specializer-interface
-		      cogen-anf-compile-interface)
-  (open scheme escapes signals auxiliary
-	cogen-gensym cogen-globals cogen-library cogen-boxops
-	anf-specializer)
-  (files
-	 cogen-ctors
-	 shift-reset
-	 cogen-anf-compile
-	 ))
-
 (define-structure pgg-compiler
   (export cogen-driver)
   (open scheme filenames source-file-names auxiliary signals
@@ -453,6 +440,6 @@
 	cogen-oca
 	cogen-bta
 	cogen-typesig
-	cogen-construct-genext
+;;	cogen-construct-genext
 	pgg-compiler-library)
   (files cogen-skeleton))
