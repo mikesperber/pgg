@@ -34,7 +34,7 @@
   (set! *scheme->abssyn-mutable-variables*
 	(cons v *scheme->abssyn-mutable-variables*)))
 (define (scheme->abssyn-d d* def-syntax* ctor-symtab)
-  ;;(display "scheme->abssyn") (newline)
+  ;;(display-line "scheme->abssyn " ctor-symtab)
   (set-scheme->abssyn-label-counter! 1)
   (set! *scheme->abssyn-mutable-variables* '())
   (set-scheme->abssyn-static-references! #f)
@@ -950,90 +950,4 @@
 	  (apply set-union*
 		 (map (lambda (e) (scheme-freevars e vars)) args)))))))
 
-;;; process (defdata t (c1 s11 ... s1n) ... (cm sm1 ... smn))
-;;; a constructor description for ci is a list
-;;; (t np nc nt)
-;;; where np = sum of # args of c[1] ... c[i-1]
-;;;       nc = # args of c[i]
-;;;       nt = sum of # args of c[1] ... c[m]
-;(define (desc-type desc) (list-ref desc 0))
-;(define (desc-np desc) (list-ref desc 1))
-;(define (desc-nc desc) (list-ref desc 2))
-;(define (desc-nt desc) (list-ref desc 3))
-(define (scheme->abssyn-nc ctor)
-  (- (length ctor) 1))
-(define (scheme->abssyn-nt ctors)
-  (apply + (map scheme->abssyn-nc ctors)))
-;; scheme->abssyn-define-type constructs a symbol table for conversion
-;; to abstract syntax out of 
-;; dc* - list of (define-data ...) forms
-;; dt* - list of (define-type ...) forms
-(define (scheme->abssyn-define-type dc* dt* do* dm*)
-  (append
-   (map scheme->abssyn-one-deftype dt*)
-   (map scheme->abssyn-one-defop do*)
-   (map scheme->abssyn-one-defmemo dm*)
-   (apply append (map scheme->abssyn-one-defdata dc*))))
-(define (scheme->abssyn-one-defdata dc)
-  (let* ((type-name (cadr dc))
-	 (ctors (cddr dc))
-	 (nt (scheme->abssyn-nt ctors)))
-    (let loop ((ctors ctors) (np 0))
-      (if (null? ctors)
-	  '()
-	  (let* ((ctor (car ctors))
-		 (nc (scheme->abssyn-nc ctor)))
-	    (append (scheme->abssyn-one-ctor
-		     (list type-name (car ctor) np nc nt) ctor)
-		    (loop (cdr ctors) (+ np nc))))))))
-(define (scheme->abssyn-one-ctor desc ctor)
-  (let* ((the-ctor (car ctor))
-	 (the-test (string->symbol
-		    (string-append (symbol->string the-ctor) "?")))
-	 (selectors (cdr ctor)))
-  (cons
-   (list the-ctor (scheme->abssyn-make-ctor1 desc) (length selectors))
-   (cons
-    (list the-test (annMakeTest1 the-ctor desc) 1)
-    (let loop ((selectors selectors) (i 1))
-      (if (null? selectors)
-	  '()
-	  (cons
-	   (list (car selectors) (annMakeSel1 the-ctor desc i) 1)
-	   (loop (cdr selectors) (+ i 1))))))))) 
-;;; process (define-type (P B1 ... Bn) B0)
-(define (scheme->abssyn-one-deftype dt)
-  (let ((template (cadr dt))
-	(result-type (caddr dt)))
-    (list (car template) scheme->abssyn-make-call (length (cdr template)))))
-
-;;; process (define-primitive ...)
-;;; accepts the following syntax for definitions of primitive operators
-;;; D  ::= (define-primitive O T [dynamic|error|opaque])
-(define (scheme->abssyn-one-defop dt)
-  (let* ((op-name (cadr dt))
-	 (op-type (caddr dt))
-	 (op-optional (cdddr dt))
-	 (op-option (and (pair? op-optional) (car op-optional)))
-	 (op-apair (assoc op-option wft-property-table)) ;defined in cogen-eq-flow
-	 (st-entry (list op-name
-			 (annMakeOp1
-			  (not (equal? op-option 'opaque))   ;opacity
-			  (and op-apair (cdr op-apair))          ;property (a function)
-			  #f
-			  (parse-type op-type))	          ;type
-			 -1
-			 ;;(length op-rand-types)
-			 )))
-    st-entry))
-
-(define (scheme->abssyn-one-defmemo dm)
-  (let* ((memo-name (cadr dm))
-	 (level (caddr dm)))
-    (list memo-name
-	  (annMakeOp1 #t
-		      (wft-make-memo-property level)
-		      (bta-make-memo-postprocessor level)
-		      (parse-type '(all t t)))
-	  1)))
 

@@ -48,7 +48,7 @@
        (case atom-key clauses ...)))
     ((case key
        (else result1 result2 ...))
-     (begin result1 result2))
+     (begin result1 result2 ...))
     ((case key
        ((atoms ...) result1 result2 ...))
      (if (memv key '(atoms ...))

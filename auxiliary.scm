@@ -1,6 +1,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; identity
-(define (id x) x)
+(define (id x) x)			;big-util: identity
 ;;; successor
 (define (succ x) (+ x 1))
 (define (pred x) (- x 1))
@@ -22,7 +22,7 @@
 		       (any->symbol sym "-" (car *gensym-local*))))
 (define gencont (lambda () (gensym 'c)))
 
-(define any->symbol
+(define any->symbol			;big-util: concatenate-symbol
   (lambda args
     (string->symbol
      (apply string-append
@@ -157,14 +157,14 @@
 	      (cons x1 (loop (cdr x*))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(define (filter p xs)
+(define (filter p xs)			;big-util
   (if (null? xs)
       '()
       (if (p (car xs))
 	  (cons (car xs) (filter p (cdr xs)))
 	  (filter p (cdr xs))))) 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(define (remove-duplicates l)
+(define (remove-duplicates l)		;big-util
   (let loop ((l l) (u '()))
     (if (null? l)
 	u

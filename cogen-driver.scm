@@ -17,40 +17,35 @@
 	      (map symbol->string (file->list job-file/files))
 	      job-file/files))
 	 (full-source
-	  (apply append (map file->list source-files)))
-	 (def-function*
-	   (filter (lambda (defn) (or (eq? (car defn) 'define)
-				      (eq? (car defn) 'define-without-memoization)))
-		   full-source))
-	 (def-datatype*
-	   (filter (lambda (defn) (eq? (car defn) 'define-data))
-		   full-source))
-	 (def-typesig*
-	   (filter (lambda (defn) (eq? (car defn) 'define-type))
-		   full-source))
-	 (def-opsig*
-	   (filter (lambda (defn) (eq? (car defn) 'define-primitive))
-		   full-source))
-	 (def-memo*
-	   (filter (lambda (defn) (eq? (car defn) 'define-memo))
-		   full-source))
-	 (def-syntax*
-	   (filter (lambda (defn) (eq? (car defn) 'define-syntax))
-		   full-source))
-	 (symbol-table
-	  (scheme->abssyn-define-type
-	   def-datatype* def-typesig* def-opsig* def-memo*))
-	 (d*
-	  (bta-run (scheme->abssyn-d def-function* def-syntax* symbol-table)
-		   symbol-table
-		   skeleton
-		   def-datatype*
-		   def-typesig*
-		   def-opsig*)))
-    (perform-termination-analysis d*)
-    (generate-d d*)
-    (append def-datatype*
-	    *generating-extension*))) 
+	  (apply append (map file->list source-files))))
+    (let loop ((D* full-source)
+	       (def-function* '())
+	       (def-type*     '())
+	       (def-syntax*   '()))
+      (if (pair? D*)
+	  (let ((D (car D*))
+		(D* (cdr D*)))
+	    (case (car D)
+	      ((define define-without-memoization)
+	       (loop D* (cons D def-function*) def-type* def-syntax*))
+	      ((define-data define-type define-primitive define-memo)
+	       (loop D* def-function* (cons D def-type*) def-syntax*))
+	      ((define-syntax)
+	       (loop D* def-function* def-type* (cons D def-syntax*)))))
+	  ;; finally:
+	  (let* ((symbol-table (process-type-declarations def-type*))
+		 (preprocessed-source (scheme->abssyn-d def-function*
+							def-syntax*
+							symbol-table))
+		 (d* (bta-run preprocessed-source
+			      symbol-table
+			      skeleton
+			      def-type*)))
+	    (perform-termination-analysis d*)
+	    (generate-d d*)
+	    (append (filter (lambda (def) (eq? (car def) 'define-data))
+			    def-type*)
+		    *generating-extension*)))))) 
 ;;; TO DO:
 ;;; - error recognition & handling
 ;;; + remove Similix dependencies (i.e., file->list, anythingelse?) 

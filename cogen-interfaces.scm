@@ -415,10 +415,13 @@
   (files cogen-residual))
 
 (define-interface cogen-typesig-interface
-  (export parse-type desc-type desc-ctor desc-np desc-nc desc-nt))
+  (export process-type-declarations parse-type
+	  desc-type desc-ctor desc-np desc-nc desc-nt))
 
 (define-structure cogen-typesig cogen-typesig-interface
-  (open scheme cogen-record cogen-env)
+  (open scheme signals
+	cogen-record cogen-env cogen-abssyn
+	cogen-scheme cogen-bta)
   (files cogen-typesig))
 
 (define-interface cogen-macro-interface
@@ -443,14 +446,14 @@
   (files cogen-macro))
 
 (define-interface cogen-scheme-interface
-  (export scheme->abssyn-define-type
-	  scheme->abssyn-d
-	  desc-type desc-np desc-nc desc-nt))
+  (export scheme->abssyn-d
+	  scheme->abssyn-make-call
+	  scheme->abssyn-make-ctor1))
 
 (define-structure cogen-scheme cogen-scheme-interface
   (open scheme auxiliary signals
-	cogen-globals cogen-typesig cogen-macro
-	cogen-abssyn cogen-env cogen-record cogen-bta)
+	cogen-globals cogen-macro
+	cogen-abssyn cogen-env cogen-record)
   (files cogen-scheme))
 
 (define-interface cogen-globals-interface
@@ -591,6 +594,7 @@
 (define-structure pgg pgg-interface
   (open scheme auxiliary
 	cogen-scheme
+	cogen-typesig
 	cogen-bta
 	cogen-skeleton
 	cogen-terminate)

@@ -25,9 +25,8 @@
 ;;; `symtab' is an initial symbol table where only constructors,
 ;;; selectors, and constructor tests are defined
 ;;; `skeleton' function call with arguments replaced by binding times
-;;; `def-typesig*' is a list of type signatures of defined operations
-;;; `def-opsig*' is a list of type signature of primitive operators
-(define (bta-run d* symtab skeleton def-datatype* def-typesig* def-opsig*)
+;;; `def-type*' is a list of type declarations
+(define (bta-run d* symtab skeleton def-type*)
   (bta-debug-level 1 (display "bta-run") (newline))
   (set! *bta-max-bt*
 	(apply max (cdr skeleton)))
@@ -41,7 +40,7 @@
 	 (d (annDefLookup goal-proc d*))
 	 (formals (annDefFetchProcFormals d))
 	 (d0 (annMakeDef '$goal formals
-			 (bta-insert-def-data def-datatype*
+			 (bta-insert-def-data def-type*
 					      (ann-maybe-coerce
 					       (annMakeCall goal-proc (map annMakeVar formals))))))
 	 (d* (cons d0 d*))
@@ -99,9 +98,12 @@
     (if (null? defs)
 	body
 	(let ((def (car defs)))
-	  (annMakeLet (gensym 'begin)
-		      (make-op '_DEFINE_DATA (list (annMakeConst (cdr def))))
-		      (loop (cdr defs))))))))
+	  (if (eq? (car def) 'define-data)
+	      (annMakeLet (gensym 'begin)
+			  (make-op '_DEFINE_DATA
+				   (list (annMakeConst (cdr def))))
+			  (loop (cdr defs)))
+	      (loop (cdr defs))))))))
 
 ;;; step 1
 ;;; type inference
@@ -348,12 +350,13 @@
     (set! full-collect-lift-list '())))
 
 (define (full-collect-process-lifts)
+  ;; (display-line full-collect-process-lifts)
   (let ((changes #f))
     (let loop ((cur-lifts full-collect-lift-list)
 	       (remaining-lifts '()))
       (if (null? cur-lifts)
 	  (begin
-	    ;; (display "done?") (newline)
+	    ;;(display-line "done?")
 	    (if (not changes)
 		'DONE
 		(begin
@@ -364,18 +367,17 @@
 		 (node2 (full-ecr (cdr lift-pair)))
 		 (ctor1 (type-fetch-ctor (node-fetch-type node1)))
 		 (ctor2 (type-fetch-ctor (node-fetch-type node2))))
-	    ;; (display (list "lift" ctor2 "to" ctor1 "?"))
+	    ;;(display (list "lift" ctor2 "to" ctor1 "?"))
 	    (if (eq? ctor2 ctor-bot)
 		(begin
-		  ;; (display " no") (newline)
+		  ;;(display-line " no")
 		  (loop (cdr cur-lifts) (cons lift-pair remaining-lifts)))
 		(begin
 		  (set! changes #t)
 		  (if (eq? ctor2 ctor-basic)
 		      (full-make-base node1)
 		      (full-equate node1 node2))
-		  ;; (display (list "yes" (type-fetch-ctor (node-fetch-type (full-ecr node1)))))
-		  ;; (newline)
+		  ;;(display-line (list "yes" (type-fetch-ctor (node-fetch-type (full-ecr node1)))))
 		  (loop (cdr cur-lifts) remaining-lifts))))))))
 
 (define (full-collect-d symtab d)
@@ -644,12 +646,12 @@
 	(loop (annFetchDerefArg e)))
        ((annIsAssign? e)
 	(let* ((btann (type-fetch-btann type))
-	       (ref (annFetchAssignRef e))
-	       (ref-type (node-fetch-type (annExprFetchType ref)))
-	       (ref-btann (type-fetch-btann ref-type)))
+	       (ref (annFetchAssignRef e)))
 	  (loop ref)
 	  (loop (annFetchAssignArg e))
-	  (ann+>dlist! btann ref-btann))) ;beta_ref <= beta
+	  (let* ((ref-type (node-fetch-type (annExprFetchType ref)))
+		 (ref-btann (type-fetch-btann ref-type)))
+	    (ann+>dlist! btann ref-btann)))) ;beta_ref <= beta
        ((annIsCellEq? e)
 	(for-each loop (annFetchCellEqArgs e)))
        (else
