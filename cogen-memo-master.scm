@@ -62,6 +62,13 @@
   (cond ((assoc key *master-cache*) => cdr)
 	(else #f)))
 
+(define (master-cache-delimited-lookup key final?)
+  (let loop ((master-cache *master-cache*))
+    (and (not (final? master-cache))
+	 (if (equal? key (caar master-cache))
+	     (cdar master-cache)
+	     (loop (cdr master-cache))))))
+
 (define (master-cache-lookup-by-local-id local-id final?)
   (let loop ((master-cache *master-cache*))
     (and (not (final? master-cache))
@@ -99,7 +106,7 @@
 	   #t)))))
 
 (define (can-server-work-on? uid local-id)	; sync
-  (display "Server ") (display uid) (display " asks if it can work on ") (display local-id) (newline)
+  ;; (display "Server ") (display uid) (display " asks if it can work on ") (display local-id) (newline)
   (let loop ((master-cache *master-cache*) (final? null?))
     (cond
      ((master-cache-lookup-by-local-id local-id final?)
@@ -115,41 +122,49 @@
 ;;; receives wrapped program-points
 (define (server-registers-memo-point! uid
 				      program-point local-name local-id bts fct)
-  (display "Server ") (display uid) (display " registers memo point ")
-  (display program-point)
-  (display ", local id ") (display local-id) (newline)
-  (let ((static-skeleton (top-project-static (unwrap-program-point program-point) bts)))
-    (obtain-lock *master-cache-lock*)
-    (cond
-     ((master-cache-lookup static-skeleton)
-      => (lambda (entry)
-	   (release-lock *master-cache-lock*)
-	   (master-entry->add-local-id! entry local-id (uid->aspace uid))))
-     (else
-      (let* ((master-entry
-	      (make-master-entry program-point ; key
-				 local-name ; global name
-				 (list (cons local-id (uid->aspace uid))) ; an alist 
-				 (make-lock)
-				 #f))
-	     (pending-entry
-	      (make-pending-entry program-point
-				  static-skeleton
-				  local-name
-				  bts
-				  fct
-				  uid local-id
-				  master-entry)))
-	
-	;; order is important here, no?
-	(master-cache-add-no-locking! static-skeleton master-entry)
-	(display "Registration of local id ") (display local-id) (display " complete") (newline)
-	(release-lock *master-cache-lock*)
-	(master-pending-add! static-skeleton pending-entry))))))
+  ;; (display "Server ") (display uid) (display " registers memo point ") (display program-point)  (display ", local id ") (display local-id) (newline)
+  (let ((static-skeleton (top-project-static (unwrap-program-point program-point) bts))
+	(master-cache *master-cache*))
+      (cond
+       ((master-cache-lookup static-skeleton)
+	=> (lambda (entry)
+	     (master-entry->add-local-id! entry local-id (uid->aspace uid))))
+       (else
+	(let* ((master-entry
+		(make-master-entry program-point ; key
+				   local-name ; global name
+				   (list (cons local-id (uid->aspace uid))) ; an alist 
+				   (make-lock)
+				   #f))
+	       (pending-entry
+		(make-pending-entry program-point
+				    static-skeleton
+				    local-name
+				    bts
+				    fct
+				    uid local-id
+				    master-entry)))
+
+	  (obtain-lock *master-cache-lock*)
+	  (cond ((master-cache-delimited-lookup
+		  static-skeleton
+		  (lambda (item) (eq? item master-cache)))
+		 => (lambda (entry)
+		      (release-lock *master-cache-lock*)
+		      (master-entry->add-local-id! entry local-id (uid->aspace uid))))
+		(else
+		 ;; we can go ahead
+		 ;; order is important here, no?
+		 (master-cache-add-no-locking! static-skeleton master-entry)
+		 (release-lock *master-cache-lock*)
+		 (master-pending-add! static-skeleton pending-entry)))))))
+
+  ;; (display "Registration of local id ") (display local-id) (display " complete") (newline)
+  )
 
 
 (define (server-is-unemployed uid)
-  (display "Server ") (display uid) (display " says it's unemployed") (newline)
+  ;; (display "Server ") (display uid) (display " says it's unemployed") (newline)
   (let loop ()
     (obtain-lock *master-pending-lock*)
     (let ((entry (master-pending-advance-no-locking!)))
@@ -165,7 +180,7 @@
 				     local-id)))
 		  ;; we can put it right back to work
 		  (remote-run! (uid->aspace uid)
-			       server-specialize ;; -async
+			       server-specialize-async
 			       (pending-entry->name entry) 
 			       (pending-entry->program-point entry)
 			       (pending-entry->bts entry)
@@ -192,7 +207,7 @@
 		     (lambda ()
 		       (set! *n-unemployed-servers* (- *n-unemployed-servers* 1))))
 		    (remote-run! (uid->aspace uid)
-				 server-specialize ;; -async
+				 server-specialize-async
 				 (pending-entry->name entry) 
 				 (pending-entry->program-point entry)
 				 (pending-entry->bts entry)
@@ -226,7 +241,6 @@
     (for-each (lambda (aspace)
 		(remote-run! aspace server-initialize! (local-aspace-uid)))
 	      *server-aspaces*)
-    (display "finished remote initialization") (newline)
     (placeholder-value *finished-placeholder*))
 
 (define (collect-residual-program)

@@ -18,7 +18,9 @@
     (bitwise-ior (local-aspace-uid)
 		 (arithmetic-shift count *local-id-shift*))))
 (define (generate-local-symbol f)
-  (concatenate-symbol (gensym f) "-" (local-aspace-uid)))
+  f ;; lose, lose!
+  ;;(concatenate-symbol (gensym f) "-" (local-aspace-uid))
+  )
 
 (define (local-cache-initialize!)
   (set! *local-cache* '()))
@@ -146,7 +148,7 @@
     (call-with-values
      (lambda () (local-cache-enter! full-pp pp bts fct))
      (lambda (res-name local-id already-registered?)
-       (display "Registering memo point ") (display local-id) (newline)
+       ;; (display "Registering memo point ") (display local-id) (newline)
        (if (not already-registered?)
 	   (let ((wrapped-pp
 		  (wrap-similar-program-point
@@ -174,6 +176,7 @@
 (define *server-master-aspace* #f)
 
 (define (I-am-unemployed)
+  ;; (display "I am unemployed") (newline)
   (remote-run! *server-master-aspace*
 	       server-is-unemployed
 	       (local-aspace-uid)))
@@ -192,7 +195,7 @@
 	       server-working-on (local-aspace-uid) local-id))
 
 (define (server-initialize! uid)
-  (display "Initializing, uid ") (display uid) (newline)
+  ;; (display "Initializing, uid ") (display uid) (newline)
   (set! *server-master-aspace* (uid->aspace uid))
   (set! *local-id-count* 0)
   (local-cache-initialize!)
@@ -209,18 +212,18 @@
     ;; assume master-cache knows about this specialization
     (let loop ((entry
 		(local-cache-insert! res-name program-point static-skeleton bts fct)))
-      (display "Specializing ")
-      (display (server-entry->program-point entry))
-      (newline)
+      ;; (display "Specializing ") (display (server-entry->program-point entry)) (newline)
       (specialize-entry entry)
       (let inner-loop ()
 	(let ((maybe-entry (local-cache-advance!)))
 	  (if maybe-entry
-	      (if (can-I-work-on? (server-entry->local-id maybe-entry))
-		  (begin
-		    (display "Master says I can work on ") (display (server-entry->local-id maybe-entry)) (newline)
-		    (loop maybe-entry))
-		  (inner-loop))
+	      (begin
+		;; (display "Asking master if I can work on ") (display (server-entry->local-id maybe-entry)) (newline)
+		(if (can-I-work-on? (server-entry->local-id maybe-entry))
+		    (begin
+		      ;; (display "Master says I can work on ") (display (server-entry->local-id maybe-entry)) (newline)
+		      (loop maybe-entry))
+		    (inner-loop)))
 	      (I-am-unemployed)))))))
 
 (define last-wrapped-pp #f)
@@ -248,7 +251,7 @@
   (let ((maybe-entry (local-pending-lookup local-id)))
     (if maybe-entry
 	(begin
-	  (display "Master killed local id ") (display local-id) (newline)
+	  ;; (display "Master killed local id ") (display local-id) (newline)
 	  (server-entry->killed?! maybe-entry #t)))))
 
 ;; Async variant
@@ -262,9 +265,7 @@
 	 (static-skeleton (top-project-static program-point bts))
 	 (entry
 	  (local-cache-insert! res-name program-point static-skeleton bts fct)))
-    (display "Specializing ")
-    (display (server-entry->program-point entry))
-    (newline)
+    ;; (display "Specializing ") (display (server-entry->program-point entry)) (newline)
     (with-lock
      *server-status-lock*
      (lambda () (set! *server-current-local-id* #f)))
@@ -279,9 +280,7 @@
 	  (set! *server-current-local-id* (server-entry->local-id maybe-entry))
 	  (set! *server-current-thread* (current-thread))
 	  (I-am-working-on (server-entry->local-id maybe-entry))
-	  (display "Specializing local id ") (display (server-entry->local-id maybe-entry))
-	  (display (server-entry->program-point maybe-entry))
-	  (newline)
+	  ;; (display "Specializing local id ") (display (server-entry->local-id maybe-entry)) (display (server-entry->program-point maybe-entry)) (newline)
 	  (release-lock *server-status-lock*)
 	  (specialize-entry maybe-entry)
 	  (obtain-lock *server-status-lock*)

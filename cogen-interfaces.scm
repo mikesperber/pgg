@@ -572,24 +572,38 @@
   (open scheme auxiliary shift-reset cogen-library cogen-completers cogen-residual)
   (files cogen-memo-standard))
 
+(define-structure broken-distributed-auxiliary auxiliary-interface
+  (open auxiliary scheme)
+  (begin
+    (define any->symbol
+      (lambda args
+	(apply string-append
+	       (map (lambda (arg)
+		      (cond
+		       ((symbol? arg) (symbol->string arg))
+		       ((string? arg) arg)
+		       ((number? arg) (number->string arg))))
+		    args))))))
+
 (define-structure cogen-memo-distributed
   (compound-interface cogen-memo-interface
 		      (export multi-memo
 			      start-specialization
 			      collect-residual-program))
-  (open scheme shift-reset auxiliary bitwise small-big-scheme smurf-queues
+  (open scheme shift-reset broken-distributed-auxiliary
+	bitwise small-big-scheme smurf-queues
 	cogen-library cogen-record cogen-completers cogen-residual cogen-wrapping
 	message-low aspaces proxies threads threads-internal locks placeholders)
   (files cogen-distributed-utils
 	 cogen-spec-server
 	 cogen-memo-master))
-
+ 
 (define-structure pgg-distributed-library
   (compound-interface cogen-construct-genext-interface
 		      cogen-residual-interface
 		      cogen-direct-anf-interface
 		      cogen-memo-interface)
-  (open scheme escapes signals auxiliary
+  (open scheme escapes signals broken-distributed-auxiliary
 	cogen-boxops cogen-globals cogen-library
 	shift-reset cogen-completers cogen-memo-distributed cogen-residual)
   (files cogen-direct-anf))
@@ -598,6 +612,7 @@
   (export wrap-program-point
 	  unwrap-program-point
 	  wrap-similar-program-point))
+
 (define-structure cogen-wrapping cogen-wrapping-interface
   (open scheme aspaces closures)
   (files cogen-wrapping))
