@@ -41,7 +41,7 @@ $(EXECUTABLE): Makefile
 
 cogen_packages = pgg-residual pgg
 cogen_generate_packages = pgg signals
-cogen_specialize_packages = auxiliary pgg-library cogen-specialize pp
+cogen_specialize_packages = auxiliary pgg-library pgg-specialize cogen-memo-standard pp
 batch_packages = signals handle i/o conditions extended-ports
 genext_base_files = \
         auxiliary.scm \
