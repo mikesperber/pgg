@@ -32,7 +32,7 @@
 (define (make-ge-op l o args)
   (if (primitive-op? o)
       `(_OP ,l ,o ,@args)
-      `(_OP_SERIOUS ,l ,o ,@args)))
+      `(_OP-SERIOUS ,l ,o ,@args)))
 (define (make-ge-op-pure l o args)
   (cond
    ((zero? l) (cons o args))
