@@ -125,14 +125,23 @@
 	     (bts (map annExprFetchLevel fvar-exprs))
 	     (fixed-vars (annFetchVLambdaFixedVars e))
 	     (var (annFetchVLambdaVar e))
-	     (btv (annFetchVLambdaBTVars e)))
-	(make-ge-vlambda-memo (annExprFetchLevel e)
-			      fixed-vars
-			      var btv
-			      (annFetchVLambdaLabel e)
-			      fvars
-			      bts
-			      (loop (annFetchVLambdaBody e)))))
+	     (btv (annFetchVLambdaBTVars e))
+	     (level (annExprFetchLevel e))
+	     (body (annFetchVLambdaBody e))
+	     (memo-level
+	      (ann->bt
+	       (type->memo (node-fetch-type (annExprFetchType e))))))
+	(if (and *memo-optimize* (<= memo-level level))
+	    (make-ge-vlambda level fixed-vars
+			    var btv
+			    (loop body))
+	    (make-ge-vlambda-memo level
+				  fixed-vars
+				  var btv
+				  (annFetchVLambdaLabel e)
+				  fvars
+				  bts
+				  (loop body)))))
      ((annIsApp? e)
       (let* ((rator (annFetchAppRator e))
 	     (rands (annFetchAppRands e))

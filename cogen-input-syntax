@@ -10,13 +10,16 @@ E ::=	K | (quote A) | (quasiquote A) | V | (if E E E) | (cond (E E)* (else E)?) 
 	(lambda (V*) D0* E*) | (E E*) |
 	[ (lambda V D0* E*) | (lambda (V* . V) D0* E*) | ]
 	(C E*) | (Ci E) | (C? E) |		% ctors, selectors, tests
-	(M B E) |				% memoization point at level B
+	(M E) |					% memoization point
 	(set! V E) | (make-cell E) | (cell-ref E) | (cell-set! E E)
 A ::=   <datum> of R4RS
 D0 ::=  (define (P V*) D0* E*) |
-	(define-without-memoization (P V*) D0* E*)
+	(define P E) |
+	(define-without-memoization (P V*) D0* E*) |
+	(define-without-memoization P E)
 D ::=	D0 |
-	(define P D0* E*) |			% not allowed for goal proc
+	(begin D*) |
+	(load <string>) |
 	(define-data TC (C Ci*)+) |
 	(define-type (P B*) B) |
 	(define-primitive O T [dynamic|error|opaque|pure|apply]) |

@@ -5,5 +5,5 @@
 (define (main s d)
   (let loop ((s s) (d d) (r '()))
     (if (null? s)
-	(apply (lambda (z) z) r)
+	(apply (lambda z z) r)
 	(loop (cdr s) (cdr d) (cons (car d) r)))))

@@ -37,13 +37,13 @@
   (let ((template (cadr d)))
     (and (not (pair? template))
 	 (memq template *scheme->abssyn-mutable-variables*))))
-(define (scheme->abssyn-d d* def-syntax* ctor-symtab)
+(define (scheme->abssyn-d d* def-syntax* other* ctor-symtab)
   ;; (display-line "scheme->abssyn " ctor-symtab)
   (gensym-reset!)
   (set-scheme->abssyn-label-counter! 1)
   (set! *scheme->abssyn-mutable-variables* '())
   (set-scheme->abssyn-static-references! #f)
-  (let* ((d* (scheme-rename-variables-d d* def-syntax*))
+  (let* ((d* (scheme-rename-variables-d d* def-syntax* other*))
 	 ;; (dummy (writelpp d* "/tmp/def1.scm"))
 	 (imp-defined-names* (map cadr (filter mutable-definition? d*)))
 	 (dummy (set! *scheme->abssyn-mutable-variables*
@@ -52,7 +52,7 @@
 	 (d* (map scheme-wrap-one-d d*))
 	 ;; (dummy (writelpp d* "/tmp/def2.scm"))
 	 (d* (scheme-lambda-lift-d d*))
-	 ;; (dummy (writelpp d* "/tmp/def3.scm"))
+	 (dummy (writelpp d* "/tmp/def3.scm"))
 	 (symtab
 	  (append
 	   (map (lambda (d)
@@ -280,7 +280,7 @@
 
 (define-record macro-binding (transformer env))
 
-(define (scheme-rename-variables-d d* def-syntax*)
+(define (scheme-rename-variables-d d* def-syntax* other*)
   (let ((macro-symtab (extend-env* (map cadr def-syntax*)
 				   (map (lambda (def-syntax)
 					  (make-macro-binding
@@ -288,6 +288,50 @@
 					   the-empty-env))
 					def-syntax*)
 				   the-empty-env)))
+    (let loop ((other* other*)
+	       (count (length other*))
+	       (reset (+ (length other*) 1)))
+      (if (pair? other*)
+	  (let ((other (car other*))
+		(other* (cdr other*)))
+	    (if (list? other)
+		(let ((tag (car other)))
+		  (cond
+		   ((apply-env macro-symtab (car other) (lambda () #f))
+		    =>
+		    (lambda (found)
+		      (let ((expansion
+			     ((macro-binding->transformer found)
+			      other (list macro-symtab))))
+			(loop (cons expansion other*) reset reset))))
+		   (else
+		    (case tag
+		      ((define define-without-memoization)
+		       (set! d* (cons other d*))
+		       (loop other* (- reset 1) (- reset 1)))
+		      ((define-syntax)
+		       (set! macro-symtab
+			     (extend-env (cadr other)
+					 (make-macro-binding
+					  (parse-syntax-rules (caddr other))
+					  the-empty-env)
+					 macro-symtab))
+		       (loop other* (- reset 1) (- reset 1)))
+		      ((begin)
+		       (let* ((new-other* (append (cdr other) other*))
+			      (reset (+ (length new-other*) 1)))
+			 (loop new-other* reset reset)))
+		      ((load)
+		       (let* ((new-other* (append (file->list (cadr other)) other*))
+			      (reset (+ (length new-other*) 1)))
+			 (loop new-other* reset reset)))
+		      (else
+		       (if (zero? count)
+			   (error "cannot resolve toplevel expressions"
+				  other*)
+			   (loop (append other* (list other))
+				 (- count 1) reset)))))))
+		(error "bad toplevel expression" other)))))
     (for-each-env! (lambda (entry)
 		     (macro-binding->env! entry macro-symtab))
 		   macro-symtab)
@@ -428,11 +472,16 @@
 		 (body-list (syntax-cdr args))
 		 (new-formals (map scheme-rename-clone formals))
 		 ;; assume [no longer that] all bodies are lambdas
-		 (arities (syntax-map (lambda (body)
-					(and (syntax-pair? body)
-					     (syntax-eq-symbol? 'LAMBDA (syntax-car body) symtab*)
-					     (syntax-car (syntax-cdr body))))
-				      bodies))
+		 (arities (syntax-map
+			   (lambda (body)
+			     (and (syntax-pair? body)
+				  (or (syntax-eq-symbol?
+				       'LAMBDA (syntax-car body) symtab*)
+				      (syntax-eq-symbol?
+				       'LAMBDA-WITHOUT-MEMOIZATION
+				       (syntax-car body) symtab*))
+				  (syntax-car (syntax-cdr body))))
+			   bodies))
 		 (munge (lambda (new-formal arity)
 			  (if arity
 			      (let ((arity (syntax-strip arity)))
@@ -488,7 +537,7 @@
 				    `(BEGIN (SET! ,new-formal ,new-body)
 					    ,final-body))))))))))
 	 ;;
-	 ((eq? tag 'LAMBDA)
+	 ((or (eq? tag 'LAMBDA) (eq? tag 'LAMBDA-WITHOUT-MEMOIZATION))
 	  ;;(display-line "lambda: " args)
 	  (let* ((depth (syntax-depth args))
 		 (formals (syntax-car args))
@@ -508,7 +557,7 @@
 		 (body-list (syntax-cdr args))
 		 (body (scheme-body-list->body body-list new-symtab*))
 		 (new-body (scheme-rename-variables new-symtab* body)))
-	    `(LAMBDA ,new-formals ,new-body)))
+	    `(,tag ,new-formals ,new-body)))
 	 ((eq? tag 'SET!)
 	  ;;(display-line "set!: " args)
 	  (let ((renamed-args (syntax-map loop args)))
@@ -604,9 +653,11 @@
 	(let loop ((body-list body-list) (definitions '()))
 	  (if (and (syntax-pair? body-list)
 		   (syntax-pair? (syntax-car body-list))
-		   (syntax-eq-symbol? 'DEFINE
-				      (syntax-car (syntax-car body-list))
-				      symtab*))
+		   (let ((sym (syntax-car (syntax-car body-list))))
+		     (or (syntax-eq-symbol? 'DEFINE sym symtab*)
+			 (syntax-eq-symbol?
+			  'DEFINE-WITHOUT-MEMOIZATION
+			  sym symtab*))))
 	      (loop (syntax-cdr body-list)
 		    (cons (syntax-car body-list) definitions))
 	      (let ((real-body (if (= 1 (length (syntax-strip body-list)))
@@ -616,13 +667,26 @@
 		    (def->letrec-clause
 		      (lambda (def)
 			(let ((template (syntax-car (syntax-cdr def)))
-			      (inner-body-list (syntax-cdr (syntax-cdr def))))
+			      (inner-body-list (syntax-cdr (syntax-cdr
+							    def)))
+			      (abstract (if (syntax-eq-symbol?
+					     'DEFINE (syntax-car def) symtab*)
+					    'LAMBDA
+					    'LAMBDA-WITHOUT-MEMOIZATION)))
 			  (if (syntax-pair? template)
 			      `(,(syntax-car template)
-				(,(wrapper 'LAMBDA)
+				(,(wrapper abstract)
 				 ,(syntax-cdr template)
-				 ,@(syntax-map (lambda (x) x) inner-body-list)))
-			      `(,template ,(syntax-car inner-body-list)))))))
+				 ,@(syntax-map (lambda (x) x)
+					       inner-body-list)))
+			      (let ((body (syntax-car
+					   inner-body-list)))
+				(if (and (syntax-pair? body)
+					 (syntax-eq-symbol?
+					  'LAMBDA (syntax-car body)
+					  symtab*))
+				    (set-car! body (wrapper abstract)))
+				`(,template ,body)))))))
 		(if (null? definitions)
 		    real-body
 		    `(,(wrapper 'LETREC)
@@ -757,13 +821,14 @@
 			   headers)
 	       ,(scheme-wrap-e body))))
 	 ;;
-	 ((equal? tag 'LAMBDA)
+	 ((or (eq? tag 'LAMBDA)
+	      (eq? tag 'LAMBDA-WITHOUT-MEMOIZATION))
 	  (let* ((bound-vars (car args))
 		 (wrapped-body (scheme-wrap-e (cadr args))))
 	    (scheme-wrap-binding bound-vars
 				 wrapped-body
 				 (lambda (new-vars body)
-				   `(LAMBDA (,@new-vars) ,body)))))
+				   `(,tag (,@new-vars) ,body)))))
 	 (else
 	  (cons tag (map scheme-wrap-e args)))))))
 
@@ -787,6 +852,11 @@
      ,(scheme-lambda-lift (caddr d)
 			  (if (pair? template) (cdr template) '())
 			  definer))))
+
+(define (lambda->definer symbol definer)
+  (if (eq? symbol 'lambda)
+      definer
+      'define-without-memoization))
 
 ;;; scheme-lambda-lift lifts all LETREC expressions
 (define (scheme-lambda-lift e vars definer)
@@ -822,6 +892,7 @@
 		 (dependencies (map (lambda (h)
 				      (scheme-freevars (cadr h) bound-vars))
 				    headers))
+		 (lambdas (map (lambda (h) (caadr h)) headers))
 		 (call-graph (map cons bound-vars dependencies))
 		 (free-vars (map (lambda (h)
 				   (scheme-freevars (cadr h) vars))
@@ -831,28 +902,30 @@
 		 ;;(new-vars (append bound-vars vars))
 		 ;;(fv* (apply set-union* free-vars))
 		 (bound-bodies
-		  (map (lambda (h)
+		  (map (lambda (h lam)
 			 (scheme-lambda-lift
 			  (scheme-lambda-lift-vars b/free-vars
 						   (cadr h))
 			  vars
-			  definer))
-		       headers)))
-	    (map (lambda (b/fv* bb)
+			  (lambda->definer lam definer)))
+		       headers
+		       lambdas)))
+	    (map (lambda (b/fv* bb lam)
 		   (scheme-lambda-lift-add-definition
-		    `(,definer (,@b/fv* ,@(cadr bb))
+		    `(,(lambda->definer lam definer) (,@b/fv* ,@(cadr bb))
 		       ,(caddr bb))))
-		 b/free-vars bound-bodies)
+		 b/free-vars bound-bodies lambdas)
 	    (scheme-lambda-lift
 	     (scheme-lambda-lift-vars b/free-vars body)
 	     vars
 	     definer)))
 	 ;;
-	 ((equal? tag 'LAMBDA)
+	 ((or (eq? tag 'LAMBDA)
+	      (eq? tag 'LAMBDA-WITHOUT-MEMOIZATION))
 	  (let* ((bound-vars (car args))
 		 (vars (append (scheme-formals->vars bound-vars) vars))
 		 (body (cadr args)))
-	    `(LAMBDA ,bound-vars
+	    `(,tag ,bound-vars
 	       ,(scheme-lambda-lift body vars definer))))
 	 (else
 	  (cons tag
@@ -971,7 +1044,8 @@
 		    (map (lambda (h) (scheme-freevars (cadr h) vars))
 			 headers)))
 	    bound-vars)))
-	 ((equal? tag 'LAMBDA)
+	 ((or (eq? tag 'LAMBDA)
+	      (eq? tag 'LAMBDA-WITHOUT-MEMOIZATION))
 	  (let* ((bound-vars (scheme-formals->vars (car args)))
 		 (vars (append bound-vars vars))
 		 (body (cadr args))) 

@@ -98,10 +98,13 @@
 (define (make-residual-call f . args)
   `(,f ,@args))
 
-(define (make-residual-closed-lambda formals free body)
+(define (make-lambda-body-list body)
   (if (and (pair? body) (eq? (car body) 'BEGIN))
-      `(LAMBDA ,formals ,@(cdr body))
-      `(LAMBDA ,formals ,body)))
+      (cdr body)
+      (list body)))
+
+(define (make-residual-closed-lambda formals free body)
+  `(LAMBDA ,formals ,@(make-lambda-body-list body)))
 
 (define (make-residual-literal val)
   (if (or (number? val) (string? val) (boolean? val))

@@ -159,6 +159,7 @@
 	  make-ge-vlambda-memo
 	  make-ge-app-memo
 	  make-ge-lambda
+	  make-ge-vlambda
 	  make-ge-app
 	  make-ge-ctor-memo
 	  make-ge-sel-memo
@@ -243,11 +244,12 @@
 	  multi-memo))
 
 (define-interface cogen-direct-anf-interface
-  (export _vlambda
-	  ((_app
+  (export ((_app
 	    _app_memo
 	    _lambda
 	    _lambda_memo
+	    _vlambda
+	    _vlambda_memo
 	    _begin
 	    _ctor_memo
 	    _s_t_memo

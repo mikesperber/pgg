@@ -29,23 +29,25 @@
     (let loop ((D* full-source)
 	       (def-function* '())
 	       (def-type*     '())
-	       (def-syntax*   '()))
+	       (def-syntax*   '())
+	       (other*	      '()))
       (if (pair? D*)
 	  (let ((D (car D*))
 		(D* (cdr D*)))
 	    (case (car D)
 	      ((define define-without-memoization)
-	       (loop D* (cons D def-function*) def-type* def-syntax*))
+	       (loop D* (cons D def-function*) def-type* def-syntax* other*))
 	      ((define-data define-type define-primitive define-memo)
-	       (loop D* def-function* (cons D def-type*) def-syntax*))
+	       (loop D* def-function* (cons D def-type*) def-syntax* other*))
 	      ((define-syntax)
-	       (loop D* def-function* def-type* (cons D def-syntax*)))
+	       (loop D* def-function* def-type* (cons D def-syntax*) other*))
 	      (else
-	       (error "Illegal definition" D))))
+	       (loop D* def-function* def-type* def-syntax* (cons D other*)))))
 	  ;; finally:
 	  (let* ((symbol-table (process-type-declarations def-type*))
 		 (preprocessed-source (scheme->abssyn-d def-function*
 							def-syntax*
+							other*
 							symbol-table))
 		 (d* (bta-run preprocessed-source
 			      symbol-table

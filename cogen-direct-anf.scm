@@ -15,7 +15,9 @@
 (define (make-ge-freevar l v)
   `(_FREEVAR ,l ,v))
 (define (make-ge-const c)
-  `',c)
+  (if (number? c)
+      c
+      `',c))
 (define (make-ge-cond l lb c t e)
   `(_IF ,l ,c ,t ,e))
 (define (make-ge-op l o args)
@@ -35,13 +37,17 @@
 		 (LAMBDA ,fvars (LAMBDA ,vars ,body))))
 (define (make-ge-vlambda-memo l fixed-vars var btv label fvars bts body)
   `(_VLAMBDA_MEMO ,l ',fixed-vars ',var ',label (LIST ,@fvars) ',bts
-		 (LAMBDA ,fvars (LAMBDA (,@fixed-vars . ,var) ,body))))
+		 (LAMBDA ,fvars (LAMBDA ,(append fixed-vars var) ,body))))
 (define (make-ge-app-memo l f btv args)
   `(_APP_MEMO ,l ,f ,@args))
 (define (make-ge-lambda l vars btv body)
   (if (zero? l)
       (make-residual-closed-lambda vars '() body)
       `(_LAMBDA ,l ,vars ,body)))
+(define (make-ge-vlambda l fixed-vars var btv body)
+  (if (zero? l)
+      (make-residual-closed-lambda (append fixed-vars var) '() body)
+      `(_VLAMBDA ,l ,fixed-vars ,var ,body)))
 (define (make-ge-app l f btv args)
   `(_APP ,l ,f ,@args))
 (define (make-ge-ctor-memo l bts ctor args)
@@ -103,9 +109,9 @@
 
 (define-syntax _lambda_memo
   (syntax-rules ()
-    ((_ 0 arity label vvs bts f)
+    ((_lambda_memo 0 arity label vvs bts f)
      (static-constructor label f vvs bts))
-    ((_ arg ...)
+    ((_lambda_memo arg ...)
      (_lambda_memo-internal arg ...))))
 
 (define (_lambda_memo-internal lv arity label vvs bts f)
@@ -137,57 +143,104 @@
 	 (LAMBDA ,formals
 	   ,(reset (apply (apply f cloned-vvs) formals))))))))
 
-(define (_vlambda lv arity var f)
+(define-syntax _vlambda
+  (syntax-rules ()
+    ((_vlambda 0 () var body)
+     (lambda var body))
+    ((_vlambda 0 (fixed-var ...) var body)
+     (lambda (fixed-var ... . var) body))
+    ((_vlambda lv (fixed-var ...) var body)
+     (_vlambda-internal lv '(var fixed-var ...)
+			(lambda (var fixed-var ...) body)))))
+
+(define (_vlambda-internal lv arity f)
   (let* ((vars (map gensym-local arity))
-	 (vvar (gensym-local var))
-	 (fun `(LAMBDA ,(append vars vvar)
-		 ,(reset (apply f vars))))) ;unclear what to do with vvar
-    (if (= lv 1)
-	fun
-	`(_VLAMBDA ,(pred lv) ',arity ',var ,fun))))
+	 (body (reset (apply f vars))))
+    (_complete				;don't duplicate, experimental
+     (make-ge-vlambda (pred lv) (cdr vars) (car vars) #f body))))
+
+(define-syntax _vlambda_memo
+  (syntax-rules ()
+    ((_vlambda_memo 0 arity var label vvs bts f)
+     (static-constructor label f vvs bts))
+    ((_vlambda_memo arg ...)
+     (_vlambda_memo-internal arg ...))))
+
+(define (_vlambda_memo-internal lv arity var label vvs bts f)
+  (address-registry-reset!)
+  (address-map-reset!)
+  (let* ((fixed-formals (map gensym-local arity))
+	 (formal (gensym-local var))
+	 (lambda-pp (cons label vvs))
+	 (dynamics (top-project-dynamic lambda-pp bts))
+	 (compressed-dynamics (map remove-duplicates dynamics))
+	 (actual-fvs (apply append compressed-dynamics))
+	 (clone-map (map (lambda (arg)
+			   (cons arg (if (symbol? arg)
+					 (gensym-local arg)
+					 (gensym-local 'clone))))
+			 actual-fvs))
+	 (cloned-pp (top-clone-with clone-map lambda-pp bts))
+	 (cloned-vvs (cdr cloned-pp))
+	 (new-bts (binding-times compressed-dynamics))
+	 (formal-fvs (map cdr clone-map)))
+    ;; (> lv 0)
+    (_complete
+     `(_VLAMBDA_MEMO
+       ,(- lv 1)
+       ',arity
+       ',var
+       ',(gensym 'cls)
+       (LIST ,@actual-fvs)
+       ',new-bts
+       (LAMBDA ,formal-fvs
+	 (LAMBDA ,(append fixed-formals formal)
+	   ,(reset (apply (apply f cloned-vvs)
+			  fixed-formals
+			  (list formal)))))))))	;horrendously wrong
 
 (define-syntax _begin
   (syntax-rules ()
-    ((_ 0 bl e1 e2)
+    ((_begin 0 bl e1 e2)
      (begin e1 e2))
-    ((_ 1 bl e1 e2)
+    ((_begin 1 bl e1 e2)
      (shift k (make-residual-begin e1 (reset (k e2)))))
-    ((_ lv bl e1 e2)
+    ((_begin lv bl e1 e2)
      (shift k `(_BEGIN ,(pred lv) 0 ,e1 ,(reset (k e2)))))))
 
 (define-syntax _ctor_memo
   (syntax-rules ()
-    ((_ 0 bts ctor arg ...)
+    ((_ctor_memo 0 bts ctor arg ...)
      (static-constructor 'ctor ctor (list arg ...) 'bts))
-    ((_ lv (bt ...) ctor arg ...)
+    ((_ctor_memo lv (bt ...) ctor arg ...)
      (_complete `(_CTOR_MEMO ,(pred lv) (,(pred bt) ...) ctor ,arg ...)))))
 
 (define-syntax _s_t_memo
   (syntax-rules ()
-    ((_ 0 sel v)
+    ((_s_t_memo 0 sel v)
      (sel (v 'VALUE)))
-    ((_sel_memo lv sel v)
+    ((_s_t_memo lv sel v)
      (_complete `(_S_T_MEMO ,(pred lv) sel ,v)))))
 
 (define-syntax _make-cell_memo
   (syntax-rules ()
-    ((_ 0 lab bt arg)
+    ((_make-cell_memo 0 lab bt arg)
      (static-cell lab arg bt))
-    ((_ lv lab bt arg)
+    ((_make-cell_memo lv lab bt arg)
      (_complete `(_MAKE-CELL_MEMO ,(pred lv) lab ,(pred bt) ,arg)))))
 
 (define-syntax _cell-set!_memo
   (syntax-rules ()
-    ((_ 0 ref arg)
+    ((_cell-set!_memo 0 ref arg)
      ((ref 'CELL-SET!) arg))
-    ((_ lv ref arg)
+    ((_cell-set!_memo lv ref arg)
      (_complete `(_CELL-SET!_MEMO ,(pred lv) ,ref ,arg)))))
 
 (define-syntax _cell-eq?_memo
   (syntax-rules ()
-    ((_ 0 ref1 ref2)
+    ((_cell-eq?_memo 0 ref1 ref2)
      (eq? (ref1 'VALUE) (ref2 'VALUE)))
-    ((_ lv ref1 ref2)
+    ((_cell-eq?_memo lv ref1 ref2)
      (_complete `(_CELL-EQ?_MEMO ,(pred lv) ,ref1 ,ref2)))))
 
 (define-syntax _if
@@ -251,9 +304,9 @@
 
 (define-syntax _lift0
   (syntax-rules ()
-    ((_ 1 val)
+    ((_lift0 1 val)
      (make-residual-literal val))
-    ((_ lv val)
+    ((_lift0 lv val)
      `(_LIFT0 ,(pred lv) ',val))))
 
 (define-syntax _lift
