@@ -2,7 +2,10 @@
 ;;; direct style version of the continuation-based multi-level
 ;;; compiler generator (with control operators)
 ;;; $Log$
-;;; Revision 1.4  1995/11/03 17:12:21  thiemann
+;;; Revision 1.5  1995/11/06 15:40:48  thiemann
+;;; handle eval, fix bug in lambda lifter
+;;;
+;;; Revision 1.4  1995/11/03  17:12:21  thiemann
 ;;; more sophisticated type signatures
 ;;; correct handling of direct-style if and let
 ;;; extended syntax (nested defines allowed)
@@ -124,6 +127,27 @@
   (if (= level 1)
       `(_LIFT0 ,diff ,value)
       `(_LIFT ,(- level 1) ,diff ,value)))
+
+(define (_Eval level diff body)
+  (cond
+   ((= level 0)
+    (cond
+     ((zero? diff)
+      (eval body (interaction-environment)))
+     ((= 1 diff)
+      body)
+     (else
+      `(_EVAL 0 ,(- diff 1) ',body))))
+   ((= level 1)
+    (cond
+     ((zero? diff)
+      `(EVAL ,body (INTERACTION-ENVIRONMENT)))
+     ((= 1 diff)
+      body)
+     (else
+      `(_EVAL 0 ,diff ',body))))
+   (else
+    `(_EVAL ,(- level 1) ,diff ,body))))
 
 ;;; memo function stuff
 (define (start-memo level fn bts args)

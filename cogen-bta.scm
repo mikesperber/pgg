@@ -1,7 +1,10 @@
 ;;; cogen-bta
 ;;; $Id$
 ;;; $Log$
-;;; Revision 1.6  1995/11/03 17:12:19  thiemann
+;;; Revision 1.7  1995/11/06 15:40:47  thiemann
+;;; handle eval, fix bug in lambda lifter
+;;;
+;;; Revision 1.6  1995/11/03  17:12:19  thiemann
 ;;; more sophisticated type signatures
 ;;; correct handling of direct-style if and let
 ;;; extended syntax (nested defines allowed)
@@ -358,7 +361,13 @@
 	       (desc (annFetchTestDesc e)))
 	  (bta-add-leq po (desc-type desc) (nlist (desc-nt desc) tv-make))
 	  (bta-add-leq pi '***static*** '())
-	  (bta-add-dependent po pi))))
+	  (bta-add-dependent po pi)))
+       ((annIsEval? e)
+	(let ((po (loop (annFetchEvalBody e))))
+	  (bta-add-dependent po pi))
+	(bta-equate po pi))
+       (else
+	(error "bta-collect: unrecognized syntax")))
       po)))
 
 (define (bta-add-leq tv ctor args)
@@ -439,7 +448,9 @@
        ((annIsSel? e)
 	`(,(annFetchSelName e) ,(loop (annFetchSelArg e))))
        ((annIsTest? e)
-	`(,(annFetchTestName e) ,(loop (annFetchTestArg e)))))))))
+	`(,(annFetchTestName e) ,(loop (annFetchTestArg e))))
+       ((annIsEval? e)
+	`(EVAL ,(loop (annFetchEvalBody e)))))))))
 
 ;;; bta-solve-d evaluates the normalized constraint set
 (define (bta-solve-d d*)
@@ -475,7 +486,7 @@
 	      (bta-solve e-test)
 	      (bta-solve (annFetchCondThen e))
 	      (bta-solve (annFetchCondElse e))
-	      ;;(and dyn-test
+	      ;;(and dyn-test)
 	      (if (not *bta-user-memoization*)
 		  (annIntroduceMemo e
 				    (annExprFetchLevel e-test)
@@ -504,7 +515,9 @@
 	   ((annIsSel? e)
 	    (bta-solve (annFetchSelArg e)))
 	   ((annIsTest? e)
-	    (bta-solve (annFetchTestArg e))))))))
+	    (bta-solve (annFetchTestArg e)))
+	   ((annIsEval? e)
+	    (bta-solve (annFetchEvalBody e))))))))
 
 ;;; mainly for debugging
 ;;; (re)construct the binding-time type of a program point

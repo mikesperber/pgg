@@ -65,6 +65,20 @@
   (if (null? sets)
       '()
       (set-union (car sets) (apply set-union* (cdr sets)))))
+
+(define (set-equal? xs ys)
+  (and (and-map (lambda (x) (member x ys)) xs)
+       (and-map (lambda (y) (member y xs)) ys)))
+
+(define (and-map p? xs)
+  (or (null? xs)
+      (and (p? (car xs))
+	   (and-map p? (cdr xs)))))
+
+(define (and-map2 p? xs ys)
+  (or (null? xs)
+      (and (p? (car xs) (car ys))
+	   (and-map2 p? (cdr xs) (cdr ys)))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define (filter p xs)
   (if (null? xs)

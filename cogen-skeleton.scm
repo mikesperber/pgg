@@ -1,7 +1,10 @@
 ;;; skeleton for multi-level cogen
 ;;; $Id$
 ;;; $Log$
-;;; Revision 1.6  1995/11/03 17:12:26  thiemann
+;;; Revision 1.7  1995/11/06 15:40:50  thiemann
+;;; handle eval, fix bug in lambda lifter
+;;;
+;;; Revision 1.6  1995/11/03  17:12:26  thiemann
 ;;; more sophisticated type signatures
 ;;; correct handling of direct-style if and let
 ;;; extended syntax (nested defines allowed)
@@ -105,6 +108,11 @@
       `(_LIFT ,(+ 1 (annExprFetchLevel e))
 	      ,(annFetchLiftDiff e)
 	      ,(loop (annFetchLiftBody e))))
+     ((annIsEval? e)
+      (let ((bodylevel (+ 1 (annExprFetchLevel (annFetchEvalBody e))))
+	    (ctxlevel (+ 1 (annExprFetchLevel e))))
+      `(_EVAL ,bodylevel ,(- ctxlevel bodylevel)
+	      ,(loop (annFetchEvalBody e)))))
      ((annIsMemo? e)
       (let* ((memo-fname (gensym fname))
 	     (var-exprs (annFetchMemoVars e))

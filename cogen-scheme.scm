@@ -8,6 +8,8 @@
 ;;; + add let binders for every parameter of a procedure
 ;;; + add letrec and lambda lifting
 ;;; + handle begin
+;;; + nested define
+;;; + treat eval special
 
 ;;; third step: transform to internal form
 
@@ -24,12 +26,17 @@
   ;;(display "scheme->abssyn") (newline)
   (set! *scheme->abssyn-label-counter* 0)
   (let* ((d* (scheme-rename-variables-d d*))
+	 ;; (dummy (p d*))
 	 (d* (scheme-lambda-lift-d d*))
+	 ;; (dummy (p d*))
 	 (symtab
+	  (cons
+	   (list 'EVAL annMakeEval 2)
 	  (append
 	   (map (lambda (d)
-		  (list (caadr d) annMakeCall (length (cdadr d)))) d*)
-	   ctor-symtab)))
+		  (list (caadr d) annMakeCall (length (cdadr d))))
+		d*)
+	   ctor-symtab))))
     (map (lambda (d)
 	   (let* ((formals (cdadr d))
 		  (symtab (append (map (lambda (v)
@@ -189,9 +196,7 @@
 	   (let* ((fname (caadr d))
 		  (formals (cdadr d))
 		  (body-list (cddr d))
-		  (body (if (= 1 (length body-list))
-			    (car body-list)
-			    `(BEGIN ,@body-list)))
+		  (body (scheme-body-list->body body-list))
 		  (new-formals (map scheme-rename-clone formals))
 		  (new-symtab (append (map cons formals new-formals)
 				      symtab))
@@ -313,6 +318,7 @@
 					  symtab e)) args))))))))
 
 (define (scheme-body-list->body body-list)
+  ;;(display (list "body-list:" body-list)) (newline)
   (if (= 1 (length body-list))
       (car body-list)
       (let loop ((body-list body-list) (definitions '()))
@@ -320,7 +326,9 @@
 		 (pair? (car body-list))
 		 (equal? 'DEFINE (caar body-list)))
 	    (loop (cdr body-list) (cons (car body-list) definitions))
-	    (let ((real-body `(BEGIN ,@body-list)))
+	    (let ((real-body (if (= 1 (length body-list))
+				 (car body-list)
+				 `(BEGIN ,@body-list))))
 	      (if (null? definitions)
 		  real-body
 		  `(LETREC
@@ -372,25 +380,31 @@
 	  (let* ((headers (car args))
 		 (body (cadr args))
 		 (bound-vars (map car headers))
+		 (dependencies (map (lambda (h)
+				      (scheme-freevars (cadr h) bound-vars))
+				    headers))
+		 (call-graph (map cons bound-vars dependencies))
 		 (free-vars (map (lambda (h)
 				   (scheme-freevars (cadr h) vars))
 				 headers))
+		 (b/free-vars (map cons bound-vars free-vars))
+		 (b/free-vars (scheme-lambda-lift-fix call-graph b/free-vars))
 		 ;;(new-vars (append bound-vars vars))
-		 (fv* (apply set-union* free-vars))
+		 ;;(fv* (apply set-union* free-vars))
 		 (bound-bodies
 		  (map (lambda (h)
 			 (scheme-lambda-lift
-			  (scheme-lambda-lift-vars bound-vars fv*
+			  (scheme-lambda-lift-vars b/free-vars
 						   (cadr h))
 			  vars))
 		       headers)))
-	    (map (lambda (bv bb)
+	    (map (lambda (b/fv* bb)
 		   (scheme-lambda-lift-add-definition
-		    `(DEFINE (,bv ,@(append fv* (cadr bb)))
+		    `(DEFINE (,@b/fv* ,@(cadr bb))
 		       ,(caddr bb))))
-		 bound-vars bound-bodies)
+		 b/free-vars bound-bodies)
 	    (scheme-lambda-lift
-	     (scheme-lambda-lift-vars bound-vars fv* body)
+	     (scheme-lambda-lift-vars b/free-vars body)
 	     vars)))
 	 ;;
 	 ((equal? tag 'LAMBDA)
@@ -402,15 +416,46 @@
 	  (cons tag
 		(map (lambda (e) (scheme-lambda-lift e vars)) args)))))))
 
-(define (scheme-lambda-lift-vars bound-vars fv* e)
+(define (transpose-graph graph)
+  (let ((skeleton (map (lambda (p) (list (car p))) graph)))
+    (let loop ((graph graph))
+      (if (null? graph)
+	  skeleton
+	  (let* ((adj (car graph))
+		 (source (car adj))
+		 (targets (cdr adj)))
+	    (for-each (lambda (p)
+			(if (member (car p) targets)
+			    (set-cdr! p (set-union (list source) (cdr p)))))
+		      skeleton)
+	    (loop (cdr graph)))))))
+
+(define (scheme-lambda-lift-step call-graph b/free-vars)
+  (let ((get-free (lambda (bv) (cdr (assoc bv b/free-vars)))))
+    (map (lambda (p)
+	   (cons (car p) (apply set-union* (map get-free p))))
+	 call-graph)))
+
+(define (scheme-lambda-lift-fix call-graph b/free-vars)
+  (let loop ((b/free-vars b/free-vars))
+    (let ((b/f-new (scheme-lambda-lift-step call-graph
+					    b/free-vars)))
+      (if (and-map2 (lambda (b/f1 b/f2)
+		      (set-equal? (cdr b/f1) (cdr b/f2)))
+		    b/free-vars b/f-new)
+	  b/free-vars
+	  (loop b/f-new)))))
+
+(define (scheme-lambda-lift-vars b/free-vars e)
   (let loop ((e e))
     (if (not (pair? e))
 	e
-	(let ((tag (car e))
-	      (args (cdr e)))
+	(let* ((tag (car e))
+	       (args (cdr e))
+	       (b/fv* (assoc tag b/free-vars)))
 	  (cond
-	   ((member tag bound-vars)
-	    (append (cons tag fv*) (map loop args)))
+	   (b/fv*
+	    (append b/fv* (map loop args)))
 	   ((member tag '(LET LET* LETREC))
 	    (let ((headers (car args))
 		  (body (cadr args)))

@@ -1,3 +1,8 @@
++ inspect the lambda lifter (dependency analysis?)
+- insert LET only if the variable appears more than once in the body
+- how many memoization points are really necessary?
++ support for EVAL
+- complete the above (preprocessor, bta, skeleton)
 + check whether it still performs continuation-based reduction :-)
 + really generate LAMBDA_MEMO and friends
 + control memoization
@@ -5,17 +10,12 @@
 - type annotation for arity of operators
 + handle (begin ...)
 + handle nested (define ...)
-- inspect the lambda lifter (dependency analysis?)
 - analyze which lambdas and ctors are really memoized
 - specialize project-static, project-dynamic, and friends
 - use delay/force in project-* functions
-- parameterize memo-function by unit (so that it can be used for
-  direct style and continuation-passing style stuff at the same time)
 + write the library functions in direct style using shift/reset to
   achieve continuation-based reduction
 + printout mechanism for bt analyzed program?
-- how many memoization points are really necessary?
-- insert LET only if the variable appears more than once in the body
 - use introspection/reflective facilities to obtain the values of the
   free variables
 - support variadic procedures (by considering argument lists as a

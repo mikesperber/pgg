@@ -1,2 +1,6 @@
 (define (twice f x) (f (f x)))
-(define (main d y) ((twice twice) (lambda (x) (+ x y)) d))
+(define (main d a b c d y)
+  (define (f x) (+ a (g x)))
+  (define (g x) (+ b (f x)))
+  (define (h x) (+ a b c d y))
+  ((twice twice) (lambda (x) (+ x y)) d))
