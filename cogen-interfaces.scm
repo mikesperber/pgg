@@ -549,11 +549,15 @@
   (files cogen-memo-standard))
 
 (define-structure cogen-memo-distributed
-  cogen-memo-interface
+  (compound-interface cogen-memo-interface
+		      (export start-specialization
+			      collect-residual-program))
   (open scheme shift-reset auxiliary
 	cogen-library cogen-record cogen-completers cogen-residual
-	aspaces proxies threads threads-internal locks placeholders)
-  (files cogen-memo-client))
+	message-low aspaces proxies threads threads-internal locks placeholders)
+  (files cogen-distributed-utils
+	 cogen-spec-server
+	 cogen-memo-master))
 
 (define-structure pgg-distributed-library
   (compound-interface cogen-construct-genext-interface
