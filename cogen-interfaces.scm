@@ -173,7 +173,8 @@
 	  make-ge-cell-eq?-memo))
 
 (define-interface shift-reset-interface
-  (export ((shift reset) :syntax)))
+  (export ((shift reset) :syntax)
+	  *shift *reset))
 
 (define-structure shift-reset
   shift-reset-interface
