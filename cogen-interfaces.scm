@@ -501,6 +501,29 @@
   (files pp)
   (begin (define p pretty-print)))
 
+(define-structure small-big-scheme (export concatenate-symbol
+					   error breakpoint
+					   atom? null-list? neq? n=
+					   identity no-op
+					   memq? first any? any every? 
+					   filter filter! filter-map partition-list partition-list!
+					   remove-duplicates delq delq! delete
+					   reverse!
+					   (destructure :syntax)
+					   (receive :syntax)
+					   format
+					   sort-list sort-list!)
+  (open big-scheme))
+
+(define-structure smurf-queues (compound-interface
+				(interface-of queues)
+				(export queue-assoc
+					queue-any))
+  (open scheme-level-1 define-record-types signals small-big-scheme)
+  (files ((=scheme48 big) queue)
+	 smurf-queue)
+  (optimize auto-integrate))
+
 (define-structure cogen-abssyn cogen-abssyn-interface
   (open scheme signals auxiliary cogen-globals)
   (files cogen-abssyn))
@@ -554,7 +577,7 @@
 		      (export multi-memo
 			      start-specialization
 			      collect-residual-program))
-  (open scheme shift-reset auxiliary big-scheme
+  (open scheme shift-reset auxiliary bitwise small-big-scheme smurf-queues
 	cogen-library cogen-record cogen-completers cogen-residual
 	message-low aspaces proxies threads threads-internal locks placeholders)
   (files cogen-distributed-utils
