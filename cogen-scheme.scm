@@ -47,23 +47,23 @@
     (map (lambda (d) (scheme->abssyn-one-d symtab d)) d*))) 
 
 (define (scheme->abssyn-one-d symtab d)
-  (let ((template (cadr d)))
+  (let ((make-def (case (car d)
+		    ((define) annMakeDef)
+		    ((define-without-memoization) annMakeDefWithoutMemoization)))
+	(template (cadr d)))
     (if (pair? template)
 	(let* ((procname (car template))
 	       (formals (cdr template))
 	       (symtab (append
 			(map (lambda (v)
 			       (list v scheme-make-var-app -1)) formals)
-			symtab)))
-	  (annMakeDef procname
-		      formals
-		      (scheme->abssyn-wrap-in-let
+			symtab))
+	       (body (scheme->abssyn-wrap-in-let
 		       formals
 		       (scheme->abssyn-maybe-coerce 
 			(scheme->abssyn-e (caddr d) symtab)))))
-	(annMakeDef template
-		    #f
-		    (scheme->abssyn-e (caddr d) symtab)))))
+	  (make-def procname formals body))
+	(make-def template #f (scheme->abssyn-e (caddr d) symtab)))))
 
 (define (scheme->abssyn-maybe-coerce e)
   (annMakeOp INTERNAL-IDENTITY (list e)))
@@ -238,7 +238,8 @@
 		     d*)))
     (map (lambda (d)
 	   ;;(display "scheme-rename-variables: ") (display (caadr d)) (newline)
-	   (let* ((template (cadr d))
+	   (let* ((definer (car d))
+		  (template (cadr d))
 		  (is-proc-def (pair? template))
 		  (fname (if is-proc-def (car template) template))
 		  (formals (if is-proc-def (cdr template) '()))
@@ -248,7 +249,7 @@
 		  (new-symtab (append (map cons formals new-formals) symtab))
 		  (new-body (scheme-rename-variables new-symtab body))
 		  (new-template (if is-proc-def (cons fname new-formals) fname)))
-	   `(DEFINE ,new-template ,new-body))) d*)))
+	   `(,definer ,new-template ,new-body))) d*)))
 
 (define (scheme-rename-variables symtab e)
   (if (symbol? e)
@@ -452,21 +453,25 @@
     (append old-d* *scheme-lambda-lift-definitions*)))
 
 (define (scheme-lambda-lift-one-d d)
-  (let ((template (cadr d)))
-  `(DEFINE ,template
+  (let ((definer (car d))
+	(template (cadr d)))
+  `(,definer ,template
      ,(scheme-lambda-lift (caddr d)
-			  (if (pair? template) (cdr template) '())))))
+			  (if (pair? template) (cdr template) '())
+			  definer))))
 
 ;;; scheme-lambda-lift lifts all LETREC expressions
-(define (scheme-lambda-lift e vars)
+(define (scheme-lambda-lift e vars definer)
   (if (not (pair? e))
       e
       (let ((tag (car e))
 	    (args (cdr e)))
 	(cond
 	 ((pair? tag)
-	  (let ((rator (scheme-lambda-lift tag vars))
-		(rands (map (lambda (e) (scheme-lambda-lift e vars)) args)))
+	  (let ((rator (scheme-lambda-lift tag vars definer))
+		(rands (map (lambda (e)
+			      (scheme-lambda-lift e vars definer))
+			    args)))
 	    `(,rator ,@rands)))
 	 ((equal? tag 'QUOTE)
 	  e)
@@ -477,8 +482,9 @@
 		 (bound-var (car header))
 		 (bound-body (cadr header)))
 	    `(LET ((,bound-var
-		    ,(scheme-lambda-lift bound-body vars)))
-	       ,(scheme-lambda-lift body (cons bound-var vars)))))
+		    ,(scheme-lambda-lift bound-body vars definer)))
+	       ,(scheme-lambda-lift body (cons bound-var vars)
+				    definer))))
 	 ;;
 	 ((equal? tag 'LETREC)
 	  (let* ((headers (car args))
@@ -500,25 +506,27 @@
 			 (scheme-lambda-lift
 			  (scheme-lambda-lift-vars b/free-vars
 						   (cadr h))
-			  vars))
+			  vars
+			  definer))
 		       headers)))
 	    (map (lambda (b/fv* bb)
 		   (scheme-lambda-lift-add-definition
-		    `(DEFINE (,@b/fv* ,@(cadr bb))
+		    `(,definer (,@b/fv* ,@(cadr bb))
 		       ,(caddr bb))))
 		 b/free-vars bound-bodies)
 	    (scheme-lambda-lift
 	     (scheme-lambda-lift-vars b/free-vars body)
-	     vars)))
+	     vars
+	     definer)))
 	 ;;
 	 ((equal? tag 'LAMBDA)
 	  (let* ((bound-vars (car args))
 		 (vars (append (scheme-formals->vars bound-vars) vars))
 		 (body (cadr args)))
-	    `(LAMBDA ,bound-vars ,(scheme-lambda-lift body vars))))
+	    `(LAMBDA ,bound-vars ,(scheme-lambda-lift body vars definer))))
 	 (else
 	  (cons tag
-		(map (lambda (e) (scheme-lambda-lift e vars)) args)))))))
+		(map (lambda (e) (scheme-lambda-lift e vars definer)) args)))))))
 
 (define (transpose-graph graph)
   (let ((skeleton (map (lambda (p) (list (car p))) graph)))
@@ -659,10 +667,11 @@
 ;; to abstract syntax out of 
 ;; dc* - list of (define-data ...) forms
 ;; dt* - list of (define-type ...) forms
-(define (scheme->abssyn-define-type dc* dt* do*)
+(define (scheme->abssyn-define-type dc* dt* do* dm*)
   (append
    (map scheme->abssyn-one-deftype dt*)
    (map scheme->abssyn-one-defop do*)
+   (map scheme->abssyn-one-defmemo dm*)
    (apply append (map scheme->abssyn-one-defdata dc*))))
 (define (scheme->abssyn-one-defdata dc)
   (let* ((type-name (cadr dc))
@@ -710,11 +719,22 @@
 			 (annMakeOp1
 			  (not (equal? op-option 'opaque))   ;opacity
 			  (and op-apair (cdr op-apair))          ;property (a function)
+			  #f
 			  (parse-type op-type))	          ;type
 			 -1
 			 ;;(length op-rand-types)
 			 )))
     st-entry))
+
+(define (scheme->abssyn-one-defmemo dm)
+  (let* ((memo-name (cadr dm))
+	 (level (caddr dm)))
+    (list memo-name
+	  (annMakeOp1 #t
+		      (bta-make-memo-property level)
+		      (bta-make-memo-postprocessor level)
+		      (parse-type '(all t t)))
+	  1)))
 
 ;;; T  ::= (all TV T) | (rec TV T) | (TC T*) | TV
 ;;; TV type variable (must be bound by rec or all)
@@ -733,12 +753,12 @@
       (cond
        ((pair? texp)
 	(if (member (car texp) '(all rec))
-	    (let ((tvar (caddr texp)))
+	    (let ((tvar (cadr texp)))
 	      ((if (equal? (car texp) 'rec)
 		   make-primop-trec
 		   make-primop-tall)
 	       tvar
-	       (loop (cadddr texp)
+	       (loop (caddr texp)
 		     (extend-env tvar (make-primop-tvar tvar) tenv))))
 	    (make-primop-tapp (car texp)
 			      (map (lambda (texp)

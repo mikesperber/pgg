@@ -19,7 +19,8 @@
 	 (full-source
 	  (apply append (map file->list source-files)))
 	 (def-function*
-	   (filter (lambda (defn) (equal? (car defn) 'define))
+	   (filter (lambda (defn) (or (equal? (car defn) 'define)
+				      (equal? (car defn) 'define-without-memoization)))
 		   full-source))
 	 (def-datatype*
 	   (filter (lambda (defn) (equal? (car defn) 'define-data))
@@ -30,20 +31,18 @@
 	 (def-opsig*
 	   (filter (lambda (defn) (equal? (car defn) 'define-primitive))
 		   full-source))
-	 (def-memo (assoc 'define-memo full-source))
-	 (def-opsig*
-	   (if def-memo
-	       (cons `(DEFINE-PRIMITIVE ,(cadr def-memo) MEMO) def-typesig*)
-	       def-opsig*))
+	 (def-memo*
+	   (filter (lambda (defn) (equal? (car defn) 'define-memo))
+		   full-source))
 	 (symbol-table
-	  (scheme->abssyn-define-type def-datatype* def-typesig* def-opsig*))
+	  (scheme->abssyn-define-type
+	   def-datatype* def-typesig* def-opsig* def-memo*))
 	 (d*
 	  (bta-run (scheme->abssyn-d def-function* symbol-table)
 		   symbol-table
 		   skeleton
 		   def-typesig*
-		   def-opsig*
-		   def-memo)))
+		   def-opsig*)))
     (generate-d d*)
     (append def-datatype*
 	    *generating-extension*))) 

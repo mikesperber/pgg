@@ -4,9 +4,7 @@
 ;;; step 0
 ;;; the driver for the bta
 
-(define *bta-user-memoization* #f)
 (define *bta-max-bt* #f)
-(define *bta-dynamic-points* '())
 
 ;;; debugging and trace aids
 (define *bta-display-level* 1)
@@ -16,8 +14,11 @@
      (if (>= *bta-display-level* level)
 	 (begin arg ...)))))
 
-(define (bta-note-dynamic! ann)		;;unused
-  (set! *bta-dynamic-points* (cons ann *bta-dynamic-points*)))
+(define *bta-bt-points* '())
+(define (bta-note-dynamic! ann)
+  (set! *bta-bt-points* (cons (cons *bta-max-bt* ann) *bta-bt-points*)))
+(define (bta-note-level! lv ann)
+  (set! *bta-bt-points* (cons (cons lv ann) *bta-bt-points*)))
 
 ;;; binding-time analysis
 ;;; `d*' list of function definitions
@@ -26,18 +27,13 @@
 ;;; `skeleton' function call with arguments replaced by binding times
 ;;; `def-typesig*' is a list of type signatures of defined operations
 ;;; `def-opsig*' is a list of type signature of primitive operators
-;;; `def-memo' is an optional memoization definition
-(define (bta-run d* symtab skeleton def-typesig* def-opsig* def-memo)
+(define (bta-run d* symtab skeleton def-typesig* def-opsig*)
   (debug-level 1 (display "bta-run") (newline))
-  (set! *bta-user-memoization*
-	(and def-memo
-	     (= 3 (length def-memo))
-	     (equal? (caddr def-memo) 'ONLY)))
   (set! *bta-max-bt*
 	(apply max (cdr skeleton)))
   (type->btann! the-top-type (make-ann))
-  (set! *bta-dynamic-points* (list (type->btann the-top-type)))
-  ;;(display (list "*bta-user-memoization*" *bta-user-memoization*))
+  (set! *bta-bt-points* '())
+  (bta-note-dynamic! (type->btann the-top-type))
   (let* ((goal-proc (car skeleton))
 	 (bts (cdr skeleton))
 	 (d (annDefLookup goal-proc d*))
@@ -61,14 +57,13 @@
 	 (proc-type-result (full-ecr (cadr proc-type-tcargs)))
 	 (do-type-inference (full-make-base proc-type-result))
 	 (construct-bt-constraints (wft-d* d*))
-	 (bt-ann* (map (lambda (bt type)
-			 (cons bt (type-fetch-btann type)))
-		       bts proc-type-args))
-	 (bt-ann* (bt-ann-sort bt-ann*)))
+	 (bt-ann* (bt-ann-sort
+		   (append (map (lambda (bt type)
+				  (cons bt (type-fetch-btann type)))
+				bts proc-type-args)
+			   *bta-bt-points*))))
     (btc-propagate *bta-max-bt* (type-fetch-btann
 				 (node-fetch-type proc-type-result)))
-    (for-each (lambda (ann)
-		(btc-propagate *bta-max-bt* ann)) *bta-dynamic-points*)
     (for-each (lambda (bt-ann)
 		(btc-propagate (car bt-ann) (cdr bt-ann)))
 	      bt-ann*)
@@ -379,7 +374,7 @@
 	(let* ((phi* (map loop (annFetchOpArgs e)))
 	       (property (annFetchOpProperty e))
 	       (type (annFetchOpType e)))
-	  (if (procedure? property)
+	  (if property
 	      (property phi phi*)
 	      ;; !!! implement type
 	      ;; standard operator
@@ -489,12 +484,21 @@
   (lambda (phi phi*)
     (bta-dynamic-property phi '())))
 
+(define (bta-make-memo-property level)
+  (lambda (phi phi*)
+    (for-each (lambda (node)
+		(bta-note-level!
+		 level
+		 (type-fetch-btann (node-fetch-type (full-ecr node)))))
+	      (cons phi phi*))))
+
 (define bta-property-table
   `((apply   . ,bta-apply-property)
     (dynamic . ,bta-dynamic-property)
     (error   . ,bta-error-property)
     (iiiy    . ,bta-internal-identity-property)
     (opaque  . ,bta-dynamic-property)))
+
 
 ;;; step 2
 ;;; well-formedness constraints
@@ -528,7 +532,7 @@
 		      (loop (cdr args) (cons (type-fetch-btann arg) dlist))))))))))
 					;beta <= beta_i
 
-(define (wft-e e)
+(define (wft-e e auto-memo)
   (let loop ((e e))
     ;; (display "wft") (display e) (newline)
     (let* ((ecr (full-ecr (annExprFetchType e)))
@@ -546,7 +550,7 @@
 	  (loop test-exp)
 	  (loop (annFetchCondThen e))
 	  (loop (annFetchCondElse e))
-	  (if (not *bta-user-memoization*)
+	  (if auto-memo
 	      (let ((btann (type-fetch-btann type))
 		    (test-type (info-fetch-type
 				(node-fetch-info
@@ -626,7 +630,7 @@
   (for-each
    (lambda (d)
      (wft-t (node-fetch-type (full-ecr (annDefFetchProcBTVar d))))
-     (wft-e (annDefFetchProcBody d)))
+     (wft-e (annDefFetchProcBody d) (annDefFetchProcAutoMemo d)))
    d*))
 
 ;;; error
@@ -649,8 +653,31 @@
 (define (bta-solve-d* d*)
   (debug-level 1 (display "bta-solve") (newline))
   (debug-level 2 (display-bts-d* d*) (newline))
-  (for-each (lambda (d) (bta-solve (annDefFetchProcBody d))) d*)
+  (for-each bta-solve-d d*)
   (debug-level 1 (display "bta-solve done") (newline))) 
+
+(define (bta-solve-d d)
+  (let* ((body (annDefFetchProcBody d))
+	 (auto-memo? (annDefFetchProcAutoMemo d)))
+    (bta-solve body auto-memo?)
+    (if (not auto-memo?)
+	(let* ((type (info-fetch-type
+		      (node-fetch-info
+		       (annExprFetchType body))))
+	       (btann (type-fetch-btann type))
+	       (bt (ann->bt btann))
+	       (fvs (annFreeVars body)))
+	  (annIntroduceMemo body bt 0 fvs)
+	  (for-each (bta-memo-var 0) fvs)))))
+
+(define (bta-make-memo-postprocessor lv)
+  (lambda (e bt)
+    (let* ((args (annFetchOpArgs e))
+	   (body (car args))
+	   (fvs (annFreeVars body)))
+      (annIntroduceMemo1 e bt lv fvs body)
+      (for-each (bta-memo-var lv) fvs)
+      #f)))
 
 ;;; bta-solve returns #t for serious expressions
 ;;; only dynamic ifs and lambdas which guard serious expressions are
@@ -658,87 +685,80 @@
 ;;; we rely of wft-e to have stored the ecrs everywhere
 ;;; sets the level of every expression to the binding time of its result
 ;;; include memo analysis
-(define (bta-solve e)
-  (let* ((type (info-fetch-type
-	       (node-fetch-info
-		(annExprFetchType e))))
-	 (btann (type-fetch-btann type))
-	 (bt  (ann->bt btann)))
-    (annExprSetLevel! e bt)
-    (cond
-     ((annIsVar? e)
-      #f)
-     ((annIsConst? e)
-      (if (> 0 bt)
-	  (annIntroduceLift e 0 bt))
-      #f)
-     ((annIsCond? e)
-      (let* ((e-test (annFetchCondTest e))
-	     (r-test (bta-solve e-test))
-	     (r-then (bta-solve (annFetchCondThen e)))
-	     (r-else (bta-solve (annFetchCondElse e))))
-	(if (or r-test r-then r-else)
-	    (begin
-	      (if (not *bta-user-memoization*)
-		  (let ((fvs (annFreeVars e))
-			(level (annExprFetchLevel e-test)))
-		    (annIntroduceMemo e bt level fvs)
-		    (map (bta-memo-var level) fvs)))
-	      #t)
-	    #f)))
-     ((annIsOp? e)
-      (let ((args (map bta-solve (annFetchOpArgs e)))
-	    (property (annFetchOpProperty e)))
-	;; (newline) (display (list "op" (annFetchOpName e)))
-	(map (introduce-lift-if-needed bt) (annFetchOpArgs e))
-	(if property
-	    (cond
-	     ((equal? property 'MEMO)
-	      (let* ((args (annFetchOpArgs e))
-		     (lv (annFetchConst (car args)))
-		     (body (cadr args)))
-		(annIntroduceMemo1 e bt lv (annFreeVars body) body)
-		#f))
-	     (else
-	      (any? args)))
-	    (any? args))))
-     ((annIsCall? e)
-      (for-each bta-solve (annFetchCallArgs e))
-      #t)
-     ((annIsLet? e)
-      (let ((header (bta-solve (annFetchLetHeader e)))
-	    (body (bta-solve (annFetchLetBody e))))
-	(or header body)))
-     ((annIsLambda? e)
-      (let* ((body (bta-solve (annFetchLambdaBody e)))
-	     (dyn-lambda (or #t (< 0 bt))))
-	(annSetLambdaBTVars! e (map (lambda (node)
-				      (type-fetch-btann (node-fetch-type (full-ecr node))))
-				    (annFetchLambdaBTVars e)))
-	(if (and dyn-lambda body (not *bta-user-memoization*))
-	    (annIntroduceMemo e bt bt (annFreeVars e))))
-      #f)
-     ((annIsVLambda? e)
-      (let* ((body (bta-solve (annFetchVLambdaBody e)))
-	     (dyn-lambda (or #t (< 0 bt))))
-	(annSetVLambdaBTVars! e (map (lambda (node)
-				       (type-fetch-btann (node-fetch-type (full-ecr node))))
-				    (annFetchVLambdaBTVars e)))
-	(if (and dyn-lambda body (not *bta-user-memoization*))
-	    (annIntroduceMemo e bt bt (annFreeVars e))))
-      #f)
-     ((annIsApp? e)
-      (bta-solve (annFetchAppRator e))
-      (for-each bta-solve (annFetchAppRands e))
-      #t)
-     ((annIsCtor? e)
-      (strict-or-map bta-solve (annFetchCtorArgs e)))
-     ((annIsSel? e)
-      (bta-solve (annFetchSelArg e)))
-     ((annIsTest? e)
-      (bta-solve (annFetchTestArg e)))
-     ((annIsEval? e)
-      (bta-solve (annFetchEvalBody e))))))
+(define (bta-solve e auto-memo)
+  (let loop ((e e))
+    (let* ((type (info-fetch-type
+		  (node-fetch-info
+		   (annExprFetchType e))))
+	   (btann (type-fetch-btann type))
+	   (bt  (ann->bt btann)))
+      (annExprSetLevel! e bt)
+      (cond
+       ((annIsVar? e)
+	#f)
+       ((annIsConst? e)
+	(if (> 0 bt)
+	    (annIntroduceLift e 0 bt))
+	#f)
+       ((annIsCond? e)
+	(let* ((e-test (annFetchCondTest e))
+	       (r-test (loop e-test))
+	       (r-then (loop (annFetchCondThen e)))
+	       (r-else (loop (annFetchCondElse e))))
+	  (if (or r-test r-then r-else)
+	      (begin
+		(if auto-memo
+		    (let ((fvs (annFreeVars e))
+			  (level (annExprFetchLevel e-test)))
+		      (annIntroduceMemo e bt level fvs)
+		      (for-each (bta-memo-var level) fvs)))
+		#t)
+	      #f)))
+       ((annIsOp? e)
+	(let ((args (map loop (annFetchOpArgs e)))
+	      (postprocess (annFetchOpPostprocessor e)))
+	  ;; (newline) (display (list "op" (annFetchOpName e)))
+	  (map (introduce-lift-if-needed bt) (annFetchOpArgs e))
+	  (if postprocess
+	      (postprocess e bt)
+	      (any? args))))
+       ((annIsCall? e)
+	(for-each loop (annFetchCallArgs e))
+	#t)
+       ((annIsLet? e)
+	(let ((header (loop (annFetchLetHeader e)))
+	      (body (loop (annFetchLetBody e))))
+	  (or header body)))
+       ((annIsLambda? e)
+	(let* ((body (loop (annFetchLambdaBody e)))
+	       (dyn-lambda (or #t (< 0 bt))))
+	  (annSetLambdaBTVars! e (map (lambda (node)
+					(type-fetch-btann (node-fetch-type (full-ecr node))))
+				      (annFetchLambdaBTVars e)))
+	  (if (and dyn-lambda body auto-memo)
+	      (annIntroduceMemo e bt bt (annFreeVars e))))
+	#f)
+       ((annIsVLambda? e)
+	(let* ((body (loop (annFetchVLambdaBody e)))
+	       (dyn-lambda (or #t (< 0 bt))))
+	  (annSetVLambdaBTVars! e (map (lambda (node)
+					 (type-fetch-btann (node-fetch-type (full-ecr node))))
+				       (annFetchVLambdaBTVars e)))
+	  (if (and dyn-lambda body auto-memo)
+	      (annIntroduceMemo e bt bt (annFreeVars e))))
+	#f)
+       ((annIsApp? e)
+	(loop (annFetchAppRator e))
+	(for-each loop (annFetchAppRands e))
+	#t)
+       ((annIsCtor? e)
+	(strict-or-map loop (annFetchCtorArgs e)))
+       ((annIsSel? e)
+	(loop (annFetchSelArg e)))
+       ((annIsTest? e)
+	(loop (annFetchTestArg e)))
+       ((annIsEval? e)
+	(loop (annFetchEvalBody e)))))))
 
 (define introduce-lift-if-needed
   (lambda (bt)
