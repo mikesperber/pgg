@@ -162,7 +162,7 @@
 
 (define (_let-internal-1 unf? bl orig-var e f)
   (let ((var (gensym-local orig-var)))
-    (shift k (make-residual-let-trivial var e (list (reset (k (f var))))))))
+    (shift k (make-residual-let-serious var e (list (reset (k (f var)))))))) ;why serious?
 
 (define-syntax _begin
   (syntax-rules ()
