@@ -118,7 +118,8 @@
 	 (entry (local-cache-enter! full-pp pp bts fct))
 	 (res-name (server-entry->name entry))
 	 (local-id (server-entry->local-id entry)))
-    
+
+    (display "Registering memo point ") (display local-id) (newline)
     (I-register-memo-point! full-pp res-name local-id bts fct)
     (if (= level 1)
 	;; generate call to fn with actual arguments
