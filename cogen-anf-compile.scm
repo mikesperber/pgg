@@ -203,8 +203,7 @@
 
 (define-syntax _op
   (syntax-rules (apply _define_data)
-;;;    ((_op lv _define_data arg)
-;;;     (make-residual-define-data lv arg))
+    ((_op lv _define_data arg) 'lose)
     ((_op 0 op arg ...)
      (op arg ...))
     ((_op 1 apply f arg ...)
@@ -215,7 +214,8 @@
      (_complete `(_OP ,(pred lv) op ,arg ...)))))
 
 (define-syntax _op_serious
-  (syntax-rules ()
+  (syntax-rules (_define_data)
+    ((_ lv _define_data arg) 'lose)
     ((_ 0 op arg ...)
      (op arg ...))
     ((_ 1 op arg ...)
