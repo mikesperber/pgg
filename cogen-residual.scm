@@ -30,6 +30,8 @@
       `(LET* ((,var ,exp) ,@header) ,@bodies)))
    ((and (pair? body) (eq? (car body) 'BEGIN))
     `(LET ((,var ,exp)) ,@(cdr body)))
+   ((and (pair? body) (eq? (car body) 'OR) (eqv? var (cadr body)))
+    `(OR ,exp ,@(cddr body))) ;unsafe: no guarantee that var does not occur in body
    (else
     `(LET ((,var ,exp)) ,body))))
 
@@ -133,6 +135,10 @@
     t)
    ((eq? c #f)
     e)
+   ((eq? e #f)
+    (if (and (pair? t) (eq? 'AND (car t)))
+	`(AND ,c ,@(cdr t))
+	`(AND ,c ,t)))
    ((detect-constant-test c)
     => (lambda (stuff)
 	 (let ((exp (car stuff))
@@ -147,6 +153,10 @@
 		exp
 		(cons (make-branch `(,constants ,t))
 		      `((else ,e))))))))
+   ((eqv? c t)
+    (if (and (pair? e) (eq? 'OR (car e)))
+	`(OR ,c ,@(cdr e))
+	`(OR ,c ,e)))
    ((and (pair? e) (eq? 'IF (car e)))
     `(COND
       ,(make-branch `(,c ,t))

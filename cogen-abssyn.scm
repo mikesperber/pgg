@@ -471,7 +471,7 @@
       (var-union (loop (annFetchVrefArg e))
 		 (loop (annFetchVrefIndex e))))
      ((annIsVlen? e)
-      (loop (annFetchVrefVec e)))
+      (loop (annFetchVlenVec e)))
      ((annIsVset? e)
       (var-union (loop (annFetchVsetArg e))
 		 (loop (annFetchVsetIndex e))
