@@ -8,26 +8,26 @@
     (finis . ())))
 
 (define module2
-  '((copy . ((jz 2 testadd)
+  '((copy . ((jz 2 test)
 	     (incr 1)
 	     (decr 2)
 	     (jump copy)))
-    (testadd . ((jz 1 finis)
-		(jump add)))))
+    (test . ((jz 1 finis)
+	     (jump add)))))
 
 ;; same example with qualifying module names
 (define module_1
   '((add . ((jz 1 (mod2 . copy))
 	    (decr 1)
 	    (incr 0)
-	    (jump (mod1 . add))))
+	    (jump add)))
     (finis . ())))
 
 (define module_2
-  '((copy . ((jz 2 (mod2 . testadd))
+  '((copy . ((jz 2 test)
 	     (incr 1)
 	     (decr 2)
-	     (jump (mod2 . copy))))
-    (testadd . ((jz 1 (mod1 . finis))
-		(jump (mod1 . add))))))
+	     (jump copy)))
+    (test . ((jz 1 (mod1 . finis))
+	     (jump (mod1 . add))))))
 
