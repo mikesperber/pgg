@@ -31,7 +31,9 @@
 	      ((define-data define-type define-primitive define-memo)
 	       (loop D* def-function* (cons D def-type*) def-syntax*))
 	      ((define-syntax)
-	       (loop D* def-function* def-type* (cons D def-syntax*)))))
+	       (loop D* def-function* def-type* (cons D def-syntax*)))
+	      (else
+	       (error "Illegal definition" D))))
 	  ;; finally:
 	  (let* ((symbol-table (process-type-declarations def-type*))
 		 (preprocessed-source (scheme->abssyn-d def-function*

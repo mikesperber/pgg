@@ -28,67 +28,65 @@
 ;;; `def-type*' is a list of type declarations
 (define (bta-run d* symtab skeleton def-type*)
   (bta-debug-level 1 (display "bta-run") (newline))
-  (set! *bta-max-bt*
-	(apply max (cdr skeleton)))
-  (if (zero? *bta-max-bt*)
-      (set! *bta-max-bt* 1))
-  (type->btann! the-top-type (make-ann))
-  (set! *bta-bt-points* '())
-  (bta-note-dynamic! (type->btann the-top-type))
-  (let* ((goal-proc (car skeleton))
-	 (bts (cdr skeleton))
-	 (d (annDefLookup goal-proc d*))
-	 (formals (or (annDefFetchProcFormals d)
-		      (let ((body (annDefFetchProcBody d)))
-			(cond
-			 ((annIsLambda? body)
-			  (annFetchLambdaVars body))
-			 (else
-			  (error "specified goal is not a procedure"))))))
-	 (d0 (annMakeDef '$goal formals
-			 (bta-insert-def-mutable
-			  d* (bta-insert-def-data
-			      def-type* (ann-maybe-coerce (annMakeCall goal-proc (map annMakeVar formals)))))))
-	 (d* (cons d0 d*))
-	 (do-type-inference (full-collect-d* d*))
-	 (proc-node (full-ecr (annDefFetchProcBTVar d0)))
-	 (proc-type (node-fetch-type proc-node))
-	 (proc-type-tcargs (type-fetch-args proc-type))
-	 (proc-type-args
-	  (let loop ((node (car proc-type-tcargs)))
-	    (let ((type (node-fetch-type node)))
-	      (let ((args (type-fetch-args type))
-		    (ctor (type-fetch-ctor type)))
-		(if (equal? ctor ctor-product)
-		    (cons (node-fetch-type (car args))
-			  (loop (cadr args)))
-		    '())))))
-	 (proc-type-result (full-ecr (cadr proc-type-tcargs)))
-	 (dynamize-result (bta-note-dynamic!
-			   (type-fetch-btann (node-fetch-type proc-type-result))))
-	 ;; (do-type-inference (full-make-base proc-type-result))
-	 (do-effect-analysis
-	  (if *scheme->abssyn-static-references*
-	      (effect-analysis d* (+ *scheme->abssyn-label-counter* 1)))) 
-	 (construct-bt-constraints (wft-d* d*))
-;	 (SHOW-BT_CONSTRAINTS
-;	  (with-output-to-file "/tmp/display-bt-constraints.scm"
-;	    (lambda ()
-;	      (p (display-bts-d* d*)))))
-	 (bt-ann* (bt-ann-sort
-		   (append (map (lambda (bt type)
-				  (cons bt (type-fetch-btann type)))
-				bts proc-type-args)
-			   *bta-bt-points*))))
-    (btc-propagate *bta-max-bt* (type-fetch-btann
-				 (node-fetch-type proc-type-result)))
-    (for-each (lambda (bt-ann)
-		(btc-propagate (car bt-ann) (cdr bt-ann)))
-	      bt-ann*)
+  (let ((goal-proc (car skeleton))
+	(bts (cdr skeleton)))
+    (set! *bta-max-bt*
+	  (apply max (cons 1 bts)))
+    (type->btann! the-top-type (make-ann))
+    (set! *bta-bt-points* '())
+    (bta-note-dynamic! (type->btann the-top-type))
+    (let* ((d (annDefLookup goal-proc d*))
+	   (formals (or (annDefFetchProcFormals d)
+			(let ((body (annDefFetchProcBody d)))
+			  (cond
+			   ((annIsLambda? body)
+			    (annFetchLambdaVars body))
+			   (else
+			    (error "specified goal is not a procedure"))))))
+	   (d0 (annMakeDef '$goal formals
+			   (bta-insert-def-mutable
+			    d* (bta-insert-def-data
+				def-type* (ann-maybe-coerce (annMakeCall goal-proc (map annMakeVar formals)))))))
+	   (d* (cons d0 d*))
+	   (do-type-inference (full-collect-d* d*))
+	   (proc-node (full-ecr (annDefFetchProcBTVar d0)))
+	   (proc-type (node-fetch-type proc-node))
+	   (proc-type-tcargs (type-fetch-args proc-type))
+	   (proc-type-args
+	    (let loop ((node (car proc-type-tcargs)))
+	      (let ((type (node-fetch-type node)))
+		(let ((args (type-fetch-args type))
+		      (ctor (type-fetch-ctor type)))
+		  (if (equal? ctor ctor-product)
+		      (cons (node-fetch-type (car args))
+			    (loop (cadr args)))
+		      '())))))
+	   (proc-type-result (full-ecr (cadr proc-type-tcargs)))
+	   (dynamize-result (bta-note-dynamic!
+			     (type-fetch-btann (node-fetch-type proc-type-result))))
+	   ;; (do-type-inference (full-make-base proc-type-result))
+	   (do-effect-analysis
+	    (if *scheme->abssyn-static-references*
+		(effect-analysis d* (+ *scheme->abssyn-label-counter* 1)))) 
+	   (construct-bt-constraints (wft-d* d*))
+					;	 (SHOW-BT_CONSTRAINTS
+					;	  (with-output-to-file "/tmp/display-bt-constraints.scm"
+					;	    (lambda ()
+					;	      (p (display-bts-d* d*)))))
+	   (bt-ann* (bt-ann-sort
+		     (append (map (lambda (bt type)
+				    (cons bt (type-fetch-btann type)))
+				  bts proc-type-args)
+			     *bta-bt-points*))))
+      (btc-propagate *bta-max-bt* (type-fetch-btann
+				   (node-fetch-type proc-type-result)))
+      (for-each (lambda (bt-ann)
+		  (btc-propagate (car bt-ann) (cdr bt-ann)))
+		bt-ann*)
 ;;;    (for-each (bta-typesig d* symtab) def-typesig*)
 ;;;    (p (display-bts-d* d*))
-    (bta-solve-d* d*)
-    d*))
+      (bta-solve-d* d*)
+      d*)))
 
 (define bt-ann-sort
   (lambda (bt-ann*)
