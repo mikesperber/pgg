@@ -1,0 +1,620 @@
+($start (cv-vals) = (call s1-int-$1 cv-vals))
+
+(cv-append-$1 (l1 l2) = l2)
+
+(desc->val-dynamic-$1 (cv-vals) = (car cv-vals))
+
+(perform-cv-bindings-$1 (cv-vals) = '())
+
+(cv-append-$2 (l1 l2) = (cons (car l1) (call cv-append-$1 (cdr l1) l2)))
+
+(simple-expr->val-dynamic$/1-$2 (cv-vals) = (call desc->val-dynamic-$1 cv-vals))
+
+(simple-expr->val-dynamic-$1 (cv-vals) = (call simple-expr->val-dynamic$/1-$2 cv-vals))
+
+(simple-expr->val-dynamic$/1-$1 (cv-vals) = (car (call simple-expr->val-dynamic-$1 cv-vals)))
+
+(cv-append-$3 (l1 l2) = (cons (car l1) (call cv-append-$1 (cdr l1) l2)))
+
+(desc->val-dynamic-$2 (cv-vals) = (car cv-vals))
+
+(simple-expr->val-dynamic$/1-$4 (cv-vals) = (call desc->val-dynamic-$2 cv-vals))
+
+(simple-expr->val-dynamic-$2 (cv-vals) = (call simple-expr->val-dynamic$/1-$4 cv-vals))
+
+(simple-expr->val-dynamic$/1-$3 (cv-vals) = (car (call simple-expr->val-dynamic-$2 cv-vals)))
+
+(perform-cv-bindings-$2 (cv-vals) = '())
+
+(desc->val-dynamic-$3 (cv-vals) = (car (cdr cv-vals)))
+
+(simple-expr->val-dynamic$/1-$6 (cv-vals) = (call desc->val-dynamic-$3 cv-vals))
+
+(simple-expr->val-dynamic-$3 (cv-vals) = (call simple-expr->val-dynamic$/1-$6 cv-vals))
+
+(simple-expr->val-dynamic$/1-$5 (cv-vals) = (cdr (call simple-expr->val-dynamic-$3 cv-vals)))
+
+(perform-cv-bindings-$3 (cv-vals) = '())
+
+(perform-cv-bindings-$4 (cv-vals) = '())
+
+(simple-expr->val-dynamic$/1-$8 (cv-vals) = (call desc->val-dynamic-$2 cv-vals))
+
+(simple-expr->val-dynamic-$4 (cv-vals) = (call simple-expr->val-dynamic$/1-$8 cv-vals))
+
+(simple-expr->val-dynamic$/1-$7 (cv-vals) = (car (call simple-expr->val-dynamic-$4 cv-vals)))
+
+(cv-append-$4 (l1 l2) = (cons (car l1) (call cv-append-$1 (cdr l1) l2)))
+
+(desc->val-dynamic-$4 (cv-vals) = (car cv-vals))
+
+(simple-expr->val-dynamic$/1-$10 (cv-vals) = (call desc->val-dynamic-$4 cv-vals))
+
+(simple-expr->val-dynamic-$5 (cv-vals) = (call simple-expr->val-dynamic$/1-$10 cv-vals))
+
+(simple-expr->val-dynamic$/1-$9 (cv-vals) = (car (call simple-expr->val-dynamic-$5 cv-vals)))
+
+(perform-cv-bindings-$5 (cv-vals) = '())
+
+(desc->val-dynamic-$5 (cv-vals) = (car (cdr cv-vals)))
+
+(simple-expr->val-dynamic$/1-$12 (cv-vals) = (call desc->val-dynamic-$5 cv-vals))
+
+(simple-expr->val-dynamic-$6 (cv-vals) = (call simple-expr->val-dynamic$/1-$12 cv-vals))
+
+(simple-expr->val-dynamic$/1-$11 (cv-vals) = (cdr (call simple-expr->val-dynamic-$6 cv-vals)))
+
+(perform-cv-bindings-$6 (cv-vals) = '())
+
+(desc->val-dynamic-$7 (cv-vals) = (car (cdr (cdr cv-vals))))
+
+(desc->val-dynamic-$8 (cv-vals) = '())
+
+(desc->val-dynamic-$6 (cv-vals) = (cons (call desc->val-dynamic-$7 cv-vals) (call desc->val-dynamic-$8 cv-vals)))
+
+(desc->val-dynamic-$9 (cv-vals) = (car (cdr cv-vals)))
+
+(perform-cv-bindings-$7 (cv-vals) = '())
+
+(simple-expr->val-dynamic$/1-$14 (cv-vals) = (call desc->val-dynamic-$3 cv-vals))
+
+(simple-expr->val-dynamic-$7 (cv-vals) = (call simple-expr->val-dynamic$/1-$14 cv-vals))
+
+(simple-expr->val-dynamic$/1-$13 (cv-vals) = (car (call simple-expr->val-dynamic-$7 cv-vals)))
+
+(perform-cv-bindings-$8 (cv-vals) = '())
+
+(simple-expr->val-dynamic$/1-$16 (cv-vals) = (call desc->val-dynamic-$7 cv-vals))
+
+(simple-expr->val-dynamic-$8 (cv-vals) = (call simple-expr->val-dynamic$/1-$16 cv-vals))
+
+(simple-expr->val-dynamic$/1-$15 (cv-vals) = (cdr (call simple-expr->val-dynamic-$8 cv-vals)))
+
+(perform-cv-bindings-$9 (cv-vals) = '())
+
+(perform-cv-bindings-$10 (cv-vals) = '())
+
+(simple-expr->val-dynamic$/1-$18 (cv-vals) = (call desc->val-dynamic-$4 cv-vals))
+
+(simple-expr->val-dynamic-$9 (cv-vals) = (call simple-expr->val-dynamic$/1-$18 cv-vals))
+
+(simple-expr->val-dynamic$/1-$17 (cv-vals) = (car (call simple-expr->val-dynamic-$9 cv-vals)))
+
+(cv-append-$5 (l1 l2) = (cons (car l1) (call cv-append-$1 (cdr l1) l2)))
+
+(desc->val-dynamic-$10 (cv-vals) = (car cv-vals))
+
+(simple-expr->val-dynamic$/1-$20 (cv-vals) = (call desc->val-dynamic-$10 cv-vals))
+
+(simple-expr->val-dynamic-$10 (cv-vals) = (call simple-expr->val-dynamic$/1-$20 cv-vals))
+
+(simple-expr->val-dynamic$/1-$19 (cv-vals) = (car (call simple-expr->val-dynamic-$10 cv-vals)))
+
+(perform-cv-bindings-$11 (cv-vals) = '())
+
+(desc->val-dynamic-$11 (cv-vals) = (car (cdr cv-vals)))
+
+(simple-expr->val-dynamic$/1-$22 (cv-vals) = (call desc->val-dynamic-$11 cv-vals))
+
+(simple-expr->val-dynamic-$11 (cv-vals) = (call simple-expr->val-dynamic$/1-$22 cv-vals))
+
+(simple-expr->val-dynamic$/1-$21 (cv-vals) = (cdr (call simple-expr->val-dynamic-$11 cv-vals)))
+
+(perform-cv-bindings-$12 (cv-vals) = '())
+
+(desc->val-dynamic-$13 (cv-vals) = (car (cdr (cdr cv-vals))))
+
+(desc->val-dynamic-$14 (cv-vals) = (car (cdr (cdr (cdr cv-vals)))))
+
+(desc->val-dynamic-$12 (cv-vals) = (cons (call desc->val-dynamic-$13 cv-vals) (call desc->val-dynamic-$14 cv-vals)))
+
+(desc->val-dynamic-$15 (cv-vals) = (car (cdr cv-vals)))
+
+(perform-cv-bindings-$13 (cv-vals) = '())
+
+(cv-restrict-vals-$6 (cv-env-vals) = '())
+
+(cv-restrict-vals-$5 (cv-env-vals) = (call cv-restrict-vals-$6 (cdr cv-env-vals)))
+
+(cv-restrict-vals-$4 (cv-env-vals) = (call cv-restrict-vals-$5 (cdr cv-env-vals)))
+
+(cv-restrict-vals-$3 (cv-env-vals) = (call cv-restrict-vals-$4 (cdr cv-env-vals)))
+
+(cv-restrict-vals-$2 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$3 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$1 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$2 (cdr cv-env-vals))))
+
+(s1-eval$/7-$13 ($8 dynamic-contexts) = (call s1-eval-$21 (call cv-restrict-vals-$1 $8) dynamic-contexts))
+
+(s1-eval-$36 (cv-vals dynamic-contexts) = (call s1-eval$/7-$13 (call cv-append-$1 '() cv-vals) dynamic-contexts))
+
+(perform-cv-bindings-$14 (cv-vals) = '())
+
+(cv-append-$6 (l1 l2) = (cons (car l1) (call cv-append-$3 (cdr l1) l2)))
+
+(simple-expr->val-dynamic$/1-$24 (cv-vals) = (call desc->val-dynamic-$1 cv-vals))
+
+(simple-expr->val-dynamic-$12 (cv-vals) = (call simple-expr->val-dynamic$/1-$24 cv-vals))
+
+(simple-expr->val-dynamic$/1-$23 (cv-vals) = (cdr (call simple-expr->val-dynamic-$12 cv-vals)))
+
+(simple-expr->val-dynamic$/1-$26 (cv-vals) = (call desc->val-dynamic-$1 cv-vals))
+
+(simple-expr->val-dynamic-$13 (cv-vals) = (call simple-expr->val-dynamic$/1-$26 cv-vals))
+
+(simple-expr->val-dynamic$/1-$25 (cv-vals) = (car (call simple-expr->val-dynamic-$13 cv-vals)))
+
+(perform-cv-bindings-$15 (cv-vals) = (cons (call simple-expr->val-dynamic$/1-$25 cv-vals) (call perform-cv-bindings-$14 cv-vals)))
+
+(perform-cv-bindings-$16 (cv-vals) = '())
+
+(cv-append-$7 (l1 l2) = (cons (car l1) (call cv-append-$4 (cdr l1) l2)))
+
+(simple-expr->val-dynamic$/1-$28 (cv-vals) = (call desc->val-dynamic-$2 cv-vals))
+
+(simple-expr->val-dynamic-$14 (cv-vals) = (call simple-expr->val-dynamic$/1-$28 cv-vals))
+
+(simple-expr->val-dynamic$/1-$27 (cv-vals) = (cdr (call simple-expr->val-dynamic-$14 cv-vals)))
+
+(simple-expr->val-dynamic$/1-$30 (cv-vals) = (call desc->val-dynamic-$2 cv-vals))
+
+(simple-expr->val-dynamic-$15 (cv-vals) = (call simple-expr->val-dynamic$/1-$30 cv-vals))
+
+(simple-expr->val-dynamic$/1-$29 (cv-vals) = (car (call simple-expr->val-dynamic-$15 cv-vals)))
+
+(perform-cv-bindings-$17 (cv-vals) = (cons (call simple-expr->val-dynamic$/1-$29 cv-vals) (call perform-cv-bindings-$16 cv-vals)))
+
+(desc->val-dynamic-$16 (cv-vals) = (cons (call desc->val-dynamic-$7 cv-vals) (call desc->val-dynamic-$8 cv-vals)))
+
+(perform-cv-bindings-$18 (cv-vals) = '())
+
+(cv-append-$9 (l1 l2) = (cons (car l1) (call cv-append-$1 (cdr l1) l2)))
+
+(cv-append-$8 (l1 l2) = (cons (car l1) (call cv-append-$9 (cdr l1) l2)))
+
+(simple-expr->val-dynamic$/1-$32 (cv-vals) = (call desc->val-dynamic-$9 cv-vals))
+
+(simple-expr->val-dynamic-$16 (cv-vals) = (call simple-expr->val-dynamic$/1-$32 cv-vals))
+
+(simple-expr->val-dynamic$/1-$31 (cv-vals) = (cdr (call simple-expr->val-dynamic-$16 cv-vals)))
+
+(simple-expr->val-dynamic$/1-$34 (cv-vals) = (call desc->val-dynamic-$9 cv-vals))
+
+(simple-expr->val-dynamic-$17 (cv-vals) = (call simple-expr->val-dynamic$/1-$34 cv-vals))
+
+(simple-expr->val-dynamic$/1-$33 (cv-vals) = (car (call simple-expr->val-dynamic-$17 cv-vals)))
+
+(perform-cv-bindings-$19 (cv-vals) = (cons (call simple-expr->val-dynamic$/1-$33 cv-vals) (call perform-cv-bindings-$18 cv-vals)))
+
+(perform-cv-bindings-$20 (cv-vals) = '())
+
+(cv-append-$10 (l1 l2) = (cons (car l1) (call cv-append-$5 (cdr l1) l2)))
+
+(simple-expr->val-dynamic$/1-$36 (cv-vals) = (call desc->val-dynamic-$4 cv-vals))
+
+(simple-expr->val-dynamic-$18 (cv-vals) = (call simple-expr->val-dynamic$/1-$36 cv-vals))
+
+(simple-expr->val-dynamic$/1-$35 (cv-vals) = (cdr (call simple-expr->val-dynamic-$18 cv-vals)))
+
+(simple-expr->val-dynamic$/1-$38 (cv-vals) = (call desc->val-dynamic-$4 cv-vals))
+
+(simple-expr->val-dynamic-$19 (cv-vals) = (call simple-expr->val-dynamic$/1-$38 cv-vals))
+
+(simple-expr->val-dynamic$/1-$37 (cv-vals) = (car (call simple-expr->val-dynamic-$19 cv-vals)))
+
+(perform-cv-bindings-$21 (cv-vals) = (cons (call simple-expr->val-dynamic$/1-$37 cv-vals) (call perform-cv-bindings-$20 cv-vals)))
+
+(desc->val-dynamic-$17 (cv-vals) = (cons (call desc->val-dynamic-$13 cv-vals) (call desc->val-dynamic-$14 cv-vals)))
+
+(perform-cv-bindings-$22 (cv-vals) = '())
+
+(cv-append-$12 (l1 l2) = (cons (car l1) (call cv-append-$1 (cdr l1) l2)))
+
+(cv-append-$11 (l1 l2) = (cons (car l1) (call cv-append-$12 (cdr l1) l2)))
+
+(simple-expr->val-dynamic$/1-$40 (cv-vals) = (call desc->val-dynamic-$15 cv-vals))
+
+(simple-expr->val-dynamic-$20 (cv-vals) = (call simple-expr->val-dynamic$/1-$40 cv-vals))
+
+(simple-expr->val-dynamic$/1-$39 (cv-vals) = (cdr (call simple-expr->val-dynamic-$20 cv-vals)))
+
+(simple-expr->val-dynamic$/1-$42 (cv-vals) = (call desc->val-dynamic-$15 cv-vals))
+
+(simple-expr->val-dynamic-$21 (cv-vals) = (call simple-expr->val-dynamic$/1-$42 cv-vals))
+
+(simple-expr->val-dynamic$/1-$41 (cv-vals) = (car (call simple-expr->val-dynamic-$21 cv-vals)))
+
+(perform-cv-bindings-$23 (cv-vals) = (cons (call simple-expr->val-dynamic$/1-$41 cv-vals) (call perform-cv-bindings-$22 cv-vals)))
+
+(cv-restrict-vals-$10 (cv-env-vals) = (call cv-restrict-vals-$3 (cdr cv-env-vals)))
+
+(cv-restrict-vals-$9 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$10 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$8 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$9 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$7 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$8 (cdr cv-env-vals))))
+
+(s1-eval-$48 (cv-vals dynamic-contexts) = (call s1-eval-$45 (call cv-restrict-vals-$7 (call cv-append-$11 (cons (call simple-expr->val-dynamic$/1-$39 cv-vals) (call perform-cv-bindings-$23 cv-vals)) cv-vals)) dynamic-contexts))
+
+(desc->val-dynamic-$18 (cv-vals) = (car cv-vals))
+
+(s1-eval-$49 (cv-vals dynamic-contexts) = (call desc->val-dynamic-$18 (call cv-append-$1 '() cv-vals)))
+
+(eval-if-dynamic$/7-$10 ($12 dynamic-contexts) = (if (pair? (call desc->val-dynamic-$15 (call cv-append-$1 (call perform-cv-bindings-$22 $12) $12))) (call s1-eval-$48 $12 dynamic-contexts) (call s1-eval-$49 $12 dynamic-contexts)))
+
+(s1-eval-$47 (cv-vals dynamic-contexts) = (call eval-if-dynamic$/7-$10 (call cv-append-$5 (cons (cons (call desc->val-dynamic-$11 cv-vals) (call desc->val-dynamic-$17 cv-vals)) '()) cv-vals) dynamic-contexts))
+
+(cv-restrict-vals-$15 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$6 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$14 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$15 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$13 (cv-env-vals) = (call cv-restrict-vals-$14 (cdr cv-env-vals)))
+
+(cv-restrict-vals-$12 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$13 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$11 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$12 (cdr cv-env-vals))))
+
+(s1-eval-$46 (cv-vals dynamic-contexts) = (call s1-eval-$47 (call cv-restrict-vals-$11 (call cv-append-$10 (cons (call simple-expr->val-dynamic$/1-$35 cv-vals) (call perform-cv-bindings-$21 cv-vals)) cv-vals)) dynamic-contexts))
+
+(desc->val-dynamic-$19 (cv-vals) = (cons (call desc->val-dynamic-$5 cv-vals) (call desc->val-dynamic-$7 cv-vals)))
+
+(s1-eval-$50 (cv-vals dynamic-contexts) = (call desc->val-dynamic-$19 (call cv-append-$1 '() cv-vals)))
+
+(eval-if-dynamic$/7-$9 ($12 dynamic-contexts) = (if (pair? (call desc->val-dynamic-$4 (call cv-append-$1 (call perform-cv-bindings-$20 $12) $12))) (call s1-eval-$46 $12 dynamic-contexts) (call s1-eval-$50 $12 dynamic-contexts)))
+
+(s1-eval-$45 (cv-vals dynamic-contexts) = (call eval-if-dynamic$/7-$9 (call cv-append-$1 '() cv-vals) dynamic-contexts))
+
+(cv-restrict-vals-$18 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$3 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$17 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$18 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$16 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$17 (cdr cv-env-vals))))
+
+(s1-eval-$44 (cv-vals dynamic-contexts) = (call s1-eval-$45 (call cv-restrict-vals-$16 (call cv-append-$8 (cons (call simple-expr->val-dynamic$/1-$31 cv-vals) (call perform-cv-bindings-$19 cv-vals)) cv-vals)) dynamic-contexts))
+
+(desc->val-dynamic-$20 (cv-vals) = (car cv-vals))
+
+(s1-eval-$51 (cv-vals dynamic-contexts) = (call desc->val-dynamic-$20 (call cv-append-$1 '() cv-vals)))
+
+(eval-if-dynamic$/7-$8 ($12 dynamic-contexts) = (if (pair? (call desc->val-dynamic-$9 (call cv-append-$1 (call perform-cv-bindings-$18 $12) $12))) (call s1-eval-$44 $12 dynamic-contexts) (call s1-eval-$51 $12 dynamic-contexts)))
+
+(s1-eval-$43 (cv-vals dynamic-contexts) = (call eval-if-dynamic$/7-$8 (call cv-append-$4 (cons (cons (call desc->val-dynamic-$5 cv-vals) (call desc->val-dynamic-$16 cv-vals)) '()) cv-vals) dynamic-contexts))
+
+(cv-restrict-vals-$22 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$6 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$21 (cv-env-vals) = (call cv-restrict-vals-$22 (cdr cv-env-vals)))
+
+(cv-restrict-vals-$20 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$21 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$19 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$20 (cdr cv-env-vals))))
+
+(s1-eval-$42 (cv-vals dynamic-contexts) = (call s1-eval-$43 (call cv-restrict-vals-$19 (call cv-append-$7 (cons (call simple-expr->val-dynamic$/1-$27 cv-vals) (call perform-cv-bindings-$17 cv-vals)) cv-vals)) dynamic-contexts))
+
+(desc->val-dynamic-$22 (cv-vals) = '())
+
+(desc->val-dynamic-$21 (cv-vals) = (cons (call desc->val-dynamic-$3 cv-vals) (call desc->val-dynamic-$22 cv-vals)))
+
+(s1-eval-$52 (cv-vals dynamic-contexts) = (call desc->val-dynamic-$21 (call cv-append-$1 '() cv-vals)))
+
+(eval-if-dynamic$/7-$7 ($12 dynamic-contexts) = (if (pair? (call desc->val-dynamic-$2 (call cv-append-$1 (call perform-cv-bindings-$16 $12) $12))) (call s1-eval-$42 $12 dynamic-contexts) (call s1-eval-$52 $12 dynamic-contexts)))
+
+(s1-eval-$41 (cv-vals dynamic-contexts) = (call eval-if-dynamic$/7-$7 (call cv-append-$1 '() cv-vals) dynamic-contexts))
+
+(cv-restrict-vals-$24 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$5 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$23 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$24 (cdr cv-env-vals))))
+
+(s1-eval-$40 (cv-vals dynamic-contexts) = (call s1-eval-$41 (call cv-restrict-vals-$23 (call cv-append-$6 (cons (call simple-expr->val-dynamic$/1-$23 cv-vals) (call perform-cv-bindings-$15 cv-vals)) cv-vals)) dynamic-contexts))
+
+(desc->val-dynamic-$23 (cv-vals) = '())
+
+(s1-eval-$53 (cv-vals dynamic-contexts) = (call desc->val-dynamic-$23 (call cv-append-$1 '() cv-vals)))
+
+(eval-if-dynamic$/7-$6 ($12 dynamic-contexts) = (if (pair? (call desc->val-dynamic-$1 (call cv-append-$1 (call perform-cv-bindings-$14 $12) $12))) (call s1-eval-$40 $12 dynamic-contexts) (call s1-eval-$53 $12 dynamic-contexts)))
+
+(s1-eval-$39 (cv-vals dynamic-contexts) = (call eval-if-dynamic$/7-$6 (call cv-append-$1 '() cv-vals) dynamic-contexts))
+
+(cv-restrict-vals-$25 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$6 (cdr cv-env-vals))))
+
+(s1-eval-$38 (cv-vals dynamic-contexts) = (call s1-eval-$39 (call cv-restrict-vals-$25 (call cv-append-$1 '() cv-vals)) dynamic-contexts))
+
+(cv-restrict-vals-$26 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$10 (cdr cv-env-vals))))
+
+(s1-eval-$37 (cv-vals dynamic-contexts) = (call s1-eval-$38 (call cv-restrict-vals-$26 (call cv-append-$1 '() cv-vals)) dynamic-contexts))
+
+(eval-if-dynamic$/7-$5 ($12 dynamic-contexts) = (if (pair? (call desc->val-dynamic-$15 (call cv-append-$1 (call perform-cv-bindings-$13 $12) $12))) (call s1-eval-$36 $12 dynamic-contexts) (call s1-eval-$37 $12 dynamic-contexts)))
+
+(s1-eval-$35 (cv-vals dynamic-contexts) = (call eval-if-dynamic$/7-$5 (call cv-append-$5 (cons (cons (call desc->val-dynamic-$11 cv-vals) (call desc->val-dynamic-$12 cv-vals)) '()) cv-vals) dynamic-contexts))
+
+(cv-restrict-vals-$31 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$6 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$30 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$31 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$29 (cv-env-vals) = (call cv-restrict-vals-$30 (cdr cv-env-vals)))
+
+(cv-restrict-vals-$28 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$29 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$27 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$28 (cdr cv-env-vals))))
+
+(s1-eval-$34 (cv-vals dynamic-contexts) = (call s1-eval-$35 (call cv-restrict-vals-$27 (call cv-append-$5 (cons (call simple-expr->val-dynamic$/1-$21 cv-vals) (call perform-cv-bindings-$12 cv-vals)) cv-vals)) dynamic-contexts))
+
+(cv-restrict-vals-$35 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$6 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$34 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$35 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$33 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$34 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$32 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$33 (cdr cv-env-vals))))
+
+(s1-eval-$33 (cv-vals dynamic-contexts) = (call s1-eval-$34 (call cv-restrict-vals-$32 (call cv-append-$1 '() cv-vals)) '()))
+
+(cv-restrict-vals-$40 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$6 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$39 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$40 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$38 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$39 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$37 (cv-env-vals) = (call cv-restrict-vals-$38 (cdr cv-env-vals)))
+
+(cv-restrict-vals-$36 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$37 (cdr cv-env-vals))))
+
+(s1-eval-$32 (cv-vals dynamic-contexts) = (call s1-eval-$33 (call cv-restrict-vals-$36 (call cv-append-$5 (cons (call simple-expr->val-dynamic$/1-$19 cv-vals) (call perform-cv-bindings-$11 cv-vals)) cv-vals)) '()))
+
+(cv-restrict-vals-$44 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$6 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$43 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$44 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$42 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$43 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$41 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$42 (cdr cv-env-vals))))
+
+(s1-eval-$31 (cv-vals dynamic-contexts) = (call s1-eval-$32 (call cv-restrict-vals-$41 (call cv-append-$4 (cons (call simple-expr->val-dynamic$/1-$17 cv-vals) (call perform-cv-bindings-$10 cv-vals)) cv-vals)) '()))
+
+(s1-eval$/7-$12 ($8 dynamic-contexts) = (call s1-eval-$31 (call cv-restrict-vals-$42 $8) dynamic-contexts))
+
+(s1-eval-$30 (cv-vals dynamic-contexts) = (call s1-eval$/7-$12 (call cv-append-$1 '() cv-vals) dynamic-contexts))
+
+(s1-eval$/7-$11 ($8 dynamic-contexts) = (call s1-eval-$30 (call cv-restrict-vals-$42 $8) dynamic-contexts))
+
+(s1-eval-$29 (cv-vals dynamic-contexts) = (call s1-eval$/7-$11 (call cv-append-$1 '() cv-vals) dynamic-contexts))
+
+(s1-eval$/7-$10 ($8 dynamic-contexts) = (call s1-eval-$29 (call cv-restrict-vals-$42 $8) dynamic-contexts))
+
+(s1-eval-$28 (cv-vals dynamic-contexts) = (call s1-eval$/7-$10 (call cv-append-$1 '() cv-vals) dynamic-contexts))
+
+(perform-cv-bindings-$24 (cv-vals) = '())
+
+(simple-expr->val-dynamic$/1-$44 (cv-vals) = (call desc->val-dynamic-$3 cv-vals))
+
+(simple-expr->val-dynamic-$22 (cv-vals) = (call simple-expr->val-dynamic$/1-$44 cv-vals))
+
+(simple-expr->val-dynamic$/1-$43 (cv-vals) = (cdr (call simple-expr->val-dynamic-$22 cv-vals)))
+
+(simple-expr->val-dynamic$/1-$46 (cv-vals) = (call desc->val-dynamic-$3 cv-vals))
+
+(simple-expr->val-dynamic-$23 (cv-vals) = (call simple-expr->val-dynamic$/1-$46 cv-vals))
+
+(simple-expr->val-dynamic$/1-$45 (cv-vals) = (car (call simple-expr->val-dynamic-$23 cv-vals)))
+
+(perform-cv-bindings-$25 (cv-vals) = (cons (call simple-expr->val-dynamic$/1-$45 cv-vals) (call perform-cv-bindings-$24 cv-vals)))
+
+(cv-restrict-vals-$47 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$5 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$46 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$47 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$45 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$46 (cdr cv-env-vals))))
+
+(s1-eval-$59 (cv-vals dynamic-contexts) = (call s1-eval-$43 (call cv-restrict-vals-$45 (call cv-append-$7 (cons (call simple-expr->val-dynamic$/1-$43 cv-vals) (call perform-cv-bindings-$25 cv-vals)) cv-vals)) dynamic-contexts))
+
+(desc->val-dynamic-$24 (cv-vals) = (cons (call desc->val-dynamic-$2 cv-vals) (call desc->val-dynamic-$22 cv-vals)))
+
+(s1-eval-$60 (cv-vals dynamic-contexts) = (call desc->val-dynamic-$24 (call cv-append-$1 '() cv-vals)))
+
+(eval-if-dynamic$/7-$11 ($12 dynamic-contexts) = (if (pair? (call desc->val-dynamic-$3 (call cv-append-$1 (call perform-cv-bindings-$24 $12) $12))) (call s1-eval-$59 $12 dynamic-contexts) (call s1-eval-$60 $12 dynamic-contexts)))
+
+(s1-eval-$58 (cv-vals dynamic-contexts) = (call eval-if-dynamic$/7-$11 (call cv-append-$1 '() cv-vals) dynamic-contexts))
+
+(cv-restrict-vals-$49 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$6 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$48 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$49 (cdr cv-env-vals))))
+
+(s1-eval-$57 (cv-vals dynamic-contexts) = (call s1-eval-$58 (call cv-restrict-vals-$48 (call cv-append-$1 '() cv-vals)) dynamic-contexts))
+
+(s1-eval-$56 (cv-vals dynamic-contexts) = (call s1-eval-$57 (call cv-restrict-vals-$48 cv-vals) dynamic-contexts))
+
+(s1-eval-$55 (cv-vals dynamic-contexts) = (call s1-eval-$56 (call cv-restrict-vals-$48 (call cv-append-$1 '() cv-vals)) dynamic-contexts))
+
+(cv-restrict-vals-$52 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$6 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$51 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$52 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$50 (cv-env-vals) = (call cv-restrict-vals-$51 (cdr cv-env-vals)))
+
+(s1-eval-$54 (cv-vals dynamic-contexts) = (call s1-eval-$55 (call cv-restrict-vals-$50 (call cv-append-$1 '() cv-vals)) dynamic-contexts))
+
+(eval-if-dynamic$/7-$4 ($12 dynamic-contexts) = (if (pair? (call desc->val-dynamic-$4 (call cv-append-$1 (call perform-cv-bindings-$10 $12) $12))) (call s1-eval-$28 $12 dynamic-contexts) (call s1-eval-$54 $12 dynamic-contexts)))
+
+(s1-eval-$27 (cv-vals dynamic-contexts) = (call eval-if-dynamic$/7-$4 (call cv-append-$1 '() cv-vals) dynamic-contexts))
+
+(cv-restrict-vals-$55 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$5 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$54 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$55 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$53 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$54 (cdr cv-env-vals))))
+
+(s1-eval-$26 (cv-vals dynamic-contexts) = (call s1-eval-$27 (call cv-restrict-vals-$53 (call cv-append-$4 (cons (call simple-expr->val-dynamic$/1-$15 cv-vals) (call perform-cv-bindings-$9 cv-vals)) cv-vals)) dynamic-contexts))
+
+(cv-restrict-vals-$58 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$6 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$57 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$58 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$56 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$57 (cdr cv-env-vals))))
+
+(s1-eval-$25 (cv-vals dynamic-contexts) = (call s1-eval-$26 (call cv-restrict-vals-$56 (call cv-append-$1 '() cv-vals)) '()))
+
+(cv-restrict-vals-$61 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$52 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$60 (cv-env-vals) = (call cv-restrict-vals-$61 (cdr cv-env-vals)))
+
+(cv-restrict-vals-$59 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$60 (cdr cv-env-vals))))
+
+(s1-eval-$24 (cv-vals dynamic-contexts) = (call s1-eval-$25 (call cv-restrict-vals-$59 (call cv-append-$4 (cons (call simple-expr->val-dynamic$/1-$9 cv-vals) (call perform-cv-bindings-$5 cv-vals)) cv-vals)) '()))
+
+(cv-restrict-vals-$62 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$48 (cdr cv-env-vals))))
+
+(s1-eval-$23 (cv-vals dynamic-contexts) = (call s1-eval-$24 (call cv-restrict-vals-$62 (call cv-append-$3 (cons (call simple-expr->val-dynamic$/1-$13 cv-vals) (call perform-cv-bindings-$8 cv-vals)) cv-vals)) '()))
+
+(s1-eval$/7-$9 ($8 dynamic-contexts) = (call s1-eval-$23 (call cv-restrict-vals-$48 $8) dynamic-contexts))
+
+(s1-eval-$22 (cv-vals dynamic-contexts) = (call s1-eval$/7-$9 (call cv-append-$1 '() cv-vals) dynamic-contexts))
+
+(s1-eval$/7-$8 ($8 dynamic-contexts) = (call s1-eval-$22 (call cv-restrict-vals-$48 $8) dynamic-contexts))
+
+(s1-eval-$21 (cv-vals dynamic-contexts) = (call s1-eval$/7-$8 (call cv-append-$1 '() cv-vals) dynamic-contexts))
+
+(cv-restrict-vals-$64 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$4 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$63 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$64 (cdr cv-env-vals))))
+
+(s1-eval$/7-$7 ($8 dynamic-contexts) = (call s1-eval-$21 (call cv-restrict-vals-$63 $8) dynamic-contexts))
+
+(s1-eval-$20 (cv-vals dynamic-contexts) = (call s1-eval$/7-$7 (call cv-append-$1 '() cv-vals) dynamic-contexts))
+
+(cv-restrict-vals-$65 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$3 (cdr cv-env-vals))))
+
+(s1-eval-$61 (cv-vals dynamic-contexts) = (call s1-eval-$38 (call cv-restrict-vals-$65 (call cv-append-$1 '() cv-vals)) dynamic-contexts))
+
+(eval-if-dynamic$/7-$3 ($12 dynamic-contexts) = (if (pair? (call desc->val-dynamic-$9 (call cv-append-$1 (call perform-cv-bindings-$7 $12) $12))) (call s1-eval-$20 $12 dynamic-contexts) (call s1-eval-$61 $12 dynamic-contexts)))
+
+(s1-eval-$19 (cv-vals dynamic-contexts) = (call eval-if-dynamic$/7-$3 (call cv-append-$4 (cons (cons (call desc->val-dynamic-$5 cv-vals) (call desc->val-dynamic-$6 cv-vals)) '()) cv-vals) dynamic-contexts))
+
+(cv-restrict-vals-$68 (cv-env-vals) = (call cv-restrict-vals-$15 (cdr cv-env-vals)))
+
+(cv-restrict-vals-$67 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$68 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$66 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$67 (cdr cv-env-vals))))
+
+(s1-eval-$18 (cv-vals dynamic-contexts) = (call s1-eval-$19 (call cv-restrict-vals-$66 (call cv-append-$4 (cons (call simple-expr->val-dynamic$/1-$11 cv-vals) (call perform-cv-bindings-$6 cv-vals)) cv-vals)) dynamic-contexts))
+
+(cv-restrict-vals-$70 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$52 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$69 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$70 (cdr cv-env-vals))))
+
+(s1-eval-$17 (cv-vals dynamic-contexts) = (call s1-eval-$18 (call cv-restrict-vals-$69 (call cv-append-$1 '() cv-vals)) '()))
+
+(cv-restrict-vals-$74 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$6 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$73 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$74 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$72 (cv-env-vals) = (call cv-restrict-vals-$73 (cdr cv-env-vals)))
+
+(cv-restrict-vals-$71 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$72 (cdr cv-env-vals))))
+
+(s1-eval-$16 (cv-vals dynamic-contexts) = (call s1-eval-$17 (call cv-restrict-vals-$71 (call cv-append-$4 (cons (call simple-expr->val-dynamic$/1-$9 cv-vals) (call perform-cv-bindings-$5 cv-vals)) cv-vals)) '()))
+
+(cv-restrict-vals-$77 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$6 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$76 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$77 (cdr cv-env-vals))))
+
+(cv-restrict-vals-$75 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$76 (cdr cv-env-vals))))
+
+(s1-eval-$15 (cv-vals dynamic-contexts) = (call s1-eval-$16 (call cv-restrict-vals-$75 (call cv-append-$3 (cons (call simple-expr->val-dynamic$/1-$7 cv-vals) (call perform-cv-bindings-$4 cv-vals)) cv-vals)) '()))
+
+(s1-eval$/7-$6 ($8 dynamic-contexts) = (call s1-eval-$15 (call cv-restrict-vals-$76 $8) dynamic-contexts))
+
+(s1-eval-$14 (cv-vals dynamic-contexts) = (call s1-eval$/7-$6 (call cv-append-$1 '() cv-vals) dynamic-contexts))
+
+(s1-eval$/7-$5 ($8 dynamic-contexts) = (call s1-eval-$14 (call cv-restrict-vals-$76 $8) dynamic-contexts))
+
+(s1-eval-$13 (cv-vals dynamic-contexts) = (call s1-eval$/7-$5 (call cv-append-$1 '() cv-vals) dynamic-contexts))
+
+(s1-eval$/7-$4 ($8 dynamic-contexts) = (call s1-eval-$13 (call cv-restrict-vals-$76 $8) dynamic-contexts))
+
+(s1-eval-$12 (cv-vals dynamic-contexts) = (call s1-eval$/7-$4 (call cv-append-$1 '() cv-vals) dynamic-contexts))
+
+(desc->val-dynamic-$25 (cv-vals) = (cons (call desc->val-dynamic-$1 cv-vals) (call desc->val-dynamic-$23 cv-vals)))
+
+(s1-eval-$67 (cv-vals dynamic-contexts) = (call desc->val-dynamic-$25 (call cv-append-$1 '() cv-vals)))
+
+(s1-eval-$66 (cv-vals dynamic-contexts) = (call s1-eval-$67 (call cv-restrict-vals-$25 cv-vals) dynamic-contexts))
+
+(s1-eval-$65 (cv-vals dynamic-contexts) = (call s1-eval-$66 (call cv-restrict-vals-$25 (call cv-append-$1 '() cv-vals)) dynamic-contexts))
+
+(s1-eval-$64 (cv-vals dynamic-contexts) = (call s1-eval-$65 (call cv-restrict-vals-$25 cv-vals) dynamic-contexts))
+
+(s1-eval-$63 (cv-vals dynamic-contexts) = (call s1-eval-$64 (call cv-restrict-vals-$25 (call cv-append-$1 '() cv-vals)) dynamic-contexts))
+
+(cv-restrict-vals-$78 (cv-env-vals) = (call cv-restrict-vals-$49 (cdr cv-env-vals)))
+
+(s1-eval-$62 (cv-vals dynamic-contexts) = (call s1-eval-$63 (call cv-restrict-vals-$78 (call cv-append-$1 '() cv-vals)) dynamic-contexts))
+
+(eval-if-dynamic$/7-$2 ($12 dynamic-contexts) = (if (pair? (call desc->val-dynamic-$2 (call cv-append-$1 (call perform-cv-bindings-$4 $12) $12))) (call s1-eval-$12 $12 dynamic-contexts) (call s1-eval-$62 $12 dynamic-contexts)))
+
+(s1-eval-$11 (cv-vals dynamic-contexts) = (call eval-if-dynamic$/7-$2 (call cv-append-$1 '() cv-vals) dynamic-contexts))
+
+(cv-restrict-vals-$79 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$47 (cdr cv-env-vals))))
+
+(s1-eval-$10 (cv-vals dynamic-contexts) = (call s1-eval-$11 (call cv-restrict-vals-$79 (call cv-append-$3 (cons (call simple-expr->val-dynamic$/1-$5 cv-vals) (call perform-cv-bindings-$3 cv-vals)) cv-vals)) dynamic-contexts))
+
+(s1-eval-$9 (cv-vals dynamic-contexts) = (call s1-eval-$10 (call cv-restrict-vals-$76 (call cv-append-$1 '() cv-vals)) '()))
+
+(cv-restrict-vals-$80 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$78 (cdr cv-env-vals))))
+
+(s1-eval-$8 (cv-vals dynamic-contexts) = (call s1-eval-$9 (call cv-restrict-vals-$80 (call cv-append-$3 (cons (call simple-expr->val-dynamic$/1-$3 cv-vals) (call perform-cv-bindings-$2 cv-vals)) cv-vals)) '()))
+
+(cv-restrict-vals-$81 (cv-env-vals) = (cons (car cv-env-vals) (call cv-restrict-vals-$25 (cdr cv-env-vals))))
+
+(s1-eval-$7 (cv-vals dynamic-contexts) = (call s1-eval-$8 (call cv-restrict-vals-$81 (call cv-append-$2 (cons (call simple-expr->val-dynamic$/1-$1 cv-vals) (call perform-cv-bindings-$1 cv-vals)) cv-vals)) '()))
+
+(s1-eval$/7-$3 ($8 dynamic-contexts) = (call s1-eval-$7 (call cv-restrict-vals-$25 $8) dynamic-contexts))
+
+(s1-eval-$6 (cv-vals dynamic-contexts) = (call s1-eval$/7-$3 (call cv-append-$1 '() cv-vals) dynamic-contexts))
+
+(s1-eval$/7-$2 ($8 dynamic-contexts) = (call s1-eval-$6 (call cv-restrict-vals-$25 $8) dynamic-contexts))
+
+(s1-eval-$5 (cv-vals dynamic-contexts) = (call s1-eval$/7-$2 (call cv-append-$1 '() cv-vals) dynamic-contexts))
+
+(s1-eval$/7-$1 ($8 dynamic-contexts) = (call s1-eval-$5 (call cv-restrict-vals-$25 $8) dynamic-contexts))
+
+(s1-eval-$4 (cv-vals dynamic-contexts) = (call s1-eval$/7-$1 (call cv-append-$1 '() cv-vals) dynamic-contexts))
+
+(desc->val-dynamic-$26 (cv-vals) = '())
+
+(s1-eval-$71 (cv-vals dynamic-contexts) = (call desc->val-dynamic-$26 (call cv-append-$1 '() cv-vals)))
+
+(s1-eval-$70 (cv-vals dynamic-contexts) = (call s1-eval-$71 (call cv-restrict-vals-$6 cv-vals) dynamic-contexts))
+
+(s1-eval-$69 (cv-vals dynamic-contexts) = (call s1-eval-$70 (call cv-restrict-vals-$6 (call cv-append-$1 '() cv-vals)) dynamic-contexts))
+
+(s1-eval-$68 (cv-vals dynamic-contexts) = (call s1-eval-$69 (call cv-restrict-vals-$5 (call cv-append-$1 '() cv-vals)) dynamic-contexts))
+
+(eval-if-dynamic$/7-$1 ($12 dynamic-contexts) = (if (pair? (call desc->val-dynamic-$1 (call cv-append-$1 (call perform-cv-bindings-$1 $12) $12))) (call s1-eval-$4 $12 dynamic-contexts) (call s1-eval-$68 $12 dynamic-contexts)))
+
+(s1-eval-$3 (cv-vals dynamic-contexts) = (call eval-if-dynamic$/7-$1 (call cv-append-$1 '() cv-vals) dynamic-contexts))
+
+(s1-eval-$2 (cv-vals dynamic-contexts) = (call s1-eval-$3 (call cv-restrict-vals-$25 (call cv-append-$1 '() cv-vals)) dynamic-contexts))
+
+(s1-eval-$1 (cv-vals dynamic-contexts) = (call s1-eval-$2 (call cv-restrict-vals-$25 (call cv-append-$1 '() cv-vals)) dynamic-contexts))
+
+(s1-int-$1 (cv-vals) = (call s1-eval-$1 (call cv-restrict-vals-$25 (call cv-append-$1 '() (cons (car cv-vals) '()))) '()))
+
