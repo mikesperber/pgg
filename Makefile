@@ -22,7 +22,6 @@ cogen_specialize_packages = auxiliary pgg-library cogen-specialize
 batch_packages = signals handle i/o conditions extended-ports
 genext_base_files = \
         auxiliary.scm \
-	pp.scm \
 	cogen-gensym.scm \
 	cogen-boxops.scm \
 	cogen-globals.scm \
