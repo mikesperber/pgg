@@ -1,18 +1,20 @@
 (define-data desc
   (const const->value)
   (cvar  cvar->number)
-  (static-susp  static-susp->maybe-ref-value static-susp->thunk)
-  (dyn-susp dyn-susp->maybe-ref-value dyn-susp->thunk))
+  (static-susp static-susp->ref-sum)	; (value + unit -> value) ref
+  (dyn-susp dyn-static->ref-sum dyn-susp->ref-sum))
 (define-data xpair
   (xcons xcar xcdr)
   (xnil))
 (define-data values
   (basic basic->value)
-  (dynamic dynamic->value)
   (fail))
 (define-data maybe
   (just just->one)
   (nothing))
+(define-data sum
+  (make-value sum->value)
+  (make-thunk sum->thunk))
 
 (define (lazy-2int prg goal xs* xd*)
   (let* ((goal-proc (prg-lookup goal prg))
@@ -36,14 +38,22 @@
 	 ((const? desc)
 	  (basic (const->value desc)))
 	 ((static-susp? desc)
-	  (let* ((ref (static-susp->maybe-ref-value desc))
-		 (maybe-value (cell-ref ref)))
-	    (if (just? maybe-value)
-		(just->one maybe-value)
-		(let ((new-value ((static-susp->thunk desc))))
-		  (cell-set! ref (just new-value))
+	  (let* ((ref (static-susp->ref-sum desc))
+		 (sum (cell-ref ref)))
+	    (if (make-value? sum)
+		(sum->value sum)
+		(let ((new-value ((sum->thunk sum))))
+		  (cell-set! ref (make-value new-value))
 		  new-value))))
-	 ;; remaining cases are dynamic: dyn-susp, cvar
+	 ((dyn-susp? desc)
+	  (let* ((sref (dyn-static->ref-sum desc))
+		 (ssum (cell-ref sref)))
+	    (if (make-value? ssum)
+		(sum->value ssum)
+		(let ((new-svalue ((sum->thunk ssum))))
+		  (cell-set! sref (make-value new-svalue))
+		  new-svalue))))
+	 ;; remaining cases are dynamic: [dyn-susp], cvar
 	 (else
 	  (fail)))))
      ((cond-expr? expr)
@@ -97,8 +107,9 @@
 			  ((constant-expr? expr)
 			   (const (constant->value expr)))
 			  (else
-			   (static-susp (make-cell (nothing))
-					(lambda () (static-eval denv expr)))))))
+			   (static-susp
+			    (make-cell
+			     (make-thunk (lambda () (static-eval denv expr)))))))))
 		    (just (enter-denv name entry new-denv)))))))))
 
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -113,13 +124,23 @@
 	 ((const? desc)
 	  (const->value desc))
 	 ((dyn-susp? desc)
-	  (let* ((ref (dyn-susp->maybe-ref-value desc))
-	         (maybe-value (cell-ref ref)))
-	    (if (just? maybe-value)
-		(just->one maybe-value)
-		(let ((new-value ((dyn-susp->thunk desc))))
-		  (cell-set! ref (just new-value))
-		  new-value))))
+	  (let* ((sref (dyn-static->ref-sum desc))
+		 (ssum (cell-ref sref))
+		 (svalue
+		  (if (make-value? ssum)
+		      (sum->value ssum)
+		      (let ((new-svalue ((sum->thunk ssum))))
+			(cell-set! sref (make-value new-svalue))
+			new-svalue))))
+	    (if (basic? svalue)
+		(basic->value svalue)
+		(let* ((ref (dyn-susp->ref-sum desc))
+		       (sum (cell-ref ref)))
+		  (if (make-value? sum)
+		      (sum->value sum)
+		      (let ((new-value ((sum->thunk sum))))
+			(cell-set! ref (make-value new-value))
+			new-value))))))
 	 ((cvar? desc)
 	  (apply-cenv cenv (cvar->number desc))))))
      ((cond-expr? expr)
@@ -158,8 +179,13 @@
 			((constant-expr? expr)
 			 (const (constant->value expr)))
 			(else
-			 (dyn-susp (make-cell (nothing))
-				   (lambda () (lazy-2eval prg denv cenv expr)))))))
+			 (dyn-susp
+			  (make-cell
+			   (make-thunk
+			    (lambda () (static-eval denv expr))))
+			  (make-cell
+			   (make-thunk
+			    (lambda () (lazy-2eval prg denv cenv expr)))))))))
 		  (loop formals args (enter-denv name entry new-denv))))))))
      (else
       (static-error "syntax error: illegal expression"

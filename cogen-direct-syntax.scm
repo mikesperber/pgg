@@ -99,7 +99,7 @@
 (define (_lambda_memo-internal lv arity label vvs bts f)
   (let* ((formals (map gensym-local arity))
 	 (lambda-pp (cons label vvs))
-	 (dynamics (project-dynamic lambda-pp bts))
+	 (dynamics (top-project-dynamic lambda-pp bts))
 	 (compressed-dynamics (map remove-duplicates dynamics))
 	 (actual-fvs (apply append compressed-dynamics))
 	 (clone-map (map (lambda (arg)
@@ -107,7 +107,7 @@
 					 (gensym-local arg)
 					 (gensym-local 'clone))))
 			 actual-fvs))
-	 (cloned-pp (clone-with clone-map lambda-pp bts))
+	 (cloned-pp (top-clone-with clone-map lambda-pp bts))
 	 (cloned-vvs (cdr cloned-pp))
 	 (new-bts (binding-times compressed-dynamics))
 	 (formal-fvs (map cdr clone-map)))
@@ -285,8 +285,8 @@
   (let*
       ((enter-scope (gensym-local-push!))
        (full-pp (cons fname args))
-       (pp (project-static full-pp bts))
-       (dynamics (project-dynamic full-pp bts))
+       (pp (top-project-static full-pp bts))
+       (dynamics (top-project-dynamic full-pp bts))
        ; (compressed-dynamics (map remove-duplicates dynamics))
        (actuals (apply append dynamics))
        (found
@@ -298,9 +298,9 @@
 		 ; 				 (gensym-local arg)
 		 ; 				 (gensym-local 'clone))))
 		 ; 		 actuals))
-		 (cloned-pp (clone-dynamic full-pp bts))
+		 (cloned-pp (top-clone-dynamic full-pp bts))
 		 ; (new-formals (map cdr clone-map))
-		 (new-formals (apply append (project-dynamic cloned-pp bts)))
+		 (new-formals (apply append (top-project-dynamic cloned-pp bts)))
 		 (new-entry (add-to-memolist! (cons pp new-name)))
 		 (new-def  (make-residual-definition! new-name
 						      new-formals

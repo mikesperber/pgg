@@ -228,3 +228,20 @@
     (if found
 	(cadr found)
 	(error "address-map->new-cell" key))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; toplevel projection functions
+(define (top-project-static value bts)
+  (address-registry-reset!)
+  (project-static value bts))
+(define (top-project-dynamic value bts)
+  (address-registry-reset!)
+  (project-dynamic value bts))
+(define (top-clone-dynamic value bts)
+  (address-registry-reset!)
+  (address-map-reset!)
+  (clone-dynamic value bts))
+(define (top-clone-with clone-map value bts)
+  (address-registry-reset!)
+  (address-map-reset!)
+  (clone-with clone-map value bts))

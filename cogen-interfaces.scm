@@ -161,6 +161,14 @@
 	  make-ge-cell-set!-memo
 	  make-ge-cell-eq?-memo))
 
+(define-interface shift-reset-interface
+  (export ((shift reset) :syntax)))
+
+(define-structure shift-reset
+  shift-reset-interface
+  (open scheme signals escapes)
+  (files shift-reset))
+
 (define-interface cogen-cps-genext-interface
   (export _app
 	  _app_memo
@@ -219,8 +227,6 @@
 
 (define-interface cogen-direct-anf-interface
   (export _vlambda
-	  start-memo-internal
-	  multi-memo
 	  ((_app
 	    _app_memo
 	    _lambda
@@ -235,8 +241,7 @@
 	    _eval
 	    _MAKE-CELL_MEMO
 	    _CELL-SET!_MEMO
-	    _CELL-EQ?_MEMO
-	    start-memo)
+	    _CELL-EQ?_MEMO)
 	   :syntax)))
 
 (define-interface cogen-anf-compile-interface
@@ -330,12 +335,11 @@
 
 (define-interface cogen-library-interface
   (export static-constructor
-	  project-static
-	  project-dynamic
+	  top-project-static
+	  top-project-dynamic
 	  project-dynamic-level
-	  clone-one-dynamic
-	  clone-dynamic
-	  clone-with
+	  top-clone-dynamic
+	  top-clone-with
 	  multi-append
 	  static-cell
 	  address-registry-reset!
@@ -382,6 +386,11 @@
 	  make-residual-closed-lambda
 	  make-residual-literal
 	  make-residual-definition!))
+
+(define-structure cogen-residual
+  cogen-residual-interface
+  (open scheme auxiliary)
+  (files cogen-residual))
 
 (define-interface cogen-typesig-interface
   (export parse-type desc-type desc-ctor desc-np desc-nc desc-nt))
@@ -509,18 +518,52 @@
 (define-structure pgg-library
   (compound-interface cogen-construct-genext-interface
 		      cogen-residual-interface
-		      cogen-direct-anf-interface)
+		      cogen-direct-anf-interface
+		      cogen-memo-interface)
   (open scheme escapes signals auxiliary
-	cogen-boxops cogen-globals cogen-library)
-  (files shift-reset
-	 cogen-residual
-	 cogen-direct-anf))
+	cogen-boxops cogen-globals cogen-library
+	shift-reset cogen-completers cogen-memo-standard cogen-residual )
+  (files cogen-direct-anf))
 
 (define-structure pgg-residual
   (export ((start-memo define-data) :syntax)
 	  make-cell cell-ref cell-set!)
   (open scheme escapes pgg-library cogen-boxops)
   (files cogen-ctors))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define-interface cogen-completers-interface
+  (export ((_complete _complete-serious) :syntax)))
+
+(define-structure cogen-completers
+  cogen-completers-interface
+  (open scheme shift-reset cogen-residual auxiliary)
+  (files cogen-completer))
+
+(define-interface cogen-memo-interface
+  (export ((start-memo) :syntax)
+	  nextlevel))
+
+(define-structure cogen-memo-standard
+  cogen-memo-interface
+  (open scheme auxiliary shift-reset cogen-library cogen-completers cogen-residual)
+  (files cogen-memo-standard))
+
+(define-structure cogen-memo-distributed
+  cogen-memo-interface
+  (open scheme shift-reset auxiliary
+	cogen-library cogen-record cogen-completers cogen-residual
+	aspaces proxies threads threads-internal locks placeholders)
+  (files cogen-memo-client))
+
+(define-structure pgg-distributed-library
+  (compound-interface cogen-construct-genext-interface
+		      cogen-residual-interface
+		      cogen-direct-anf-interface
+		      cogen-memo-interface)
+  (open scheme escapes signals auxiliary
+	cogen-boxops cogen-globals cogen-library
+	shift-reset cogen-completers cogen-memo-distributed cogen-residual)
+  (files cogen-direct-anf))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define-structure reaching-definitions pgg-interface

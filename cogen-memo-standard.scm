@@ -1,0 +1,91 @@
+;;; $Id $
+;;; memo function stuff: standard implementation
+
+(define-syntax start-memo
+  (syntax-rules ()
+    ((_ level fn bts args)
+     (start-memo-internal level 'fn fn bts args))
+    ((_ level fn bts args new-goal)
+     (start-memo-internal level 'fn fn bts args))))
+
+(define (nextlevel memo-template args . new-goal)
+  (let ((level (list-ref memo-template 1))
+	(goal-proc (list-ref memo-template 3))
+	(bts (cadr (list-ref memo-template 4))))
+    (apply start-memo-internal level
+                               goal-proc
+			       (eval goal-proc (interaction-environment))
+			       bts
+			       args
+			       new-goal)))
+
+(define (start-memo-internal level fname fct bts args . new-goal)
+  (clear-residual-program!) 
+  (clear-memolist!)
+  (clear-support-code!)
+  (gensym-local-reset!)
+  (gensym-reset!)
+  (let* ((initial-scope (gensym-local-push!))
+	 (result (reset (multi-memo level fname fct bts args)))
+	 (result (if (and (pair? result) (eq? (car result) 'LET))
+		     (car (cdaadr result))
+		     result))
+	 (drop-scope (gensym-local-pop!))
+	 (goal-proc (car *residual-program*))
+	 (defn-template (take 2 goal-proc))
+	 ;; kludge alert
+	 (defn-template
+	   (if (null? new-goal)
+	       defn-template
+	       (list (car defn-template)
+		     (cons (car new-goal) (cdadr defn-template)))))
+	 (defn-body (list-tail goal-proc 2)))
+    (set-residual-program!
+	  (list (append defn-template
+			(cdr *residual-program*)
+			defn-body)))
+    result))
+
+;;; the memo-function
+;;; - fn is the name of the function to memoize
+;;; - args are the free variables of the function's body
+;;; - bts are their binding times
+(define (multi-memo level fname fct bts args)
+  (let*
+      ((enter-scope (gensym-local-push!))
+       (full-pp (cons fname args))
+       (pp (top-project-static full-pp bts))
+       (dynamics (top-project-dynamic full-pp bts))
+       ; (compressed-dynamics (map remove-duplicates dynamics))
+       (actuals (apply append dynamics))
+       (found
+	(or (assoc pp *memolist*)
+	    (let*
+		((new-name (gensym fname))
+		 ; (clone-map (map (lambda (arg)
+		 ; 		   (cons arg (if (symbol? arg)
+		 ; 				 (gensym-local arg)
+		 ; 				 (gensym-local 'clone))))
+		 ; 		 actuals))
+		 (cloned-pp (top-clone-dynamic full-pp bts))
+		 ; (new-formals (map cdr clone-map))
+		 (new-formals (apply append (top-project-dynamic cloned-pp bts)))
+		 (new-entry (add-to-memolist! (cons pp new-name)))
+		 (new-def  (make-residual-definition! new-name
+						      new-formals
+						      (reset (apply fct (cdr cloned-pp))))))
+	      (cons pp new-name))))
+       (res-name (cdr found))
+       (exit-scope (gensym-local-pop!)))
+    (if (= level 1)
+	;; generate call to fn with actual arguments
+	(_complete-serious
+	 (apply make-residual-call res-name actuals))
+	;; reconstruct multi-memo
+	(_complete-serious
+	 (make-residual-call 'MULTI-MEMO
+			     (- level 1)
+			     `',res-name
+			     res-name
+			     `',(binding-times dynamics)
+			     `(LIST ,@actuals))))))

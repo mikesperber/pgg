@@ -113,11 +113,11 @@
     (let* ((vars (map gensym-local arity))
 	   (varcs (map result vars))
 	   (lambda-pp (cons label (map (lambda (comp) (comp id)) fvcs)))
-	   (dynamics (project-dynamic lambda-pp bts))
+	   (dynamics (top-project-dynamic lambda-pp bts))
 	   (new-freevars (apply append dynamics))
 	   (new-bts (binding-times dynamics))
-	   (cloned-pp (clone-dynamic lambda-pp bts))
-	   (formal-fvs (apply append (project-dynamic cloned-pp bts)))
+	   (cloned-pp (top-clone-dynamic lambda-pp bts))
+	   (formal-fvs (apply append (top-project-dynamic cloned-pp bts)))
 	   (actual-fvs (cdr cloned-pp)))
       ;; lv >= 1
       (kappa `(_LAMBDA_MEMO
@@ -338,15 +338,15 @@
        (let*
 	   ((enter-scope (gensym-local-push!))
 	    (full-pp (cons fname args))
-	    (pp (project-static full-pp bts))
-	    (dynamics (project-dynamic full-pp bts))
+	    (pp (top-project-static full-pp bts))
+	    (dynamics (top-project-dynamic full-pp bts))
 	    (actuals (apply append dynamics))
 	    (found
 	     (or (assoc pp *memolist*)
 		 (let*
 		     ((new-name (gensym fname))
-		      (cloned-pp (clone-dynamic full-pp bts))
-		      (new-formals (apply append (project-dynamic cloned-pp bts)))
+		      (cloned-pp (top-clone-dynamic full-pp bts))
+		      (new-formals (apply append (top-project-dynamic cloned-pp bts)))
 		      (new-entry (add-to-memolist! (cons pp new-name)))
 		      (new-def `(DEFINE (,new-name ,@new-formals)
 				  ,((apply fct (map result (cdr cloned-pp))) id))))
