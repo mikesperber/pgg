@@ -1,3 +1,4 @@
+- make a macro out of the (_ i ...) functions
 - put type annotations to work: enforce types of primitives in bta-eq-flow
 - type annotation for arity of operators
 + inspect the lambda lifter (dependency analysis?)

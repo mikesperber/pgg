@@ -1,6 +1,9 @@
 ;;; skeleton for multi-level cogen
 ;;; $Id$
 ;;; $Log$
+;;; Revision 1.11  1996/07/15 14:01:20  thiemann
+;;; stable version after MBTA
+;;;
 ;;; Revision 1.10  1996/06/03 07:34:57  thiemann
 ;;; checkpoint after including new equational BTA
 ;;;
@@ -59,7 +62,8 @@
   (let loop ((e e))
     (cond
      ((annIsVar? e)
-      (make-ge-var (annFetchVar e)))
+      (make-ge-var (+ 1 (annExprFetchLevel e))
+		   (annFetchVar e)))
      ((annIsConst? e)
       (make-ge-const (annFetchConst e)))
      ((annIsCond? e)
@@ -68,9 +72,12 @@
 		    (loop (annFetchCondThen e))
 		    (loop (annFetchCondElse e))))
      ((annIsOp? e)
-      (make-ge-op (+ 1 (annExprFetchLevel e))
-		  (annFetchOpName e)
-		  (map loop (annFetchOpArgs e))))
+      (let ((op-name (annFetchOpName e))
+	    (op-args (annFetchOpArgs e)))
+	(if (eq? op-name INTERNAL-IDENTITY)
+	    (loop (car op-args))
+	    (make-ge-op (+ 1 (annExprFetchLevel e))
+			op-name (map loop op-args)))))
      ((annIsCall? e)
       (make-ge-call (annFetchCallName e)
 		    (map loop (annFetchCallArgs e))))
@@ -90,17 +97,34 @@
       (let* ((fvar-exprs (annFreeVars e))
 	     (fvars (map annFetchVar fvar-exprs))
 	     (bts (map succ (map annExprFetchLevel fvar-exprs)))
-	     (vars (annFetchLambdaVars e)))
+	     (vars (annFetchLambdaVars e))
+	     (btv (annFetchLambdaBTVars e)))
 	(make-ge-lambda-memo (+ 1 (annExprFetchLevel e))
-			     vars
+			     vars btv
 			     (annFetchLambdaLabel e)
 			     fvars
 			     bts
 			     (loop (annFetchLambdaBody e)))))
+     ((annIsVLambda? e)
+      (let* ((fvar-exprs (annFreeVars e))
+	     (fvars (map annFetchVar fvar-exprs))
+	     (bts (map succ (map annExprFetchLevel fvar-exprs)))
+	     (fixed-vars (annFetchVLambdaFixedVars e))
+	     (var (annFetchVLambdaVar e))
+	     (btv (annFetchVLambdaBTVars e)))
+	(make-ge-vlambda-memo (+ 1 (annExprFetchLevel e))
+			      fixed-vars
+			      var btv
+			      (annFetchVLambdaLabel e)
+			      fvars
+			      bts
+			      (loop (annFetchVLambdaBody e)))))
      ((annIsApp? e)
-      (make-ge-app-memo (+ 1 (annExprFetchLevel (annFetchAppRator e)))
-			(loop (annFetchAppRator e))
-			(map loop (annFetchAppRands e))))
+      (let ((rands (annFetchAppRands e)))
+	(make-ge-app-memo (+ 1 (annExprFetchLevel (annFetchAppRator e)))
+			  (loop (annFetchAppRator e))
+			  (map succ (map annExprFetchLevel rands))
+			  (map loop rands))))
      ((annIsCtor? e)
       (make-ge-ctor-memo (+ 1 (annExprFetchLevel e))
 			 (map succ (map annExprFetchLevel (annFetchCtorArgs e))) 

@@ -31,6 +31,10 @@
   (vector-ref e 1))
 (define (annExprSetType! e bt)
   (vector-set! e 1 bt))
+(define (annExprFetchInner e)
+  (vector-ref e 2))
+(define (annExprSetInner! e bt)
+  (vector-set! e 2 bt))
 (define (annExprFetchBTi e)
   (vector-ref e 1))
 (define (annExprSetBTi! e bt)
@@ -68,7 +72,8 @@
   (vector-ref e 5))
 (define (annFetchCondElse e)
   (vector-ref e 6))
-;;; primitive operation
+;;; primitive operations
+(define INTERNAL-IDENTITY (list '***internal-identity***))
 (define (annMakeOp op args)
   (vector 'OP #f #f 0 op args #t #f #f))
 (define (annMakeOpaqueOp op args)
@@ -115,7 +120,7 @@
   (vector-set! e 7 prop))
 ;;; vlambda
 (define (annMakeVLambda label fixed-formals var-formal body)
-  (vector 'VLAMBDA #f #f 0 fixed-formals var-formal body label))
+  (vector 'VLAMBDA #f #f 0 fixed-formals var-formal body label #f))
 (define (annIsVLambda? e)
   (equal? 'VLAMBDA (vector-ref e 0)))
 (define (annFetchVLambdaFixedVars e)
@@ -128,9 +133,13 @@
   (vector-set! e 6 body))
 (define (annFetchVLambdaLabel e)
   (vector-ref e 7))
+(define (annFetchVLambdaBTVars e)
+  (vector-ref e 8))
+(define (annSetVLambdaBTVars! e btv)
+  (vector-set! e 8 btv))
 ;;; lambda
 (define (annMakeLambda label formals body)
-  (vector 'LAMBDA #f #f 0 formals body label))
+  (vector 'LAMBDA #f #f 0 formals body label #f))
 (define (annIsLambda? e)
   (equal? 'LAMBDA (vector-ref e 0)))
 (define (annFetchLambdaVars e)
@@ -141,6 +150,10 @@
   (vector-set! e 5 body))
 (define (annFetchLambdaLabel e)
   (vector-ref e 6))
+(define (annFetchLambdaBTVars e)
+  (vector-ref e 7))
+(define (annSetLambdaBTVars! e btv)
+  (vector-set! e 7 btv))
 ;;; application
 (define (annMakeApp rator rands)
   (vector 'APPLY #f #f 0 rator rands))
@@ -221,7 +234,7 @@
     (vector-set! e 0 'LIFT)
     (vector-set! e 3 lv)
     (vector-set! e 2 ld)
-    (vector-set! e 1 body)))
+    (vector-set! e 4 body)))
 (define (annIsLift? e)
   (equal? 'LIFT (vector-ref e 0)))
 (define (annSetLiftDiff! e ld)
@@ -229,7 +242,7 @@
 (define (annFetchLiftDiff e)
   (vector-ref e 2))
 (define (annFetchLiftBody e)
-  (vector-ref e 1))
+  (vector-ref e 4))
 ;;; subject to discussion:
 ;;; memoization
 (define (annIntroduceMemo e lv vars)

@@ -1,6 +1,6 @@
 ;;; ,open signals escapes
 (newline)
-(display "loading compiler generator")
+(display "loading program generator generator")
 (newline)
 (load "cogen-record.scm")
 (load "auxiliary.scm")

@@ -73,7 +73,7 @@
 	    (let* ((arity (caddr syminfo))
 		   (newvars (nlist arity (lambda () (gensym 'XXX)))))
 	      (loop `(LAMBDA (,@newvars) (,e ,@newvars))))
-	    (annMakeVar e))))
+	    (annMakeOp INTERNAL-IDENTITY (list (annMakeVar e))))))
      ((not (pair? e))
       (annMakeConst e))
      ((equal? (car e) 'QUOTE)
@@ -688,7 +688,9 @@
 	   (not (equal? op-optional '(opaque)))   ;opacity
 	   (and op-optional (car op-optional))    ;property \in d, e, o
 	   (parse-type op-type))	          ;type
-	  (length op-rand-types))))
+	  -1
+	  ;;(length op-rand-types)
+	  )))
 
 ;;; T  ::= (all TV T) | (rec TV T) | (TC T*) | TV
 ;;; TV type variable (must be bound by rec or all)

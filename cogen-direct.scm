@@ -11,7 +11,7 @@
 (define (run-thunk t) (t))
 (define (reset-thunk t) (reset (t)))
 
-(define (make-ge-var v)
+(define (make-ge-var l v)
   v)
 (define (make-ge-const c)
   `(_LIFT0 1 ',c))
@@ -23,10 +23,13 @@
   `(,f ,@args))
 (define (make-ge-let l v e body)
   `(_LET ,l ',v ,e (LAMBDA (,v) ,body)))
-(define (make-ge-lambda-memo l vars label fvars bts body)
+(define (make-ge-lambda-memo l vars btv label fvars bts body)
   `(_LAMBDA_MEMO ',l ',vars ',label (LIST ,@fvars) ',bts
 		 (LAMBDA ,fvars (LAMBDA ,vars ,body))))
-(define (make-ge-app-memo l f args)
+(define (make-ge-vlambda-memo l fixed-vars var btv label fvars bts body)
+  `(_VLAMBDA_MEMO ',l ',fixed-vars ',var ',label (LIST ,@fvars) ',bts
+		 (LAMBDA ,fvars (LAMBDA (,@fixed-vars . ,var) ,body))))
+(define (make-ge-app-memo l f btv args)
   `(_APP_MEMO ,l ,f ,@(map make-thunk args)))
 (define (make-ge-ctor-memo l bts ctor args)
   `(_CTOR_MEMO ,l ',bts ',ctor ,@args))
@@ -49,7 +52,7 @@
   (let ((args (map reset-thunk args)))
   (if (= lv 1)
       `((,f 'VALUE) ,@args)
-      (make-ge-app-memo (pred lv) f args))))
+      (make-ge-app-memo (pred lv) f '() args))))
 
 (define (_lambda lv arity f)
   (let* ((vars (map gensym-local arity))
@@ -106,17 +109,17 @@
   (let ((new-bts (map pred bts)))
     (if (= lv 1)
 	`(STATIC-CONSTRUCTOR ',ctor ,ctor (LIST ,@args) ',new-bts)
-	`(_CTOR_MEMO ,(- lv 1) ',bts ',ctor ,@args))))
+	(make-ge-ctor-memo (- lv 1) bts ctor args))))
 
 (define (_sel_memo lv sel v)
   (if (= lv 1)
       `(,sel (,v 'VALUE))
-      `(_SEL_MEMO ,(- lv 1) ',sel ,v)))
+      (make-ge-sel-memo (- lv 1) sel v)))
 
 (define (_test_memo level ctor-test v)
   (if (= level 1)
       `(,ctor-test (,v 'VALUE))
-      `(_TEST ,(- level 1) ',ctor-test ,v)))
+      (make-ge-test-memo (- level 1) ctor-test v)))
 
 ;;; needs RESET, somewhere
 ;;; therefore: the arms of the conditional must be thunks, so that we
