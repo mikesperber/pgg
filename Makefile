@@ -66,6 +66,7 @@ cogen_examples = \
 	examples/pm-input.scm \
 	examples/pm.scm \
 	examples/power.scm \
+	examples/pure-arith.scm \
 	examples/unify-aux.scm \
 	examples/unify.scm
 additional_files = Makefile RUN_ME
