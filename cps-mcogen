@@ -1,10 +1,11 @@
 #!/bin/sh
 cogen_image=$HOME/soft/pe/cps-mcogen/batch.image
+heap_size=4000000
 (echo ",batch on";
- echo "(cogen-main '("\\c
+ echo "(cogen-main '("
  while test "x$1" != "x"; do
-  echo \"$1\" \\c
+  echo \"$1\"
   shift
  done;
- echo "))") | scheme48 -i $cogen_image
+ echo "))") | scheme48 -h $heap_size -i $cogen_image
 exit $?
