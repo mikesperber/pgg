@@ -16,6 +16,7 @@
 ;;; (load "cogen-cps.scm")		; in cps
 (load "shift-reset.scm")		; necessary for direct style,
 					; from s48 distribution 
-(load "cogen-direct.scm")		; in direct style
+;;;(load "cogen-direct.scm")		; in direct style
+(load "cogen-direct-syntax.scm")	; in direct style w/ macros
 ;;; to generate the generating extension
 (load "cogen-driver.scm") 

@@ -59,11 +59,14 @@
 		      formals
 		      (scheme->abssyn-wrap-in-let
 		       formals
-		       (scheme->abssyn-e (caddr d) symtab))))
+		       (scheme->abssyn-maybe-coerce 
+			(scheme->abssyn-e (caddr d) symtab)))))
 	(annMakeDef template
 		    #f
 		    (scheme->abssyn-e (caddr d) symtab)))))
 
+(define (scheme->abssyn-maybe-coerce e)
+  (annMakeOp INTERNAL-IDENTITY (list e)))
 (define (scheme->abssyn-e e symtab)
   (let loop ((e e))
     (cond
@@ -73,7 +76,7 @@
 	    (let* ((arity (caddr syminfo))
 		   (newvars (nlist arity (lambda () (gensym 'XXX)))))
 	      (loop `(LAMBDA (,@newvars) (,e ,@newvars))))
-	    (annMakeOp INTERNAL-IDENTITY (list (annMakeVar e))))))
+	    (scheme->abssyn-maybe-coerce (annMakeVar e)))))
      ((not (pair? e))
       (annMakeConst e))
      ((equal? (car e) 'QUOTE)
@@ -83,12 +86,13 @@
 	     (args (cdr e))
 	     (mkproc (assoc tag symtab)))
 	(if mkproc
-	    (apply (cadr mkproc) (list tag (map loop args)))
+	    (apply (cadr mkproc)
+		   (list tag (map scheme->abssyn-maybe-coerce (map loop args))))
 	    (cond
 	     ((equal? tag 'IF)
 	      (annMakeCond (loop (car args))
-			   (loop (cadr args))
-			   (loop (caddr args))))
+			   (scheme->abssyn-maybe-coerce (loop (cadr args)))
+			   (scheme->abssyn-maybe-coerce (loop (caddr args)))))
 	     ((equal? tag 'AND)
 	      (cond
 	       ((null? args)
@@ -171,9 +175,11 @@
 		(annMakeLambda
 		 (scheme->abssyn-make-label)
 		 (car args)
-		 (scheme->abssyn-wrap-in-let formals
-					     (scheme->abssyn-e (cadr args)
-							       symtab)))))
+		 (scheme->abssyn-wrap-in-let
+		  formals
+		  (scheme->abssyn-maybe-coerce
+		   (scheme->abssyn-e (cadr args)
+				     symtab))))))
 	     ((equal? tag 'LAMBDA)
 	      (let loop ((fixed-formals '())
 			 (rest (car args)))
@@ -195,7 +201,7 @@
 						   (scheme->abssyn-e (cadr args)
 								     symtab)))))))
 	     ((pair? tag)
-	      (annMakeApp (loop tag) (map loop args)))
+	      (annMakeApp (loop tag) (map scheme->abssyn-maybe-coerce (map loop args))))
 	     (else
 	      (annMakeOp tag (map loop args))))))))))
 
@@ -226,7 +232,10 @@
       (symbol->string var) "_" (number->string (cdr var-counter))))))
 (define (scheme-rename-variables-d d*)
   (set! *scheme-rename-counter* '())
-  (let ((symtab (map (lambda (d) (cons (caadr d) (caadr d))) d*)))
+  (let ((symtab (map (lambda (d)
+		       (let ((template (cadr d)))
+			 (cons (car template) `(LAMBDA ,(cdr template) ,template))))
+		     d*)))
     (map (lambda (d)
 	   ;;(display "scheme-rename-variables: ") (display (caadr d)) (newline)
 	   (let* ((template (cadr d))
@@ -249,9 +258,14 @@
 	    e))
       (if (not (pair? e))
 	  e
-	  (let ((tag (scheme-rename-variables symtab (car e)))
+	  (let ((tag (car e))
 		(args (cdr e)))
 	    (cond
+	     ((pair? tag)
+	      (let ((new-tag (scheme-rename-variables symtab tag))
+		    (new-args (map (lambda (e) (scheme-rename-variables
+						symtab e)) args)))
+		(cons new-tag new-args)))
 	     ((equal? tag 'QUOTE)
 	      e)
 	     ;;
@@ -310,8 +324,7 @@
 		     (new-bodies (map (lambda (body)
 					(scheme-rename-variables
 					 symtab body)) bodies))
-		     (new-symtab (append (map cons formals new-formals)
-				      symtab))
+		     (new-symtab (append (map cons formals new-formals) symtab))
 		     (new-body (scheme-rename-variables
 				new-symtab
 				(scheme-body-list->body body-list))))
@@ -350,9 +363,11 @@
 	      (let* ((formals (map car (car args)))
 		     (bodies (map cadr (car args)))
 		     (body-list (cdr args))
-		     (new-formals (map scheme-rename-clone formals))
-		     (new-symtab (append (map cons formals new-formals)
-				      symtab))
+		     ;; (new-formals (map scheme-rename-clone formals))
+		     ;; assume all bodies are lambdas
+		     (arities (map (lambda (body) (cadr body)) bodies))
+		     (munge (lambda (formal arity) (cons formal `(LAMBDA ,arity (,formal ,@arity)))))
+		     (new-symtab (append (map munge formals arities) symtab))
 		     (new-bodies (map (lambda (formal body)
 					;;(display "letrec: ") (display formal) (newline)
 					(scheme-rename-variables
@@ -360,7 +375,7 @@
 		     (new-body (scheme-rename-variables
 				new-symtab
 				(scheme-body-list->body body-list))))
-		`(LETREC ,(map list new-formals new-bodies)
+		`(LETREC ,(map list formals new-bodies)
 		   ,new-body)))
 	     ;;
 	     ((equal? tag 'LAMBDA)
@@ -383,8 +398,12 @@
 		     (new-body (scheme-rename-variables new-symtab body)))
 		`(LAMBDA ,new-formals ,new-body)))
 	     (else
-	      (cons tag (map (lambda (e) (scheme-rename-variables
-					  symtab e)) args))))))))
+	      (let* ((found (assoc tag symtab))
+		     (new-tag (if (and found (symbol? (cdr found)))
+				  (cdr found)
+				  tag)))
+		(cons new-tag (map (lambda (e) (scheme-rename-variables
+						symtab e)) args)))))))))
 
 (define (scheme-formals->vars formals)
   (let loop ((formals formals) (acc '()))
@@ -444,8 +463,7 @@
 	(cond
 	 ((pair? tag)
 	  (let ((rator (scheme-lambda-lift tag vars))
-		(rands (map (lambda (e) (scheme-lambda-lift e vars))
-			    args)))
+		(rands (map (lambda (e) (scheme-lambda-lift e vars)) args)))
 	    `(,rator ,@rands)))
 	 ((equal? tag 'QUOTE)
 	  e)
@@ -546,7 +564,7 @@
 			   headers)
 		     ,(loop body))))
 	   (else
-	    (cons tag (map loop args))))))))
+	    (cons (loop tag) (map loop args))))))))
 
 
 ;;; compute the intersection of the free variables in `e' and `vars'

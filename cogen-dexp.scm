@@ -71,3 +71,20 @@
 (define level2 (nextlevel level1 (list 42 'YYY)))
 (writelpp *residual-program* "examples/lambda-d2.scm")
 (load "examples/lambda-d2.scm")
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; specialize a continuation-based parser
+;;;
+(define ppp (cogen-driver '("examples/cps-lr.scm") '(do-parse 0 0 1)))
+(writelpp ppp "examples/cps-lr-d0.scm")
+(load "examples/cps-lr-d0.scm")
+(define level1
+  (start-memo 2
+	      '$goal
+	      '(1 1 2)
+	      (list 'grammar 'k 'input)))
+(writelpp *residual-program* "examples/cps-lr-d1.scm")
+(load "examples/cps-lr-d1.scm")
+(define level2 (nextlevel level1 (list grammar k first-map state continuations input)))
+(writelpp *residual-program* "examples/cps-lr-d2.scm")
+(load "examples/cps-lr-d2.scm")

@@ -7,18 +7,14 @@
 (define result id)
 ;;; interface to create generating extensions
 ;;; syntax constructors
-(define (make-thunk arg) `(LAMBDA () ,arg))
-(define (run-thunk t) (t))
-(define (reset-thunk t) (reset (t)))
-
 (define (make-ge-var l v)
   v)
 (define (make-ge-const c)
   `(_LIFT0 1 ',c))
 (define (make-ge-cond l c t e)
-  `(_IF ,l ,c ,(make-thunk t) ,(make-thunk e)))
+  `(_IF ,l ,c ,t ,e))
 (define (make-ge-op l o args)
-  `(_OP ,l ',o ,@(map make-thunk args)))
+  `(_OP ,l ,o ,@args))
 (define (make-ge-call f args)
   `(,f ,@args))
 (define (make-ge-let l v e body)
@@ -30,9 +26,9 @@
   `(_VLAMBDA_MEMO ',l ',fixed-vars ',var ',label (LIST ,@fvars) ',bts
 		 (LAMBDA ,fvars (LAMBDA (,@fixed-vars . ,var) ,body))))
 (define (make-ge-app-memo l f btv args)
-  `(_APP_MEMO ,l ,(make-thunk f) ,@(map make-thunk args)))
+  `(_APP_MEMO ,l ,f ,@args))
 (define (make-ge-ctor-memo l bts ctor args)
-  `(_CTOR_MEMO ,l ',bts ',ctor ,@args))
+  `(_CTOR_MEMO ,l ,bts ,ctor ,@args))
 (define (make-ge-sel-memo l sel a)
   `(_SEL_MEMO ,l ',sel ,a))
 (define (make-ge-test-memo l tst a)
@@ -42,18 +38,22 @@
 (define (make-ge-eval l diff a)
   `(_EVAL ,l ,diff ,a))
 
-;;; cogen functions
-(define (_app lv f . args)
-  (if (= lv 1)
-      `(,f ,@args)
-      `(_APP ,(pred lv) ,f ,@args))) 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; an implementation using macros
 
-(define (_app_memo lv f . args)
-  (let ((args (map reset-thunk args))
-	(f (reset-thunk f)))
-  (if (= lv 1)
-      `((,f 'VALUE) ,@args)
-      (make-ge-app-memo (pred lv) f '() args))))
+(define-syntax _app
+  (syntax-rules ()
+    ((_app 0 f arg ...)
+     (f arg ...))
+    ((_app lv f arg ...)
+     `(_APP ,(pred lv) ,f ,arg ...))))
+
+(define-syntax _app_memo
+  (syntax-rules ()
+    ((_app_memo 0 f arg ...)
+     ((f 'VALUE) arg ...))
+    ((_app_memo lv f arg ...)
+     `(_APP_MEMO ,(pred lv) ,(reset f) ,(reset arg) ...))))
 
 (define (_lambda lv arity f)
   (let* ((vars (map gensym-local arity))
@@ -89,6 +89,15 @@
 	      (LAMBDA ,vars
 		,(reset (apply (apply f vvs) vars)))))))))
 
+(define (_vlambda lv arity var f)
+  (let* ((vars (map gensym-local arity))
+	 (vvar (gensym-local var))
+	 (fun `(LAMBDA ,(append vars vvar)
+		 ,(reset (apply f vars))))) ;unclear what to do with vvar
+    (if (= lv 1)
+	fun
+	`(_VLAMBDA ,(pred lv) ',arity ',var ,fun))))
+
 (define (_let lv orig-var e f)
   (let ((var (gensym-local orig-var)))
     (cond
@@ -106,92 +115,96 @@
 		    ,e (LAMBDA (,var)
 			 ,(reset (k (f var))))))))))
 
-(define (_ctor_memo lv bts ctor . args)
-  (let ((new-bts (map pred bts)))
-    (if (= lv 1)
-	`(STATIC-CONSTRUCTOR ',ctor ,ctor (LIST ,@args) ',new-bts)
-	(make-ge-ctor-memo (- lv 1) new-bts ctor args))))
+(define-syntax _ctor_memo
+  (syntax-rules ()
+    ((_ 0 bts ctor arg ...)
+     (static-constructor 'ctor ctor (list ,arg ...) 'bts))
+    ((_ lv (bt ...) ctor arg ...)
+     `(_CTOR_MEMO ,(pred lv) (,(pred bt) ...) ctor ,arg ...))))
 
-(define (_sel_memo lv sel v)
-  (if (= lv 1)
-      `(,sel (,v 'VALUE))
-      (make-ge-sel-memo (- lv 1) sel v)))
+(define-syntax _sel_memo
+  (syntax-rules (quote)
+    ((_ 0 'sel v)
+     (sel (v 'VALUE)))
+    ((_sel_memo lv sel v)
+     `(_SEL_MEMO ,(pred lv) ',sel ,(reset v)))))
 
-(define (_test_memo level ctor-test v)
-  (if (= level 1)
-      `(,ctor-test (,v 'VALUE))
-      (make-ge-test-memo (- level 1) ctor-test v)))
+(define-syntax _test_memo
+  (syntax-rules (quote)
+    ((_ 0 'ctor-test v)
+     (ctor-test (v 'VALUE)))
+    ((_ lv ctor-test v)
+     `(_TEST_MEMO ,(pred lv) ',ctor-test ,(reset v)))))
+
+(define-syntax _ctor
+  (syntax-rules (quote)
+    ((_ 0 'ctor arg ...)
+     (ctor arg ...))
+    ((_ lv ctor arg ...)
+     `(_CTOR ,(pred lv) ',ctor ,arg ...))))
+
+(define-syntax _sel
+  (syntax-rules (quote)
+    ((_ 0 'sel v)
+     (sel v))
+    ((_ lv sel v)
+     `(_SEL ,(pred lv) ',sel ,(reset v)))))
+
+(define-syntax _test
+  (syntax-rules (quote)
+    ((_ 0 'ctor-test v)
+     (ctor-test v))
+    ((_ lv ctor-test v)
+     `(_TEST ,(pred lv) ',ctor-test ,(reset v)))))
 
 ;;; needs RESET, somewhere
 ;;; therefore: the arms of the conditional must be thunks, so that we
 ;;; can capture control. we get this for free in the CPS version where
 ;;; et2 and et3 are continuations, anyway
-(define (_If level e1 et2 et3)
-  (if (= level 1)
-      (shift k `(IF ,e1 ,(reset (k (et2))) ,(reset (k (et3)))))
-      (shift k `(_IF ,(- level 1) ,e1 (LAMBDA () ,(reset (k (et2))))
-		     (LAMBDA () ,(reset (k (et3))))))))
+(define-syntax _if
+  (syntax-rules ()
+    ((_if 0 e1 e2 e3)
+     (if e1 e2 e3))
+    ((_if lv e1 e2 e3)
+     (shift k `(_IF ,(pred lv) ,(reset e1) ,(reset (k e2)) ,(reset (k e3)))))))
 
-;;; alternative implementation
-(define (_If1 level e1 et2 et3)
-  (if (= level 0)
-      (if e1 (et2) (et3))
-      (shift k `(_IF1 ,(- level 1) ,e1 (LAMBDA () ,(reset (k (et2))))
-		      (LAMBDA () ,(reset (k (et3))))))))
+(define-syntax _op
+  (syntax-rules ()
+    ((_op 1 op arg ...)
+     `(op ,(reset arg) ...))
+    ((_op lv op arg ...)
+     `(_OP ,(pred lv) op ,(reset arg) ...))))
 
-(define (_Op level op . args)
-  (let ((args (map reset-thunk args)))
-  (if (= level 1)
-      (if (equal? op 'apply)
-	  (_apply args)
-	  `(,op ,@args))
-      (make-ge-op (pred level) op args))))
+(define-syntax _lift0
+  (syntax-rules ()
+    ((_ 1 val)
+     (if (or (number? val) (string? val) (boolean? val))
+	 val
+	 `(QUOTE ,val)))
+    ((_ lv val)
+     `(_LIFT0 ,(pred lv) ',val))))
 
-(define (_apply args)
-  (let ((fn (car args))
-	(fa (cadr args)))
-    (let loop ((fa fa) (acc '()))
-      (if (pair? fa)
-	  (if (equal? (car fa) 'CONS)
-	      (loop (caddr fa) (cons (cadr fa) acc))
-	      (if (and (equal? (car fa) 'QUOTE)
-		       (equal? (cadr fa) '()))
-		  `(,fn ,@(reverse acc))
-		  `(APPLY ,@args)))
-	  `(APPLY ,@args)))))
+(define-syntax _lift
+  (syntax-rules ()
+    ((_ 1 diff value)
+     `(_LIFT0 ,diff ,value))
+    ((_ lv diff value)
+     `(_LIFT ,(pred lv) ,diff ,value))))
 
-(define (_Lift0 level val)
-  (if (= level 1)
-      (if (or (number? val) (string? val) (boolean? val))
-	  val
-	  `(QUOTE ,val))
-      `(_LIFT0 ,(- level 1) ',val)))
-
-(define (_Lift level diff value)
-  (if (= level 1)
-      `(_LIFT0 ,diff ,value)
-      `(_LIFT ,(- level 1) ,diff ,value)))
-
-(define (_Eval level diff body)
-  (cond
-   ((= level 0)
-    (cond
-     ((zero? diff)
-      (eval body (interaction-environment)))
-     ((= 1 diff)
-      body)
-     (else
-      `(_EVAL 0 ,(- diff 1) ',body))))
-   ((= level 1)
-    (cond
-     ((zero? diff)
-      `(EVAL ,body (INTERACTION-ENVIRONMENT)))
-     ((= 1 diff)
-      body)
-     (else
-      `(_EVAL 0 ,diff ',body))))
-   (else
-    `(_EVAL ,(- level 1) ,diff ,body))))
+(define-syntax _eval
+  (syntax-rules ()
+    ((_ 0 0 body)
+     (eval body (interaction-environment)))
+    ((_ 0 1 body)
+     body)
+    ((_ 0 diff body)
+     `(_EVAL 0 ,(pred diff) ',body))
+    ((_ 1 0 body)
+     `(EVAL ,body (INTERACTION-ENVIRONMENT)))
+    ((_ 1 1 body)
+     body)
+    ((_ lv diff body)
+     `(_EVAL ,(pred lv) ,diff ,body))))
 
 ;;; memo function stuff
 (define (start-memo level fn bts args)
