@@ -17,7 +17,7 @@ distribution: $(DISTRIBUTION)
 genext-distribution: $(GENEXT_DISTRIBUTION)
 
 cogen_packages = pgg pgg-residual pgg-library
-cogen_generate_packages = pgg signals pretty-print
+cogen_generate_packages = pgg signals
 cogen_specialize_packages = auxiliary pgg-library cogen-specialize
 batch_packages = signals handle i/o conditions extended-ports
 genext_base_files = \

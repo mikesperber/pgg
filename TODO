@@ -1,3 +1,30 @@
++ implement static mutable vectors:
+x cogen-abssyn.scm:(define (annIsRef? e)
+x cogen-abssyn.scm:     ((annIsRef? e)
+x cogen-abssyn.scm:     ((annIsRef? e)
+x cogen-abssyn.scm:     ((annIsRef? e)
+x cogen-effect.scm:	   ((annIsRef? e)
+x cogen-effect.scm:       ((annIsRef? e)
+x cogen-eq-flow.scm:       ((annIsRef? e)
+x cogen-eq-flow.scm:       ((annIsRef? e)
+x cogen-eq-flow.scm:       ((annIsRef? e)
+x cogen-eq-flow.scm:	 ((annIsRef? e)
+x cogen-eq-flow.scm:       ((annIsRef? e)
+x cogen-oca.scm:     ((annIsRef? e)
+cogen-reach.scm:	   ((annIsRef? e)
+cogen-reach.scm:       ((annIsRef? e)
+cogen-reach.scm:     ((annIsRef? e)
+cogen-reach.scm:     ((annIsRef? e)
+cogen-reach.scm:     ((annIsRef? e)
+cogen-reach.scm:     ((annIsRef? e)
+x cogen-skeleton.scm:     ((annIsRef? e)
+cogen-terminate.scm:     ((annIsRef? e)
+cogen-terminate.scm:     ((annIsRef? e)
+x pgg-packages.scm:	  annIsRef?
+x cogen-library.scm
+x cogen-direct-anf.scm
+x cogen-construct-genext.scm
+
 + insert memoization points more cleverly: only the outermost lam-D or if-D
 - implement coarity raising
 - extend the top-level such that arbitrary Scheme programs (including

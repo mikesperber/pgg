@@ -130,6 +130,21 @@
 	  annMakeCellEq
 	  annIsCellEq?
 	  annFetchCellEqArgs
+	  annMakeVector
+	  annIsVector?
+	  annFetchVectorLabel
+	  annFetchVectorSize
+	  annFetchVectorArg
+	  annMakeVref
+	  annIsVref?
+	  annFetchVrefArg
+	  annFetchVrefIndex
+	  annMakeVset
+	  annIsVset?
+	  annFetchVsetLabel
+	  annFetchVsetVec
+	  annFetchVsetIndex
+	  annFetchVsetArg
 	  annMakeEval
 	  annIsEval?
 	  annFetchEvalBody
@@ -181,6 +196,9 @@
 	  make-ge-test
 	  make-ge-lift
 	  make-ge-eval
+	  make-ge-make-vector-memo
+	  make-ge-vector-ref-memo
+	  make-ge-vector-set!-memo
 	  make-ge-make-cell-memo
 	  make-ge-cell-ref-memo
 	  make-ge-cell-set!-memo

@@ -165,6 +165,7 @@
 	  top-clone-with
 	  multi-append
 	  static-cell
+	  static-vector
 	  current-static-store!
 	  install-static-store!
 	  initialize-static-store!

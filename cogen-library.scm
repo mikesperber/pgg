@@ -175,7 +175,7 @@
       (case what
 	((value) the-ref)
 	((cell-set!) (lambda (arg)
-		       (reference-log-register static-address the-ref
+		       (reference-log-register static-address the-ref 0
 						(cell-ref the-ref))
 		       (cell-set! the-ref arg)))
 	((static) (register-address
@@ -219,6 +219,68 @@
 		new-cell))
 	    (lambda (normalized)
 	      (address-map->new-cell normalized)))))))))
+
+;;; procedures for dealing with references
+(define (static-vector label size value bt)
+  (let ((static-address (gen-address label))
+	(the-vector (make-vector size value))
+	(the-bts (let loop ((i 0) (r '()))
+		   (if (< i size)
+		       (loop (+ i 1) (cons bt r))
+		       r))))
+    (creation-log-add! static-address the-vector bt)
+    (lambda (what)
+      (case what
+	((value)
+	 the-vector)
+	((vector-set!)
+	 (lambda (index arg)
+	   (reference-log-register static-address the-vector index
+				   (vector-ref the-vector index))
+	   (vector-set! the-vector index arg)))
+	((static)
+	 (register-address
+	  static-address
+	  (lambda (normalized)
+	    `(vector ,normalized
+		     ,@(map (lambda (x) (project-one-static x bt))
+			    (vector->list the-vector))))
+	  (lambda (normalized)
+	    `(back ,normalized))))
+	((dynamic)
+	 (register-address
+	  static-address
+	  (lambda (normalized)
+	    (project-dynamic (cons 'vector (vector->list the-vector))
+			     the-bts
+			     'DYNAMIC))
+	  (lambda (normalized)
+	    '())))
+	((dynamic-ref)
+	 (register-address static-address
+			   (lambda (normalized) '())
+			   (lambda (normalized) '())))
+	((clone clone-with)
+	 (register-address
+	  static-address
+	  (lambda (normalized)
+	    (let* ;; ordering is crucial below
+		((new-value (static-vector label size 'DUMMY bt))
+		   (new-vector (new-value 'VALUE)))
+	      (enter-address-map! normalized new-value bt the-vector)
+	      (let loop ((i 0))
+		(if (< i size)
+		    (begin
+		      (vector-set! new-vector i
+				   ((if (eq? what 'clone)
+					clone-one-dynamic
+					clone-with-one)
+				    (vector-ref the-vector i)
+				    bt))
+		      (loop (+ i 1)))))
+	      new-value))
+	  (lambda (normalized)
+	    (address-map->new-cell normalized))))))))
 
 ;;; maintain a mapping from global static addresses to local static addresses
 (define *address-registry* 'undefined-address-registry)
@@ -293,9 +355,10 @@
   (let ((entry (car *reference-log*)))
     (set! *reference-log* (cdr *reference-log*))
     entry))
-(define (reference-log-register static-address the-ref value)
+(define (reference-log-register static-address the-ref index value)
   (set-car! *reference-log*
-	    (cons (cons the-ref value) (car *reference-log*))))
+	    (cons (list the-ref index value)
+		  (car *reference-log*))))
 (define (reference-log-rollback! checkpoint)
   (let loop ()
     (cond
@@ -308,7 +371,10 @@
 	    (loop)
 	    (let ((ref+value (car ref+values))
 		  (ref+values (cdr ref+values)))
-	      (cell-set! (car ref+value) (cdr ref+value))
+	      (let ((ref (car ref+value)))
+		(if (vector? ref)
+		    (vector-set! ref (cadr ref+value) (caddr ref+value))
+		    (cell-set! ref (caddr ref+value))))
 	      (inner-loop ref+values))))))))
 
 (define current-static-store! reference-log-push!)

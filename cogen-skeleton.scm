@@ -67,9 +67,13 @@
   ;; perform occurrence count analysis
   (oca-d d*)
   (let ((make-define (lambda (name formals body)
-		       (if formals
-			   `(define (,name ,@formals) ,body)
-			   `(define ,name ,body)))))
+		       (cons 'DEFINE
+			     (cons (if formals
+				       (cons name formals)
+				       name)
+				   (if (and (pair? body) (eq? (car body) 'begin))
+				       (cdr body)
+				       (list body)))))))
     (let loop ((d* d*))
       (if (pair? d*)
 	  (begin
@@ -309,8 +313,7 @@
 	       (type->memo (node-fetch-type (annExprFetchType e))))))
 	(if (and *memo-optimize* (<= memo-level level))
 	    (make-ge-op level 'MAKE-CELL (list (loop arg)))
-	    (make-ge-make-cell-memo level label arg-level (loop arg))))
-      )
+	    (make-ge-make-cell-memo level label arg-level (loop arg)))))
      ((annIsDeref? e)
       (let* ((arg  (annFetchDerefArg e))
 	     (level (annExprFetchLevel arg))
@@ -339,6 +342,39 @@
 	(if (and *memo-optimize* (<= memo-level level))
 	    (make-ge-op level 'EQ? (map loop args))
 	    (make-ge-cell-eq?-memo level (map loop args)))))
+     ((annIsVector? e)
+      (let* ((level (annExprFetchLevel e))
+	     (size (annFetchVectorSize e))
+	     (arg (annFetchVectorArg e))
+	     (arg-level (annExprFetchLevel arg))
+	     (label (annFetchVectorLabel e))
+	     (memo-level
+	      (ann->bt
+	       (type->memo (node-fetch-type (annExprFetchType e))))))
+	(if (and *memo-optimize* (<= memo-level level))
+	    (make-ge-op level 'MAKE-VECTOR (list (loop size) (loop arg)))
+	    (make-ge-make-vector-memo level label arg-level (loop size) (loop arg)))))
+     ((annIsVref? e)
+      (let* ((arg   (annFetchVrefArg e))
+	     (index (annFetchVrefIndex e))
+	     (level (annExprFetchLevel arg))
+	     (memo-level
+	      (ann->bt
+	       (type->memo (node-fetch-type (annExprFetchType arg))))))
+	(if (and *memo-optimize* (<= memo-level level))
+	    (make-ge-op level 'VECTOR-REF (list (loop arg) (loop index)))
+	    (make-ge-vector-ref-memo level (loop arg) (loop index)))))
+     ((annIsVset? e)
+      (let* ((vec (annFetchVsetVec e))
+	     (index (annFetchVsetIndex e))
+	     (arg (annFetchVsetArg e))
+	     (level (annExprFetchLevel vec))
+	     (memo-level
+	      (ann->bt
+	       (type->memo (node-fetch-type (annExprFetchType vec))))))
+	(if (and *memo-optimize* (<= memo-level level))
+	    (make-ge-op level 'VECTOR-SET! (list (loop vec) (loop index) (loop arg)))
+	    (make-ge-vector-set!-memo level (loop vec) (loop index) (loop arg)))))
      (else
       (error "cogen-skeleton:generate unrecognized syntax")))))
 

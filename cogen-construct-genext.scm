@@ -75,4 +75,9 @@
   `(_CELL-SET!_MEMO ,l ,r ,a))
 (define (make-ge-cell-eq?-memo l args)
   `(_CELL-EQ?_MEMO ,l ,@args))
-
+(define (make-ge-make-vector-memo l label bt s a)
+  `(_MAKE-VECTOR_MEMO ,l ,label ,bt ,s ,a))
+(define (make-ge-vector-ref-memo l v i)
+  `(_S_T_MEMO ,l VECTOR-REF ,v ,i))
+(define (make-ge-vector-set!-memo l v i x)
+  `(_VECTOR-SET!_MEMO ,l ,v ,i ,x))

@@ -189,10 +189,10 @@
 
 (define-syntax _s_t_memo
   (syntax-rules ()
-    ((_s_t_memo 0 sel v)
-     (sel (v 'VALUE)))
-    ((_s_t_memo lv sel v)
-     (_complete `(_S_T_MEMO ,(pred lv) sel ,v)))))
+    ((_s_t_memo 0 sel v a ...)
+     (sel (v 'VALUE) a ...))
+    ((_s_t_memo lv sel v a ...)
+     (_complete `(_S_T_MEMO ,(pred lv) sel ,v ,a ...)))))
 
 (define-syntax _make-cell_memo
   (syntax-rules ()
@@ -214,6 +214,20 @@
      (eq? (ref1 'VALUE) (ref2 'VALUE)))
     ((_cell-eq?_memo lv ref1 ref2)
      (_complete `(_CELL-EQ?_MEMO ,(pred lv) ,ref1 ,ref2)))))
+
+(define-syntax _make-vector_memo
+  (syntax-rules ()
+    ((_make-vector_memo 0 lab bt size arg)
+     (static-vector lab size arg bt))
+    ((_make-vector_memo lv lab bt size arg)
+     (_complete `(_MAKE-VECTOR_MEMO ,(pred lv) lab ,(pred bt) ,size ,arg)))))
+
+(define-syntax _vector-set!_memo
+  (syntax-rules ()
+    ((_vector-set!_memo 0 v i x)
+     ((v 'VECTOR-SET!) i x))
+    ((_vector-set!_memo lv v i x)
+     (_complete `(_VECTOR-SET!_MEMO ,(pred lv) ,v ,i ,x)))))
 
 (define-syntax _if
   (syntax-rules ()
