@@ -184,8 +184,13 @@
 	  multi-memo
 	  ))
 
-(define-interface cogen-ctor-interface
+(define-interface define-data-interface
   (export ((define-data) :syntax)))
+
+(define-structure define-data define-data-interface
+  (open scheme escapes)
+  (export define-data)
+  (files cogen-ctors))
 
 (define-interface cogen-direct-syntax-interface
   (export _vlambda
