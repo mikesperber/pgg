@@ -7,13 +7,25 @@
 ;;; unit of the continuation monad
 (define (result-c v) (lambda (k) (k v)))
 ;;; symbol generation
-(define gensym (let ((x 0))
-		 (lambda (sym)
-		   (set! x (+ x 1))
-		   (string->symbol (string-append
-				    (symbol->string sym)
-				    "-"
-				    (number->string x))))))
+(define *gensym-counter* 0)
+(define (gensym-reset!)
+  (set! *gensym-counter* 0))
+(define gensym (lambda (sym)
+		 (set! *gensym-counter* (+ *gensym-counter* 1))
+		 (string->symbol (string-append
+				  (symbol->string sym)
+				  "-"
+				  (number->string *gensym-counter*)))))
+(define *gensym-local* '())
+(define gensym-local-reset! (lambda () (set! *gensym-local* '())))
+(define gensym-local-push! (lambda () (set! *gensym-local* (cons 0 *gensym-local*))))
+(define gensym-local-pop! (lambda () (set! *gensym-local* (cdr *gensym-local*))))
+(define gensym-local (lambda (sym)
+		       (set-car! *gensym-local* (+ (car *gensym-local*) 1))
+		       (string->symbol (string-append
+					(symbol->string sym)
+					"-"
+					(number->string (car *gensym-local*))))))
 (define gencont (lambda () (gensym 'c)))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -86,6 +98,10 @@
       (if (p (car xs))
 	  (cons (car xs) (filter p (cdr xs)))
 	  (filter p (cdr xs))))) 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define (andmap p xs)
+  (or (null? xs)
+      (and (p (car xs)) (andmap p (cdr xs)))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; I/O: read a list of Scheme objects
 (define (file->list filename)

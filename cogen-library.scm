@@ -2,7 +2,10 @@
 ;;; projection functions for memoization
 ;;; parameterized over `result'
 ;;; $Log$
-;;; Revision 1.4  1995/10/23 16:59:11  thiemann
+;;; Revision 1.5  1995/11/10 15:30:23  thiemann
+;;; improved unfolding and gensym
+;;;
+;;; Revision 1.4  1995/10/23  16:59:11  thiemann
 ;;; type annotations (may) work
 ;;; standard memoization may be circumvented
 ;;;
@@ -102,7 +105,7 @@
 		      (if (procedure? s-value)
 			  (cons (s-value 'CLONE) skeleton)
 			  (cons s-value skeleton)))
-		    (cons (gensym 'clone) skeleton)))))))
+		    (cons (gensym-local 'clone) skeleton)))))))
 
 ;;; (multi-append x y) is almost like (map append x y) except when the
 ;;; lists x and y have different lengths in which case the result has

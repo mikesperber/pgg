@@ -2,7 +2,10 @@
 ;;; direct style version of the continuation-based multi-level
 ;;; compiler generator (with control operators)
 ;;; $Log$
-;;; Revision 1.6  1995/11/09 16:48:02  thiemann
+;;; Revision 1.7  1995/11/10 15:30:22  thiemann
+;;; improved unfolding and gensym
+;;;
+;;; Revision 1.6  1995/11/09  16:48:02  thiemann
 ;;; implemented simple occurrence count analysis
 ;;;
 ;;; Revision 1.5  1995/11/06  15:40:48  thiemann
@@ -38,19 +41,19 @@
       `(_APP_MEMO ,(pred lv) ,f ,@args)))
 
 (define (_lambda lv arity f)
-  (let* ((vars (map gensym arity))
+  (let* ((vars (map gensym-local arity))
 	 (fun `(LAMBDA ,vars ,(reset (apply f vars)))))
     (if (= lv 1)
 	fun
 	`(_LAMBDA ,(pred lv) ',arity ,fun))))
 
 (define (_lambda_memo lv arity label vvs bts f)
-  (let* ((vars (map gensym arity)))
+  (let* ((vars (map gensym-local arity)))
     (let* ((dynamics (project-dynamic (cons label vvs) bts))
 	   (new-vvs (apply append dynamics))
 	   (new-bts (binding-times dynamics))
 	   (freevars (map (lambda (bt vv)
-			    (if (zero? bt) vv (gensym 'var)))
+			    (if (zero? bt) vv (gensym-local 'var)))
 			  new-bts new-vvs)))
       (if (= lv 1)
 	  `(STATIC-CONSTRUCTOR
@@ -64,7 +67,7 @@
 	  `(_LAMBDA_MEMO
 	    ,(- lv 1)
 	    ',arity
-	    ',(gensym label)
+	    ',(gensym-local label)
 	    (LIST ,@new-vvs)
 	    ',new-bts
 	    (LAMBDA ,freevars
@@ -72,7 +75,7 @@
 		,(reset (apply (apply f vvs) vars)))))))))
 
 (define (_let lv e f)
-  (let ((var (gensym 'var)))
+  (let ((var (gensym-local 'var)))
     (cond
      ((zero? lv)
       (f e))
@@ -175,6 +178,7 @@
 (define (start-memo level fn bts args)
   (clear-residual-program!) 
   (clear-memolist!)
+  (gensym-local-reset!)
   (multi-memo level fn bts args))
 
 ;;; the memo-function
@@ -183,7 +187,8 @@
 ;;; - bts are their binding times
 (define (multi-memo level fn bts args)
   (let*
-      ((full-pp (cons fn args))
+      ((enter-scope (gensym-local-push!))
+       (full-pp (cons fn args))
        (pp (project-static full-pp bts))
        (dynamics (project-dynamic full-pp bts))
        (actuals (apply append dynamics))
@@ -199,7 +204,8 @@
 					     (cdr cloned-pp))))))
 	      (add-to-residual-program! new-def)
 	      (cons pp new-name))))
-       (res-name (cdr found)))
+       (res-name (cdr found))
+       (exit-scope (gensym-local-pop!)))
     (if (= level 1)
 	;; generate call to fn with actual arguments
 	`(,res-name ,@actuals)

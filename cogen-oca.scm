@@ -31,11 +31,12 @@
 	    bv
 	    (apply oca-add (map loop args)))))
      ((annIsLet? e)
-      (let ((oca-body
-	     (oca-e (annFetchLetBody e)
-		    (cons (cons (annFetchLetVar e) 0)
-			  bv))))
-	(annSetLetUnfoldability! e (= 1 (cdar oca-body)))
+      (let* ((body (annFetchLetBody e))
+	     (oca-body (oca-e body (cons (cons (annFetchLetVar e) 0) bv)))
+	     (oc (cdar oca-body)))
+	(annSetLetUnfoldability!
+	 e (or (= 1 oc)			; beware from inlining side effecting ops!
+	       (and (zero? oc) (annExprTerminates? body))))
 	(oca-add (loop (annFetchLetHeader e))
 		 (cdr oca-body))))
      ((annIsLambda? e)
