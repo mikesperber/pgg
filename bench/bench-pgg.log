@@ -1,0 +1,181 @@
+scheme48 -h 4000000
+Welcome to Scheme 48 0.44 (made by sperber on Mon Jul 29 12:04:51 MST 1996).
+Copyright (c) 1993, 1994 by Richard Kelsey and Jonathan Rees.
+Copyright (c) 1996 by NEC Research Institute, Inc.
+Please report bugs to scheme-48-bugs@martigny.ai.mit.edu.
+Type ,? (comma question-mark) for help.
+> > cogen-load.scm 
+loading program-generator generator
+cogen-record.scm 
+auxiliary.scm 
+
+Undefined: (p)
+cogen-env.scm 
+cogen-abssyn.scm 
+cogen-scheme.scm 
+
+Undefined: (wft-property-table wft-make-memo-property bta-make-memo-postprocessor)
+cogen-oca.scm 
+cogen-skeleton.scm 
+
+Undefined: (make-ge-var make-ge-const make-ge-cond make-ge-op make-ge-call make-ge-begin make-ge-let full-ecr node-fetch-type type->memo ann->bt make-ge-lambda make-ge-lambda-memo make-ge-vlambda-memo make-ge-app make-ge-app-memo make-ge-ctor make-ge-ctor-memo make-ge-sel make-ge-sel-memo make-ge-test make-ge-test-memo make-ge-lift make-ge-eval)
+cogen-eq-flow.scm 
+cogen-ctors.scm 
+cogen-library.scm 
+
+Undefined: (_op project-dynamic-gen _lift0 _if _lambda _let _app)
+cogen-residual.scm 
+shift-reset.scm 
+cogen-direct-syntax.scm 
+cogen-driver.scm 
+
+> > > > > > > > > > > ----------------------------------------------------------------------> 
+> PGG (app) :> 
+> > Before: 186032 words free in semispace
+After:  1482243 words free in semispace
+> Run time: 7.43 seconds; Elapsed time: 7.44 seconds
+'#{Unspecific}
+> (^^^ preprocessing time * 100)> 
+> > !!!generating compiler> 
+> > > Before: 478799 words free in semispace
+After:  1480337 words free in semispace
+> Run time: 0.51 seconds; Elapsed time: 0.54 seconds
+'#{Unspecific}
+> (^^^ generation time * 100)> 
+> > !!!compiling> 
+> > > Before: 1114070 words free in semispace
+After:  1479537 words free in semispace
+> Run time: 0.21 seconds; Elapsed time: 0.20 seconds
+'#{Unspecific}
+> (^^^ specialization time * 100)> 
+> > > > > > Before: 1359676 words free in semispace
+After:  1480353 words free in semispace
+> > > ----------------------------------------------------------------------> 
+> PGG (ctors) :> 
+> > Before: 1471200 words free in semispace
+After:  1480254 words free in semispace
+> Run time: 17.00 seconds; Elapsed time: 17.16 seconds
+'#{Unspecific}
+> (^^^ preprocessing time * 100)> 
+> > !!!generating compiler> 
+> > > Before: 365025 words free in semispace
+After:  1471087 words free in semispace
+> Run time: 0.89 seconds; Elapsed time: 0.88 seconds
+'#{Unspecific}
+> (^^^ generation time * 100)> 
+> > !!!compiling> 
+> > > Before: 812768 words free in semispace
+After:  1470083 words free in semispace
+> Run time: 0.40 seconds; Elapsed time: 0.40 seconds
+'#{Unspecific}
+> (^^^ specialization time * 100)> 
+> > > > > > Before: 1217742 words free in semispace
+After:  1471363 words free in semispace
+> > > ----------------------------------------------------------------------> 
+> PGG (lambda) :> 
+> > Before: 1462249 words free in semispace
+After:  1471264 words free in semispace
+> Run time: 13.93 seconds; Elapsed time: 13.95 seconds
+'#{Unspecific}
+> (^^^ preprocessing * 100)> 
+> > !!!generating compiler> 
+> > > Before: 1330872 words free in semispace
+After:  1468076 words free in semispace
+> Run time: 1.08 seconds; Elapsed time: 1.08 seconds
+'#{Unspecific}
+> (^^^ generation time * 100)> 
+> > !!!compiling> 
+> > > Before: 640287 words free in semispace
+After:  1465868 words free in semispace
+> Run time: 0.81 seconds; Elapsed time: 0.81 seconds
+'#{Unspecific}
+> (^^^ specialization time * 100)> 
+> > > > > > Before: 946365 words free in semispace
+After:  1468109 words free in semispace
+> > > ----------------------------------------------------------------------> 
+> PGG (direct-lr) :> 
+> > > Before: 1457337 words free in semispace
+After:  1468010 words free in semispace
+> wft-apply-property
+Run time: 3.29 seconds; Elapsed time: 3.29 seconds
+'#{Unspecific}
+> (^^^ preprocessing * 1)> 
+> > !!!generating compiler> 
+> wft-apply-property
+> > Before: 1105114 words free in semispace
+After:  1427214 words free in semispace
+> Run time: 0.22 seconds; Elapsed time: 0.22 seconds
+'#{Unspecific}
+> (^^^ generation time * 1)> 
+> > examples/direct-lr-support.scm 
+> ../lr-essence/examples/grammars.scm 
+> !!!compiling> 
+> > > Before: 32465 words free in semispace
+After:  1385342 words free in semispace
+> Run time: 4.44 seconds; Elapsed time: 4.44 seconds
+'#{Unspecific}
+> (^^^ specialization time * 1)> 
+> > > > > > Before: 635379 words free in semispace
+After:  1405098 words free in semispace
+> > > ----------------------------------------------------------------------> 
+> PGG (cps-lr) :> 
+> > Before: 1395987 words free in semispace
+After:  1404999 words free in semispace
+> Run time: 1.32 seconds; Elapsed time: 1.36 seconds
+#t
+> (^^^ preprocessing time * 1)> 
+> > > > Before: 31897 words free in semispace
+After:  1397263 words free in semispace
+> Run time: 0.12 seconds; Elapsed time: 0.11 seconds
+#t
+> ^^^ generation time * 1> 
+> > > > examples/direct-lr-support.scm 
+> ../lr-essence/examples/grammars.scm 
+> Before: 334585 words free in semispace
+After:  1384187 words free in semispace
+> Run time: 4.57 seconds; Elapsed time: 4.61 seconds
+#t
+> (^^^ specialization time * 1)> 
+> > > > > > > > > ----------------------------------------------------------------------> 
+> PGG (cps-lr, 3 levels) :> 
+> > Before: 732958 words free in semispace
+After:  1395206 words free in semispace
+> Run time: 1.39 seconds; Elapsed time: 1.39 seconds
+#t
+> (^^^ preprocessing time * 1)> 
+> > > > Before: 1284134 words free in semispace
+After:  1380419 words free in semispace
+> Run time: 0.14 seconds; Elapsed time: 0.13 seconds
+#t
+> (^^^ generation time * 1)> 
+> > > > Before: 509305 words free in semispace
+After:  1362565 words free in semispace
+> Run time: 0.16 seconds; Elapsed time: 0.15 seconds
+#t
+> (^^^ specialization time 1 * 1)> 
+> > > > examples/direct-lr-support.scm 
+> ../lr-essence/examples/grammars.scm 
+> Before: 175531 words free in semispace
+After:  1348937 words free in semispace
+> Run time: 4.50 seconds; Elapsed time: 4.50 seconds
+#t
+> (^^^ specialization time 2 * 1)> 
+> > > > > > > ----------------------------------------------------------------------> 
+> PGG (scheme1) :> 
+> > Before: 742401 words free in semispace
+After:  1364490 words free in semispace
+> Run time: 14.32 seconds; Elapsed time: 14.46 seconds
+#t
+> (^^^ preprocessing time * 1)> 
+> > > > Before: 124096 words free in semispace
+After:  1210624 words free in semispace
+> Run time: 0.48 seconds; Elapsed time: 0.48 seconds
+#t
+> ^^^ generation time * 1> 
+> > > > examples/scheme1-support.scm 
+> Before: 1040275 words free in semispace
+After:  1101761 words free in semispace
+> Run time: 0.02 seconds; Elapsed time: 0.02 seconds
+#t
+> (^^^ specialization time * 1)> 
+> > > > > 

@@ -151,24 +151,15 @@
 
 (define (_Op level op . args)
   (let ((args (map reset-thunk args)))
-  (if (= level 1)
-      (if (equal? op 'apply)
-	  (_apply args)
-	  `(,op ,@args))
-      (make-ge-op (pred level) op args))))
-
-(define (_apply args)
-  (let ((fn (car args))
-	(fa (cadr args)))
-    (let loop ((fa fa) (acc '()))
-      (if (pair? fa)
-	  (if (equal? (car fa) 'CONS)
-	      (loop (caddr fa) (cons (cadr fa) acc))
-	      (if (and (equal? (car fa) 'QUOTE)
-		       (equal? (cadr fa) '()))
-		  `(,fn ,@(reverse acc))
-		  `(APPLY ,@args)))
-	  `(APPLY ,@args)))))
+    (if (= level 1)
+	(cond
+	 ((eq? op 'cons)
+	  (make-residual-cons (car args) (cadr args)))
+	 ((eq? op 'apply)
+	  (make-residual-apply (car args) (cadr args)))
+	 (else
+	  `(,op ,@args)))
+	(make-ge-op (pred level) op args))))
 
 (define (_Lift0 level val)
   (if (= level 1)

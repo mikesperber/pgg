@@ -747,6 +747,8 @@
 		      (parse-type '(all t t)))
 	  1)))
 
+
+
 ;;; T  ::= (all TV T) | (rec TV T) | (TC T*) | TV
 ;;; TV type variable (must be bound by rec or all)
 ;;; TC type constructor

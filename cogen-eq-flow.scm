@@ -27,7 +27,7 @@
 ;;; `skeleton' function call with arguments replaced by binding times
 ;;; `def-typesig*' is a list of type signatures of defined operations
 ;;; `def-opsig*' is a list of type signature of primitive operators
-(define (bta-run d* symtab skeleton def-typesig* def-opsig*)
+(define (bta-run d* symtab skeleton def-datatype* def-typesig* def-opsig*)
   (debug-level 1 (display "bta-run") (newline))
   (set! *bta-max-bt*
 	(apply max (cdr skeleton)))
@@ -39,7 +39,8 @@
 	 (d (annDefLookup goal-proc d*))
 	 (formals (annDefFetchProcFormals d))
 	 (d0 (annMakeDef '$goal formals
-			 (annMakeCall goal-proc (map annMakeVar formals))))
+			 (bta-insert-def-data def-datatype*
+					      (annMakeCall goal-proc (map annMakeVar formals)))))
 	 (d* (cons d0 d*))
 	 (do-type-inference (full-collect-d* symtab d*))
 	 (proc-node (full-ecr (annDefFetchProcBTVar d0)))
@@ -76,6 +77,19 @@
   (lambda (bt-ann*)
     (generic-sort (lambda (bt-ann1 bt-ann2)
 		    (>= (car bt-ann1) (car bt-ann2))) bt-ann*)))
+
+(define (bta-insert-def-data def-datatype* body)
+  (let ((make-op (annMakeOp1 #f
+			     wft-define-data-property
+			     #f
+			     (parse-type '(all t t)))))
+  (let loop ((defs def-datatype*))
+    (if (null? defs)
+	body
+	(let ((def (car defs)))
+	  (annMakeLet (gensym 'begin)
+		      (make-op '_DEFINE_DATA (list (annMakeConst (cdr def))))
+		      (loop (cdr defs))))))))
 
 ;;; step 1
 ;;; type inference
@@ -602,6 +616,10 @@
 (define wft-error-property
   (lambda (type type*)
     (bta-note-dynamic! (type-fetch-btann type))))
+
+(define wft-define-data-property
+  (lambda (type type*)
+    (bta-note-level! (- *bta-max-bt* 1) (type-fetch-btann type))))
 
 (define (wft-make-memo-property level)
   (lambda (type type*)

@@ -3,11 +3,6 @@
 ;;; compiler generator (with control operators)
 ;;;
 
-(define-syntax maybe-reset		;exchange if needed
-  (syntax-rules ()
-    ((_ x) x)
-    ((_ x) (reset x))))
-
 ;;; interface to create generating extensions
 ;;; syntax constructors
 (define (make-ge-var l v)
@@ -179,28 +174,19 @@
 		    ,(reset (k e3)))))))
 
 (define-syntax _op
-  (syntax-rules (apply)
+  (syntax-rules (apply cons _define_data)
+    ((_op lv _define_data arg)
+     (make-residual-define-data lv arg))
     ((_op 0 op arg ...)
      (op arg ...))
-    ((_op 1 apply arg ...)
-     (_apply (list arg ...)))
+    ((_op 1 cons e1 e2)
+     (make-residual-cons e1 e2))
+    ((_op 1 apply f arg)
+     (make-residual-apply f arg))
     ((_op 1 op arg ...)
      `(op ,(maybe-reset arg) ...))
     ((_op lv op arg ...)
      `(_OP ,(pred lv) op ,(maybe-reset arg) ...))))
-
-(define (_apply args)
-  (let ((fn (car args))
-	(fa (cadr args)))
-    (let loop ((fa fa) (acc '()))
-      (if (pair? fa)
-	  (if (equal? (car fa) 'CONS)
-	      (loop (caddr fa) (cons (cadr fa) acc))
-	      (if (and (equal? (car fa) 'QUOTE)
-		       (equal? (cadr fa) '()))
-		  `(,fn ,@(reverse acc))
-		  `(APPLY ,@args)))
-	  `(APPLY ,@args)))))
 
 (define-syntax _lift0
   (syntax-rules ()
@@ -255,6 +241,7 @@
 (define (start-memo-internal level fname fct bts args . new-goal)
   (clear-residual-program!) 
   (clear-memolist!)
+  (clear-support-code!)
   (gensym-local-reset!)
   (gensym-reset!)
   (let* ((result (multi-memo level fname fct bts args))

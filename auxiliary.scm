@@ -32,14 +32,22 @@
 ;;; auxiliary
 (define *memolist* '())
 (define *residual-program* '())
+(define *support-code* '())
+
 (define (add-to-memolist! item)
   (set! *memolist* (cons item *memolist*)))
 (define (clear-memolist!)
   (set! *memolist* '()))
+
 (define (add-to-residual-program! item)
   (set! *residual-program* (cons item *residual-program*)))
 (define (clear-residual-program!)
   (set! *residual-program* '()))
+
+(define (add-to-support-code! item)
+  (set! *support-code* (cons item *support-code*)))
+(define (clear-support-code!)
+  (set! *support-code* '()))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; list of n results of applying thunk
 

@@ -1,4 +1,5 @@
 ;;; ,open signals escapes
+;;; you need to define ***dynamic-context-propagation*** :boolean
 (newline)
 (display "loading program-generator generator")
 (newline)
@@ -12,14 +13,15 @@
 (load "cogen-oca.scm")
 (load "cogen-skeleton.scm")
 (load "cogen-eq-flow.scm")
+
 ;;; to run the generating extension
 (load "cogen-ctors.scm")
+(load "cogen-control.scm")
 (load "cogen-library.scm")
 (load "cogen-residual.scm")
-;;; (load "cogen-cps.scm")		; in cps
-(load "shift-reset.scm")		; necessary for direct style,
-					; from s48 distribution 
-;;;(load "cogen-direct.scm")		; in direct style
+(load "shift-reset.scm")		; from s48 distribution 
+;;;(load "cogen-direct.scm")		; in direct style w/ procedures
 (load "cogen-direct-syntax.scm")	; in direct style w/ macros
-;;; to generate the generating extension
+
+;;; main
 (load "cogen-driver.scm") 

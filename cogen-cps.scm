@@ -204,12 +204,12 @@
 		       ,(argc id) ...))))))
 
 ;;; selectors and tests for constructors with memoization
-(define-syntax _s_t_memo
+(define-syntax _st_memo
   (syntax-rules ()
     ((_ 0 sel/test argc)
      (lambda (k) (argc (lambda (arg) (k (sel/test (arg 'VALUE)))))))
     ((_ lv sel/test argc)
-     (lambda (k) (k `(_S_T_MEMO ,(pred lv) sel/test ,(argc id)))))))
+     (lambda (k) (k `(_ST_MEMO ,(pred lv) sel/test ,(argc id)))))))
 
 ;;; conditional
 (define (_If level e1c e2c e3c)

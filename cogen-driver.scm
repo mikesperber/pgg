@@ -41,6 +41,7 @@
 	  (bta-run (scheme->abssyn-d def-function* symbol-table)
 		   symbol-table
 		   skeleton
+		   def-datatype*
 		   def-typesig*
 		   def-opsig*)))
     (generate-d d*)
