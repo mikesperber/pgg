@@ -40,10 +40,9 @@
 	      (abssyn (scheme->abssyn-d def-function* symbol-table))
 	      (d* (bta-run abssyn
 			   symbol-table
-			   skeleton
-			   rejected*)))
+			   skeleton)))
 	 (perform-termination-analysis d*)
-	 (generate-d d*)
+	 (generate-d d* skeleton rejected*)
 	 (process-options options skeleton rejected*)
 	 (append (filter (lambda (def) (eq? (car def) 'define-data))
 			 rejected*)
@@ -90,10 +89,14 @@
 			   (structure-sym
 			    (string->symbol option))
 			   (main-sym
-			    '$goal))
+			    '$goal)
+			   (specialize-sym
+			    'specialize-$goal))
 		       (p
 			`(define-interface ,interface-sym
-			   (export ,(or user-main-sym main-sym) ,@user-export)))
+			   (export ,(or user-main-sym main-sym)
+				   ,specialize-sym
+				   ,@user-export)))
 		       (p
 			`(define-structure ,structure-sym ,interface-sym
 			   (open scheme signals define-data pgg-library

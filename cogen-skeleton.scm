@@ -18,12 +18,52 @@
 ;;; (define *generating-extension* '())
 ;;; (define *memo-optimize* #t)
 
+;;; figure out the maximum binding time at which each constructed type is used 
+(define *type-maxbt-alist* '())
+(define (register-type-desc! desc bt)
+  (let ((type-name (desc-type desc)))
+    (cond
+     ((assoc type-name *type-maxbt-alist*)
+      => (lambda (entry)
+	   (let ((value (cdr entry)))
+	     (if (< (car value) bt)
+		 (set-car! value bt)))))
+     (else
+      (set! *type-maxbt-alist*
+	    (cons (list type-name bt)
+		  *type-maxbt-alist*))))))
+
+;;; generate a list of define-data generators for those types which are
+;;; used at binding time greater than zero
+(define (generate-define-data def-type*)
+  (let loop ((def-type* def-type*) (res '()))
+    (cond
+     ((null? def-type*)
+      (reverse res))
+     ((and (eq? (caar def-type*) 'define-data)
+	   (cond
+	    ((assoc (cadar def-type*) *type-maxbt-alist*)
+	     => (lambda (entry)
+		  (let ((bt (cadr entry)))
+		    (and (< 0 bt)
+			 bt))))
+	    (else
+	     #f)))
+      => (lambda (level)
+	   (loop (cdr def-type*)
+		 (cons
+		  `(_OP ,level _DEFINE-DATA ',(cdar def-type*))
+		  res))))
+     (else
+      (loop (cdr def-type*) res)))))
+
 ;;; transform a multi-level programm into a program generator
-(define (generate-d d*)
+(define (generate-d d* skeleton def-type*)
   ;; need to add some initialization stuff, e.g., reset name
   ;; generators, clear memo caches, and to return the constructed
   ;; program afterwards
   (set-generating-extension! '())
+  (set! *type-maxbt-alist* '())
   ;; perform occurrence count analysis
   (oca-d d*)
   (let ((make-define (lambda (name formals body)
@@ -31,8 +71,7 @@
 			   `(define (,name ,@formals) ,body)
 			   `(define ,name ,body)))))
     (let loop ((d* d*))
-      (if (null? d*)
-	  *generating-extension*
+      (if (pair? d*)
 	  (begin
 	    (let* ((d (car d*)))
 	      (if (annIsDef? d)
@@ -43,7 +82,34 @@
 		    (set-generating-extension!
 		     (cons (make-define fname formals new-body)
 			   *generating-extension*)))))
-	    (loop (cdr d*)))))))
+	    (loop (cdr d*)))))
+    (let loop ((bts (cdr skeleton))
+	       (formals '())
+	       (actuals '())
+	       (i 1))
+      (if (null? bts)
+	  (let ((gen-def-data* (generate-define-data def-type*))
+		(goal-name '$goal))
+	    (set! formals (reverse formals))
+	    (set! actuals (reverse actuals))
+	    (set-generating-extension!
+	     (cons (make-define
+		    'SPECIALIZE-$GOAL
+		    formals
+		    `(specialize
+		      ,(if (null? gen-def-data*)
+			   goal-name
+			   `(lambda args
+			      ,@gen-def-data*
+			      (apply ,goal-name args)))
+		      ',skeleton (list ,@actuals)))
+		   *generating-extension*)))
+	  (let ((sym (string->symbol (string-append "x" (number->string i)))))
+	    (if (zero? (car bts))
+		(loop (cdr bts) (cons sym formals) (cons sym actuals) (+ i 1))
+		(loop (cdr bts) formals (cons `',sym actuals) (+ i 1))))))
+    *generating-extension*))
+
 ;;; transform binding-time annotated expression e 
 ;;; into the generating extension
 (define (generate fname e)
@@ -176,6 +242,7 @@
 	     (memo-level
 	      (ann->bt
 	       (type->memo (node-fetch-type (annExprFetchType e))))))
+	(register-type-desc! (annFetchCtorDesc e) level)
 	(if (and *memo-optimize* (<= memo-level level))
 	    (make-ge-ctor level
 			  (annFetchCtorName e)
@@ -190,6 +257,7 @@
 	     (memo-level
 	      (ann->bt
 	       (type->memo (node-fetch-type (annExprFetchType arg))))))
+	(register-type-desc! (annFetchSelDesc e) level)
 	((if (and *memo-optimize* (<= memo-level level))
 	     make-ge-sel make-ge-sel-memo)
 	 level
@@ -201,6 +269,7 @@
 	     (memo-level
 	      (ann->bt
 	       (type->memo (node-fetch-type (annExprFetchType arg))))))
+	(register-type-desc! (annFetchTestDesc e) level)
 	((if (and *memo-optimize* (<= memo-level level))
 	     make-ge-test make-ge-test-memo)
 	 level

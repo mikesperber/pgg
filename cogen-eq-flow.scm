@@ -32,8 +32,7 @@
 ;;; `symtab' is an initial symbol table where only constructors,
 ;;; selectors, and constructor tests are defined
 ;;; `skeleton' function call with arguments replaced by binding times
-;;; `def-type*' is a list of type declarations
-(define (bta-run d* symtab skeleton def-type*)
+(define (bta-run d* symtab skeleton)
   (bta-debug-level 1 (display "bta-run") (newline))
   (let ((goal-proc (car skeleton))
 	(bts (cdr skeleton)))
@@ -54,8 +53,9 @@
 			    (error "specified goal is not a procedure"))))))
 	   (d0 (annMakeDef '$goal formals
 			   (bta-insert-def-mutable
-			    d* (bta-insert-def-data
-				def-type* (ann-maybe-coerce (annMakeCall goal-proc (map annMakeVar formals)))))))
+			    d*
+			    (ann-maybe-coerce
+			     (annMakeCall goal-proc (map annMakeVar formals))))))
 	   (mutable-defs (collect-mutable-defs d*))
 	   (d* (cons d0 d*))
 	   (do-type-inference (full-collect-d* d*))
@@ -102,22 +102,6 @@
   (lambda (bt-ann*)
     (generic-sort (lambda (bt-ann1 bt-ann2)
 		    (>= (car bt-ann1) (car bt-ann2))) bt-ann*)))
-
-(define (bta-insert-def-data def-datatype* body)
-  (let ((make-op (annMakeOp1 #f
-			     wft-define-data-property
-			     #f
-			     (parse-type '(all t t)))))
-  (let loop ((defs def-datatype*))
-    (if (null? defs)
-	body
-	(let ((def (car defs)))
-	  (if (eq? (car def) 'define-data)
-	      (annMakeBegin
-	       (make-op '_DEFINE_DATA
-			(list (annMakeConst (cdr def))))
-	       (loop (cdr defs)))
-	      (loop (cdr defs))))))))
 
 (define (bta-insert-def-mutable d* body)
   (let ((make-op (annMakeOp1 #f

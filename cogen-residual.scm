@@ -66,21 +66,10 @@
   `(,name ,lv ,@args))
 
 (define (make-residual-define-data lv arg)
-  (let ((real-arg
-	 (let loop ((arg arg))
-	   (cond
-	    ((and (pair? arg) (eq? (car arg) 'QUOTE))
-	     (cadr arg))
-	    ((and (pair? arg) (eq? (car arg) '_LIFT0))
-	     (loop (caddr arg)))
-	    ((and (pair? arg) (eq? (car arg) '_LIFT))
-	     (loop (cadddr arg)))
-	    (else
-	     arg)))))
-    (add-to-support-code! `(define-data ,@real-arg))
-    (if (zero? lv)
-	'pooof				;ignored
-	`(_OP ,(- lv 1) _DEFINE_DATA ,arg))))
+  (add-to-support-code! `(define-data ,@arg))
+  (if (zero? lv)
+      'pooof				;ignored
+      `(_OP ,(- lv 1) _DEFINE_DATA `,arg)))
 
 (define (make-residual-define-mutable lv var arg)
   (add-to-support-code! `(define ,var ,arg))

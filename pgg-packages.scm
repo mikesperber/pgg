@@ -328,6 +328,7 @@
 	cogen-abssyn
 	cogen-oca
 	cogen-bta
+	cogen-typesig
 	cogen-construct-genext)
   (files cogen-skeleton))
 
