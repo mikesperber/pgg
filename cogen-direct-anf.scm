@@ -224,6 +224,8 @@
   (syntax-rules ()
     ((_freevar 0 arg)
      arg)
+    ((_freevar 1 arg)
+     'arg)
     ((_freevar lv arg)
      `(_FREEVAR ,(pred lv) arg))))
 
