@@ -796,13 +796,23 @@
 	      type*)))
 
 (define (wft-make-memo-property level active)
-  (lambda (type type*)
-    (for-each (lambda (type)
-		(if (<= active *bta-max-bt*)
-		    (bta-note-level!
-		     level
-		     (type-fetch-btann type))))
-	      (cons type type*))))
+  (let ((not-initialized #t))
+    (lambda (type type*)
+      (if not-initialized
+	  (begin
+	    (set! level ((eval `(lambda (max-level) ,level) (interaction-environment))
+			 *bta-max-bt*))
+	    (set! active ((eval `(lambda (max-level) ,active) (interaction-environment))
+			  *bta-max-bt*))
+	    (if (< level 0) (set! level 0))
+	    (if (>= level *bta-max-bt*) (set! level (- *bta-max-bt* 1)))
+	    (set! not-initialized #f)))
+      (if (<= active *bta-max-bt*)
+	  (for-each (lambda (type)
+		      (bta-note-level!
+		       level
+		       (type-fetch-btann type)))
+		    (cons type type*))))))
 
 (define wft-property-table
   `((apply   . ,wft-apply-property)
