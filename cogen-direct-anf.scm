@@ -352,7 +352,7 @@
     ((_op_pure 1 cons e1 e2)
      (make-residual-cons e1 e2))
     ((_op_pure 1 op arg ...)
-     (make-residual-primop 'op ,arg ...))
+     (make-residual-primop 'op arg ...))
     ((_op_pure lv op arg ...)
      (_complete
       (make-residual-generator-vve* '_OP_PURE (pred lv) 'op arg ...)))))
