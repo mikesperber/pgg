@@ -124,7 +124,9 @@
     (map (lambda (d) (scheme->abssyn-one-d imp-defined-names* symtab d)) d*))) 
 
 (define (scheme->abssyn-make-call fname args)
-  (annMakeCall fname (map ann-maybe-coerce args)))
+  (annMakeApp (annMakeVar fname) (map ann-maybe-coerce args))
+  ;; (annMakeCall fname (map ann-maybe-coerce args))
+  )
 
 (define (scheme->abssyn-make-app f args)
   (annMakeApp f (map ann-maybe-coerce args)))

@@ -1005,6 +1005,8 @@
   (bta-debug-level 2 (with-output-to-file "/tmp/bta-pre-solve.scm"
 		   (lambda () (display-bts-d* d*) (newline))))
   (for-each bta-solve-d d*)
+  (bta-debug-level 2 (with-output-to-file "/tmp/bta-post-solve.scm"
+		   (lambda () (display-bts-d* d*) (newline))))
   (bta-debug-level 1 (display "bta-solve done") (newline))) 
 
 (define (bta-solve-d d)
@@ -1357,11 +1359,13 @@
   (for-each
    (lambda (d)
      (let ((name (annDefFetchProcName d))
-	   (formals (or (annDefFetchProcFormals d) '(NO_ARGS)))
+	   (formals (annDefFetchProcFormals d))
 	   (body (annDefFetchProcBody d)))
-     (display `(define (,name ,@formals : ,(display-bts-t
-					    (annDefFetchProcBTVar d)))
-		 ,(display-bts-e body)))
+     (display
+      `(define ,name  : ,(display-bts-t (annDefFetchProcBTVar d))
+	 ,(if formals
+	      `(lambda ,formals ,(display-bts-e body))
+	      (display-bts-e body))))
      (newline)))
    d*))
 
@@ -1370,21 +1374,23 @@
       (let ((effect (type-fetch-effect (node-fetch-type node))))
 	(display-bts-eff effect))
       (let loop ((node node) (seenb4 '()))
-	(let ((type (node-fetch-type node))
-	      (info (node-fetch-info (full-ecr node))))
+	(let* ((ecr (full-ecr node))
+	       (info (node-fetch-info ecr))
+	       (type (info-fetch-type info)))
 	  (let* ((args (type-fetch-args type))
 		 (ctor (type-fetch-ctor type))
 		 (effect (type-fetch-effect type))
 		 (btann (type-fetch-btann type))
 		 (dlist (ann->dlist btann))
-		 (seen (cons node seenb4)))
-	    (if #t ;;(memq node seenb4)
+		 (memo (type->memo type))
+		 (seen (cons ecr seenb4)))
+	    (if (memq ecr seenb4)
 		`(*** ,ctor ,(info-fetch-id info))
 		`(,ctor ,(ann->visited btann)
-			,(ann->bt btann)
-			,(map ann->visited dlist)
-			,(display-bts-eff effect)
-			,@(map loop args (map (lambda (foo) seen) args)))))))))
+			"bt=" ,(ann->bt btann)
+			"dlist=" ,(map ann->visited dlist)
+			"memo=" ,memo
+			"args=" ,@(map (lambda (arg) (loop arg seen)) args))))))))
 
 (define (display-bts-eff effect)
   (and effect

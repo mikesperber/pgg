@@ -7,17 +7,23 @@
 ;;; memo function stuff: standard implementation
 
 (define-record memolist-entry
-  (name) (value '()) (bt #f) (count 0) (fct #f) (var #f) (pp #f) (bts #f))
+  (name) (value #f) (bt #f) (count 0) (fct #f) (var #f) (pp #f) (bts #f))
 
 (define-syntax start-memo
   (syntax-rules ()
     ((_ level fn bts args)
-     (start-memo-internal level 'fn fn bts args))
+     (begin (prepare!)
+	    (start-memo-internal level 'fn fn bts args)))
     ((_ level fn bts args new-goal)
-     (start-memo-internal level 'fn fn bts args))))
+     (begin (prepare!)
+	    (start-memo-internal level 'fn fn bts args)))))
 
 (define (specialize goal-proc memo-template args . new-goal)
   ;; memo-template = (goal-proc-name bt ...)
+  (prepare!)
+  (specialize-after-prepare))
+
+(define (specialize-after-prepare goal-proc memo-template args . new-goal)
   (let* ((bts (cdr memo-template))
 	 (level (apply max 1 bts)))
     (apply start-memo-internal
@@ -32,6 +38,7 @@
   (let ((level (list-ref memo-template 1))
 	(goal-proc-name (list-ref memo-template 3))
 	(bts (cadr (list-ref memo-template 4))))
+    (prepare!)
     (apply start-memo-internal level
                                goal-proc-name
 			       goal-proc
@@ -39,7 +46,7 @@
 			       args
 			       new-goal)))
 
-(define (start-memo-internal level fname fct bts args . new-goal)
+(define (prepare!)
   (clear-residual-program!) 
   (clear-memolist!)
   (clear-support-code!)
@@ -48,8 +55,10 @@
   (gensym-reset!)
   (creation-log-initialize!)
   (poly-registry-reset!)
-  (let* ((initial-scope (gensym-local-push!))
-	 (initial-static-store (initialize-static-store!))
+  (initialize-static-store!))
+
+(define (start-memo-internal level fname fct bts args . new-goal)
+  (let* ((enter-scope (gensym-local-push!))
 	 (result (reset (multi-memo level level fname fct #f bts args)))
 	 (result (if (and (pair? result) (eq? (car result) 'LET))
 		     (car (cdaadr result))
@@ -116,9 +125,9 @@
   (write (memolist-entry->bt entry))
   (display #\space)
   (let ((v (memolist-entry->value entry)))
-    (if (null? v)
-	(write '())
-	(serialize v (list (memolist-entry->bt entry)))))
+    (if v
+	(serialize v (list (memolist-entry->bt entry)))
+	(write #f)))
   (display #\space)
   (write (memolist-entry->count entry))
   ;;(fct #f)
@@ -295,7 +304,12 @@
 				   (apply make-residual-primop 'LIST actuals)))))
       (if result-needed
 	  (if (zero? bt)
-	      (let* ((cloned-return-v (top-clone-dynamic (memolist-entry->value found) (list bt)))
+	      (let* ((** (let loop ()	;; busy waiting: not with true concurrency
+			   (if (not (memolist-entry->value found))
+			       (begin
+				 (relinquish-timeslice)
+				 (loop)))))
+		     (cloned-return-v (top-clone-dynamic (memolist-entry->value found) (list bt)))
 		     (dynamics (top-project-dynamic cloned-return-v (list bt)))
 		     (formals (map car dynamics)))
 		(shift

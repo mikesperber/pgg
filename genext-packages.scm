@@ -135,6 +135,8 @@
 (define-interface cogen-memo-interface
   (export ((start-memo) :syntax)
 	  specialize
+	  prepare!
+	  specialize-after-prepare
 	  continue
 	  nextlevel
 	  suspend
@@ -303,13 +305,13 @@
   (files shift-reset))
 
 (define-structure cogen-library cogen-library-interface
-  (open scheme signals auxiliary shift-reset
+  (open scheme signals auxiliary shift-reset threads
 	cogen-completers cogen-specialize cogen-gensym cogen-boxops)
   (files cogen-library))
 
 (define-structure cogen-residual
   cogen-residual-interface
-  (open scheme cogen-specialize)
+  (open scheme cogen-gensym cogen-specialize)
   (files cogen-residual))
 
 (define-interface cogen-completers-interface
@@ -338,7 +340,7 @@
 		      cogen-direct-anf-interface
 		      cogen-memo-interface
 		      cogen-boxops-interface)
-  (open scheme escapes signals auxiliary
+  (open scheme escapes signals auxiliary threads placeholders
 	cogen-gensym cogen-boxops cogen-globals cogen-library
 	shift-reset cogen-completers cogen-memo-standard cogen-residual )
   (files cogen-direct-anf))

@@ -14,7 +14,7 @@
 	    0)))
 (define gensym
   (lambda (sym)
-    (set! *gensym-counter* (+ *gensym-counter* 1))
+    (set! *gensym-counter* (+ *gensym-counter* 2))
     (any->symbol sym "-" *gensym-counter*)))
 (define gensym-global-trimmed
   (lambda (sym)
@@ -23,13 +23,13 @@
   (lambda (sym)
     (gensym 'f)))
 (define gensym-trimmed gensym-global-trimmed)
-(define *gensym-local* (list 0))
+(define *gensym-local* '())
 (define gensym-local-reset!
   (lambda ()
-    (set! *gensym-local* (list 0))))
+    (set! *gensym-local* '())))
 (define gensym-local-push!
   (lambda ()
-    (set! *gensym-local* (cons 0 *gensym-local*))))
+    (set! *gensym-local* (cons 1 *gensym-local*))))
 (define gensym-local-pop!
   (lambda ()
     (set! *gensym-local* (cdr *gensym-local*))))
@@ -38,18 +38,26 @@
     *gensym-local*))
 (define gensym-local-push-old!
   (lambda (old)
-    (set! *gensym-local* (cons (car old) *gensym-local*))))
+    (if (null? old)
+	(gensym-local-push!)
+	(set! *gensym-local* (cons (car old) *gensym-local*)))))
 (define gensym-local-use-stub
   (lambda (sym)
-    (set-car! *gensym-local* (+ (car *gensym-local*) 1))
-    (any->symbol sym "-" (car *gensym-local*))))
+    (if (null? *gensym-local*)
+	(gensym sym)
+	(begin
+	  (set-car! *gensym-local* (+ (car *gensym-local*) 2))
+	  (any->symbol sym "-" (car *gensym-local*))))))
 (define gensym-local-trimmed-use-stub
   (lambda (sym)
     (gensym-local-use-stub (trim-symbol sym))))
 (define gensym-local-ignore-stub
   (lambda (sym)
-    (set-car! *gensym-local* (+ (car *gensym-local*) 1))
-    (any->symbol "x-" (car *gensym-local*))))
+    (if (null? *gensym-local*)
+	(gensym "x")
+	(begin
+	  (set-car! *gensym-local* (+ (car *gensym-local*) 2))
+	  (any->symbol "x-" (car *gensym-local*))))))
 (define gensym-ignore-name-stubs!
   (lambda ()
     (set! gensym-trimmed gensym-global-ignore)

@@ -1,0 +1,61 @@
+(define-data universal
+  (in-base ex-base)
+  (in-fun ex-fun)
+  (in-pair ex-pair-1 ex-pair-2)
+  (in-error ex-error))
+
+(define-data env
+  (empty-env)
+  (extend-env env->var env->val env->next))
+
+(define-primitive force1 (all a (-> a a)) 1)
+
+;; a program is an applied lambda expression of base type
+(define (run e vars vals)
+  (let* ((rho0 (make-env vars vals))
+	 (result (ev e rho0)))
+    (ex-base result)))
+
+(define-without-memoization (ev e rho)
+  (cond
+   ((var-exp? e)
+    (apply-env rho e))
+   ((const-exp? e)
+    (in-base (const->value e)))
+   ((if-exp? e)
+    (if (ex-base (ev (if->cond e) rho))
+	(ev (if->then e) rho)
+	(ev (if->else e) rho)))
+   ((let-exp? e)
+    (let ((v (ev (let->header e) rho)))
+      (ev (let->body e) (extend-env (let->var e) v rho))))
+   ((op-exp? e)
+    (let ((e* (op->args e)))
+      (case (op->name e)
+	((cons) (in-pair (ev (car e*) rho) (ev (cadr e*) rho)))
+	((car) (ex-pair-1 (ev (car e*) rho)))
+	((cdr) (ex-pair-2 (ev (car e*) rho)))
+	(else (in-error (error "unknown primitive operator"))))))
+   ((lambda-exp? e)
+    (in-fun (lambda-poly (v)
+			 (ev (lambda->body e) (extend-env (lambda->var e) v rho)))))
+   ((app-exp? e)
+    ((ex-fun (ev (app->rator e) rho))
+     (ev (app->rand e) rho)))
+   (else
+    (in-error (error "syntax error in program")))))
+
+(define (make-env vars vals)
+  (if (null? vars)
+      (empty-env)
+      (extend-env (car vars)
+		  (in-base (car vals))
+		  (make-env (cdr vars) (cdr vals)))))
+
+(define (apply-env env var)
+  (let loop ((env env))
+    (if (empty-env? env)
+	(in-error (error "unknown variable"))
+	(if (eqv? var (env->var env))
+	    (env->val env)
+	    (loop (env->next env))))))

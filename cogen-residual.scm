@@ -17,6 +17,13 @@
 
 (define (make-residual-let var exp body)
   (cond
+   ((null? (gensym-local-hold))
+    (let ((new-def
+	   (if (and (pair? exp) (eq? (car exp) 'BEGIN))
+	       `(DEFINE ,var ,@(cdr exp))
+	       `(DEFINE ,var ,exp))))
+      (add-to-residual-program! new-def))
+    body)
    ((eq? var body)
     exp)
    ((and (pair? exp)			; kludge
@@ -31,7 +38,7 @@
    ((and (pair? body) (eq? (car body) 'BEGIN))
     `(LET ((,var ,exp)) ,@(cdr body)))
    ((and (pair? body) (eq? (car body) 'OR) (eqv? var (cadr body)))
-    `(OR ,exp ,@(cddr body))) ;unsafe: no guarantee that var does not occur in body
+    `(OR ,exp ,@(cddr body)))		;unsafe: no guarantee that var does not occur in body
    (else
     `(LET ((,var ,exp)) ,body))))
 

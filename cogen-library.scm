@@ -77,7 +77,7 @@
 	 (ctor (gensym 'poly))		;not always correct
 	 (spec-proc
 	  (lambda (pp old-body-statics-boxed value-template-boxed)
-	    (let* ((** (gensym-local-push-old! boxed-gensym-counter))
+	    (let* ((reinstall (gensym-local-push-old! boxed-gensym-counter))
 		   (cloned (clone-dynamic pp bts))
 		   (dynamics (map car (project-dynamic cloned bts 'dynamic))))
 	      (set-cdr! the-residual-piece (list '***))
@@ -150,6 +150,11 @@
 			  spec-procs)
 			 entry)))
 		  (actuals (map car (project-dynamic pp bts 'dynamic))))
+	     (let loop ()	;; busy waiting would not work with true concurrency
+	       (if (not (car (cddddr found)))
+		   (begin
+		     (relinquish-timeslice)
+		     (loop))))
 	     (let* ((cloned-return-v (top-clone-dynamic (car (cddddr found)) (list body-level)))
 		    (dynamics (top-project-dynamic cloned-return-v (list body-level)))
 		    (formals (map car dynamics)))
