@@ -31,6 +31,8 @@
   (debug-level 1 (display "bta-run") (newline))
   (set! *bta-max-bt*
 	(apply max (cdr skeleton)))
+  (if (zero? *bta-max-bt*)
+      (set! *bta-max-bt* 1))
   (type->btann! the-top-type (make-ann))
   (set! *bta-bt-points* '())
   (bta-note-dynamic! (type->btann the-top-type))
@@ -39,8 +41,10 @@
 	 (d (annDefLookup goal-proc d*))
 	 (formals (annDefFetchProcFormals d))
 	 (d0 (annMakeDef '$goal formals
-			 (bta-insert-def-data def-datatype*
-					      (annMakeCall goal-proc (map annMakeVar formals)))))
+			 (bta-insert-def-data
+			  def-datatype*
+			  (scheme->abssyn-maybe-coerce
+			   (annMakeCall goal-proc (map annMakeVar formals))))))
 	 (d* (cons d0 d*))
 	 (do-type-inference (full-collect-d* symtab d*))
 	 (proc-node (full-ecr (annDefFetchProcBTVar d0)))
