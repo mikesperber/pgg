@@ -1,10 +1,12 @@
-E ::=	K | (quote A) | V | (if E E E) | (cond (E E)* (else E)?) |
+E ::=	K | (quote A) | (quasiquote A) | V | (if E E E) | (cond (E E)* (else E)?) |
 	(O E*) | (P E*) | (begin E*)
 	(let ((V E)*) D0* E*) | (let* ((V E)*) D0* E*) |
 	(letrec ((V (lambda (V*) E*))*) D0* E*) |
 	(let P ((V E)*) D0* E*) |
 	(do ((V E E)*) (E E*) E*) |
 	(case E ((A*) E*)* (else E*)?) |
+	(let-syntax ((P (syntax-rules (V*) R)))) |
+	(letrec-syntax ((P (syntax-rules (V*) R))*)) |
 	(lambda (V*) D0* E*) | (E E*) |
 	[ (lambda V D0* E*) | (lambda (V* . V) D0* E*) | ]
 	(C E*) | (Ci E) | (C? E) |		% ctors, selectors, tests
@@ -18,7 +20,9 @@ D ::=	D0 |
 	(define-data TC (C Ci*)+) |
 	(define-type (P B*) B) |
 	(define-primitive O T [dynamic|error|opaque|pure|apply]) |
-	(define-memo M <number>)
+	(define-memo M <number>) |
+	(define-macro P (syntax-rules (V*) R))
+R ::=	<???> of R5RS
 T ::= (all TV T) | (rec TV T) | (TC T*) | TV
 TV    type variable (must be bound by rec or all)
 TC    type constructor

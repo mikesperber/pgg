@@ -42,6 +42,7 @@
 	  annMakePureOp
 	  annMakeFullOp
 	  annMakeOp1
+	  annMakeOpCoerce
 	  annIsOp?
 	  annFetchOpName
 	  annFetchOpArgs
@@ -418,6 +419,7 @@
 	  make-residual-call
 	  make-residual-closed-lambda
 	  make-residual-literal
+	  make-residual-generator
 	  make-residual-definition!))
 
 (define-structure cogen-residual
@@ -605,7 +607,7 @@
   (files cogen-labset-bylist))
 
 (define-structure pgg pgg-interface
-  (open scheme filenames source-file-names auxiliary
+  (open scheme auxiliary
 	cogen-scheme
 	cogen-typesig
 	cogen-bta
@@ -725,7 +727,7 @@
 
 (define-structure pgg-compiler
   (export cogen-driver)
-  (open scheme filenames source-file-names auxiliary
+  (open scheme auxiliary
 	cogen-scheme cogen-bta
 	cogen-compile-skeleton
 	)

@@ -111,6 +111,10 @@
   (annMakeExpr 'OP (vector op args opaque property pp type)))
 (define (annMakeOp1 opaque property pp type)
   (lambda (op args) (annMakeFullOp op opaque property pp type args)))
+(define (annMakeOpCoerce opaque property pp type)
+  (lambda (op args)
+    (annMakeFullOp op opaque property pp type
+		   (map ann-maybe-coerce args))))
 (define (annIsOp? e)
   (equal? 'OP (annExprFetchTag e)))
 (define (annFetchOpName e)

@@ -51,6 +51,9 @@
 	  `(CONS ,exp1 ,exp2))))
       `(CONS ,exp1 ,exp2)))
 
+(define (make-residual-generator name lv . args)
+  `(,name ,lv ,@args))
+
 (define (make-residual-define-data lv arg)
   (let ((real-arg
 	 (let loop ((arg arg))

@@ -77,7 +77,7 @@
 	 (op-option (and (pair? op-optional) (car op-optional)))
 	 (op-apair (assoc op-option wft-property-table)) ;defined in cogen-eq-flow
 	 (st-entry (list op-name
-			 (annMakeOp1
+			 (annMakeOpCoerce
 			  (eq? op-option 'pure) ;opacity
 			  (and op-apair (cdr op-apair))          ;property (a function)
 			  #f

@@ -1,7 +1,8 @@
++ insert memoization points more cleverly: only the outermost lam-D or if-D
 - implement coarity raising
 - extend the top-level such that arbitrary Scheme programs (including
   non-functional definitions) are allowed
-- implement BACKQUOTE, UNQUOTE, UNQUOTE-SPLICING
++ implement BACKQUOTE, UNQUOTE, UNQUOTE-SPLICING
 + use the proposed macro mechanism of R4RS to implement non-primitive forms
 - automatically insert representation coercions for (partially) static
   top-level arguments (from the standard representation to the memoized one)

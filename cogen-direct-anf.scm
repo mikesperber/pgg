@@ -17,7 +17,7 @@
 (define (make-ge-const c)
   `',c)
 (define (make-ge-cond l lb c t e)
-  `(_IF ,l ,lb ,c ,t ,e))
+  `(_IF ,l ,c ,t ,e))
 (define (make-ge-op l o args)
   `(_OP ,l ,o ,@args))
 (define (make-ge-op-pure l o args)
@@ -79,14 +79,14 @@
     ((_app 1 e ...)
      (_complete-serious (make-residual-call e ...)))
     ((_app lv e ...)
-     (_complete `(_APP ,(pred lv) ,e ...)))))
+     (_complete (make-residual-generator '_APP (pred lv) e ...)))))
 
 (define-syntax _app_memo
   (syntax-rules ()
     ((_app_memo 0 f arg ...)
      ((f 'VALUE) arg ...))
     ((_app_memo lv e ...)
-     (_complete `(_APP_MEMO ,(pred lv) ,e ...)))))
+     (_complete (make-residual-generator _APP_MEMO (pred lv) e ...)))))
 
 (define-syntax _lambda
   (syntax-rules ()
@@ -98,9 +98,8 @@
 (define (_lambda-internal lv arity f)
   (let* ((vars (map gensym-local arity))
 	 (body (reset (apply f vars))))
-    (if (= lv 1)
-	`(LAMBDA ,vars ,body)
-	(make-ge-lambda (pred lv) vars #f body))))
+    (_complete				;don't duplicate, experimental
+     (make-ge-lambda (pred lv) vars #f body))))
 
 (define-syntax _lambda_memo
   (syntax-rules ()
@@ -127,15 +126,16 @@
 	 (new-bts (binding-times compressed-dynamics))
 	 (formal-fvs (map cdr clone-map)))
     ;; (> lv 0)
-    `(_LAMBDA_MEMO
-      ,(- lv 1)
-      ',arity
-      ',(gensym 'cls)
-      (LIST ,@actual-fvs)
-      ',new-bts
-      (LAMBDA ,formal-fvs
-	(LAMBDA ,formals
-	  ,(reset (apply (apply f cloned-vvs) formals)))))))
+    (_complete
+     `(_LAMBDA_MEMO
+       ,(- lv 1)
+       ',arity
+       ',(gensym 'cls)
+       (LIST ,@actual-fvs)
+       ',new-bts
+       (LAMBDA ,formal-fvs
+	 (LAMBDA ,formals
+	   ,(reset (apply (apply f cloned-vvs) formals))))))))
 
 (define (_vlambda lv arity var f)
   (let* ((vars (map gensym-local arity))
@@ -192,24 +192,25 @@
 
 (define-syntax _if
   (syntax-rules ()
-    ((_if 0 lb e1 e2 e3)
+    ((_if 0 e1 e2 e3)
      (if e1 e2 e3))
-    ((_if 1 bl e1 e2 e3)
+    ((_if 1 e1 e2 e3)
      (shift k (make-residual-if e1 (reset (k e2)) (reset (k e3)))))
-    ((_if 1 bl e1 e2 e3)
+    ((_if 1 e1 e2 e3)
      (shift k (let* ((cond-code e1)
 		     (the-store (current-static-store!))
 		     (then-code (reset (k e2)))
 		     (xxxxxxxxx (install-static-store! the-store))
 		     (else-code (reset (k e3))))
 		(make-residual-if cond-code then-code else-code))))
-    ((_if lv bl e1 e2 e3)
+    ((_if lv e1 e2 e3)
      (shift k (let* ((cond-code e1)
 		     (the-store (current-static-store!))
 		     (then-code (reset (k e2)))
 		     (xxxxxxxxx (install-static-store! the-store))
 		     (else-code (reset (k e3))))
-		`(_IF ,(pred lv) 0 ,cond-code ,then-code ,else-code))))))
+		(make-residual-generator
+		 '_IF (pred lv) cond-code then-code else-code))))))
 
 (define-syntax _op
   (syntax-rules (apply cons _define_data _define)
@@ -237,7 +238,7 @@
     ((_op_pure 1 op arg ...)
      `(op ,arg ...))
     ((_op_pure lv op arg ...)
-     (_complete `(_OP ,(pred lv) op ,arg ...)))))
+     (_complete `(_OP_PURE ,(pred lv) op ,arg ...)))))
 
 (define-syntax _freevar
   (syntax-rules ()
