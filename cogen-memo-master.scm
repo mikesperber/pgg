@@ -99,7 +99,7 @@
 	   #t)))))
 
 (define (can-server-work-on? uid local-id)	; sync
-  ;; (display "Server ") (display uid) (display " asks if it can work on ") (display local-id) (newline)
+  (display "Server ") (display uid) (display " asks if it can work on ") (display local-id) (newline)
   (let loop ((master-cache *master-cache*) (final? null?))
     (cond
      ((master-cache-lookup-by-local-id local-id final?)
@@ -112,12 +112,13 @@
       (loop *master-cache* (lambda (item) (eq? item master-cache)))
       ))))
 
+;;; receives wrapped program-points
 (define (server-registers-memo-point! uid
 				      program-point local-name local-id bts fct)
-  ;; (display "Server ") (display uid) (display " registers memo point ")
-  ;; (display program-point)
-  ;; (display ", local id ") (display local-id) (newline)
-  (let ((static-skeleton (top-project-static program-point bts)))
+  (display "Server ") (display uid) (display " registers memo point ")
+  (display program-point)
+  (display ", local id ") (display local-id) (newline)
+  (let ((static-skeleton (top-project-static (unwrap-program-point program-point) bts)))
     (obtain-lock *master-cache-lock*)
     (cond
      ((master-cache-lookup static-skeleton)
@@ -142,13 +143,13 @@
 	
 	;; order is important here, no?
 	(master-cache-add-no-locking! static-skeleton master-entry)
-	;; (display "Registration of local id ") (display local-id) (display " complete") (newline)
+	(display "Registration of local id ") (display local-id) (display " complete") (newline)
 	(release-lock *master-cache-lock*)
 	(master-pending-add! static-skeleton pending-entry))))))
 
 
 (define (server-is-unemployed uid)
-  ;; (display "Server ") (display uid) (display " says it's unemployed") (newline)
+  (display "Server ") (display uid) (display " says it's unemployed") (newline)
   (let loop ()
     (obtain-lock *master-pending-lock*)
     (let ((entry (master-pending-advance-no-locking!)))
@@ -215,18 +216,17 @@
     (set! *n-servers* (length *server-aspaces*))
     (set! *n-unemployed-servers* 0)
 
-    (let* ((program-point (cons fname args))
-	   (static-skeleton (top-project-static program-point bts))
+    (let* ((program-point (wrap-program-point (cons fname args) bts))
 	   (new-name (gensym fname)))
       (server-registers-memo-point!
        (car server-uids) program-point new-name #f bts fct))
 
     (set! *finished-placeholder* (make-placeholder))
-
+    (display "starting remote initialization") (newline)
     (for-each (lambda (aspace)
 		(remote-run! aspace server-initialize! (local-aspace-uid)))
 	      *server-aspaces*)
-
+    (display "finished remote initialization") (newline)
     (placeholder-value *finished-placeholder*))
 
 (define (collect-residual-program)

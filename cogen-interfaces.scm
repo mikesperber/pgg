@@ -578,7 +578,7 @@
 			      start-specialization
 			      collect-residual-program))
   (open scheme shift-reset auxiliary bitwise small-big-scheme smurf-queues
-	cogen-library cogen-record cogen-completers cogen-residual
+	cogen-library cogen-record cogen-completers cogen-residual cogen-wrapping
 	message-low aspaces proxies threads threads-internal locks placeholders)
   (files cogen-distributed-utils
 	 cogen-spec-server
@@ -593,6 +593,14 @@
 	cogen-boxops cogen-globals cogen-library
 	shift-reset cogen-completers cogen-memo-distributed cogen-residual)
   (files cogen-direct-anf))
+
+(define-interface cogen-wrapping-interface
+  (export wrap-program-point
+	  unwrap-program-point
+	  wrap-similar-program-point))
+(define-structure cogen-wrapping cogen-wrapping-interface
+  (open scheme aspaces closures)
+  (files cogen-wrapping))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define-structure reaching-definitions pgg-interface

@@ -1,0 +1,55 @@
+;;; proxy wrappers for program points
+;;; ,open proxies closures
+
+(define (wrap-program-point program-point bts)
+  (cons (car program-point)
+	(wrap-values (cdr program-point) bts)))
+(define (wrap-values values bts)
+  (if (null? values)
+      '()
+      (let ((value (car values))
+	    (values (cdr values))
+	    (bt (car bts))
+	    (bts (cdr bts)))
+	(let ((rest (wrap-values values bts)))
+	  (cons (wrap-value value bt) rest)))))
+(define (wrap-value value bt)
+  ;; (display (list "wrap-value" value bt)) (newline)
+  (if (and (= bt 0) (or (pair? value) (vector? value)))
+      (make-proxy value)
+      value))
+
+(define (unwrap-program-point wrapped-pp)
+  (let loop ((values wrapped-pp))
+    (if (null? values)
+	'()
+	(cons (unwrap-value (car values)) (loop (cdr values))))))
+
+(define (unwrap-value value)
+  ;; (display (list "unwrap-value" value)) (newline)
+  (if (proxy? value)
+      (any-proxy-value value)
+      value))
+
+(define (wrap-similar-program-point pp bts last-pp wrapped-pp)
+  (cons (car pp)
+	(wrap-similar-values (cdr pp) bts (map cons (cdr last-pp) (cdr wrapped-pp)))))
+;;; could speed this up by only comparing corresponding positions
+(define (wrap-similar-values values bts last-values+wrapped-values)
+  (let ((wrap-similar-value
+	 (lambda (value bt)
+	   ;; (display (list "wrap-similar-value" value bt)) (newline)
+	   (cond
+	    ((and (= bt 0) (assq value last-values+wrapped-values))
+	     => (lambda (found)
+		  (cdr found)))
+	    (else
+	     (wrap-value value bt))))))
+    (let loop ((values values) (bts bts))
+      (if (null? values)
+	  '()
+	  (let ((value (car values))
+		(values (cdr values))
+		(bt (car bts))
+		(bts (cdr bts)))
+	    (cons (wrap-similar-value value bt) (loop values bts)))))))
