@@ -6,26 +6,19 @@
 (define (queue-any p q)
   (any p (queue-head q)))
 
-(define (dequeue-first! q pred)		;return and remove first entry
-  (let ((list (queue-head q)))		;satisfying pred, adapted from BIG
-    (cond ((null? list)
-	   #f)
-	  ((pred (car list))
-	   (set-queue-head! q (cdr list))
-           (if (null? (cdr list))
-               (set-queue-tail! q '()))	; don't retain pointers
-	   (car list))
-	  ((null? (cdr list))
-	   #f)
-	  (else
-	   (let loop ((list list))
-	     (let ((tail (cdr list)))
-	       (cond ((null? tail)
-		      #f)
-		     ((pred (car tail))
-		      (set-cdr! list (cdr tail))
-		      (if (null? (cdr tail))
-			  (set-queue-tail! q list))
-		      (car tail))
-		     (else
-		      (loop tail)))))))))
+(define (dequeue-first! p q)
+  (let loop ((pair (queue-head q))
+	     (last-pair '()))
+    (cond
+     ((null? pair) #f)
+     ((p (car pair))
+      (let ((value (car pair))
+	    (next  (cdr pair)))
+	(if (pair? last-pair)
+	    (set-cdr! last-pair next)
+	    (set-queue-head! q next))
+	(if (null? next)
+	    (set-queue-tail! q last-pair))
+	value))
+     (else
+      (loop (cdr pair) pair)))))
