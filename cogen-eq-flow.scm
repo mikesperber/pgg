@@ -44,9 +44,12 @@
 	 (proc-type-args
 	  (let loop ((node (car proc-type-tcargs)))
 	    (let ((type (node-fetch-type (full-ecr node))))
-		  (let ((args (type-fetch-args type)))
+	      (let ((args (type-fetch-args type))
+		    (ctor (type-fetch-ctor type)))
+		(if (equal? ctor ctor-product)
 		    (cons (node-fetch-type (full-ecr (car args)))
-			  (loop (cadr args)))))))
+			  (loop (cadr args)))
+		    '())))))
 	 (proc-type-result (full-ecr (cadr proc-type-tcargs)))
 	 (do-type-inference (full-make-base proc-type-result))
 	 (construct-bt-constraints (wft-d* d*))
@@ -123,7 +126,7 @@
 (define info-set-weight!  info->weight!)
 (define info-set-type!    info->type!)
 (define info-set-dlist!   info->dlist!)
-(define info-set-fvs      info->fvs!)
+(define info-set-fvs!     info->fvs!)
 ;;;
 ;;; represent \bot by ***bot***, \top by type constructor ***top***
 (define new-type make-type)
@@ -470,7 +473,7 @@
 	  (for-each loop op-args)
 	  (let ((btann (type-fetch-btann type))
 		(stann (type-fetch-stann type)))
-	    (if (and property (equal? property 'dynamic))
+	    (if (and op-property (equal? op-property 'dynamic))
 		(bta-note-dynamic! btann))
 	    (ann->dlist! stann (cons btann (ann->dlist stann)))
 	    (for-each
@@ -637,4 +640,4 @@
 		      (if (type-function? type)
 			  (map bta-memo-var (info-fetch-fvs info))
 			  (map bta-memo-var (type-fetch-args type))))))))))
-      bta-memo-var))
+      bta-memo-var)))
