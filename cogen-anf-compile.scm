@@ -186,7 +186,7 @@
     ((_ 0 sel v)
      (sel (v 'VALUE)))
     ((_sel_memo 1 sel v)
-     (_complete 
+     (_complete-serious 
       (make-residual-call (make-residual-var 'sel) v)))))
 
 (define-syntax _if
