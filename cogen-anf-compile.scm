@@ -9,80 +9,6 @@
 (set-scheme->abssyn-let-insertion! #f)
 (set-memo-optimize! #f)
 
-;;; this is vital in order to guarantee that every lambda carries
-;;; information about its free variables
-
-;;; interface to create generating extensions
-;;; syntax constructors
-;;; (now in cogen-construct-genext.scm)
-;;; (define (make-ge-var l v)
-;;;   v)
-;;; (define (make-ge-const c)
-;;;   `',c)
-;;; (define (make-ge-cond l lb c t e)
-;;;   `(_IF ,l ,lb ,c ,t ,e))
-;;;PJT: trivial-operator? undefined
-;;; (define (make-ge-op l o args)
-;;;   (if (trivial-operator? o)
-;;;       `(_OP ,l ,o ,@args)
-;;;       `(_OP_SERIOUS ,l ,o ,@args)))
-;;; (define (make-ge-call f bts args)
-;;;   `(,f ,@args))
-;;; (define (make-ge-let hl unf? bl v e body)
-;;;   `(LET ((,v ,e)) ,body))
-;;; (define (make-ge-begin hl prop? e1 e2)
-;;;   `(_BEGIN ,hl ,prop? ,e1 ,e2))
-;;;PJT: new version references _LAMBDA_POLY
-;;; (define (make-ge-lambda-memo l vars btv label fvars bts body)
-;;;   `(_LAMBDA_MEMO ,l ',vars ',label (LIST ,@fvars) ',bts
-;;; 		 (LAMBDA ,fvars (LAMBDA ,vars ,body))))
-;;; (define (make-ge-vlambda-memo l fixed-vars var btv label fvars bts body)
-;;;   `(_VLAMBDA_MEMO ,l ',fixed-vars ',var ',label (LIST ,@fvars) ',bts
-;;; 		 (LAMBDA ,fvars (LAMBDA (,@fixed-vars . ,var) ,body))))
-;;; (define (make-ge-app-memo l f btv args)
-;;;   `(_APP_MEMO ,l ,f ,@args))
-;;; (define (make-ge-lambda l vars btv body)
-;;;   `(_LAMBDA ,l ,vars ,body))
-;;; (define (make-ge-app l f btv args)
-;;;   `(_APP ,l ,f ,@args))
-;;;PJT: _CTOR_MEMO take `hidden´ argument
-;;; (define (make-ge-ctor-memo l bts ctor args)
-;;;   `(_CTOR_MEMO ,l ,bts ,ctor ,@args))
-;;; (define (make-ge-sel-memo l sel a)
-;;;   `(_S_T_MEMO ,l ,sel ,a))
-;;; (define (make-ge-test-memo l tst a)
-;;;   `(_S_T_MEMO ,l ,tst ,a))
-;;; (define (make-ge-ctor l ctor args)
-;;;   `(_OP ,l ,ctor ,@args))
-;;; (define (make-ge-sel l sel a)
-;;;   `(_OP ,l ,sel ,a))
-;;; (define (make-ge-test l tst a)
-;;;   `(_OP ,l ,tst ,a))
-;;; (define (make-ge-lift l diff a)
-;;;   `(_LIFT ,l ,diff ,a))
-;;; (define (make-ge-eval l diff a)
-;;;   `(_EVAL ,l ,diff ,a))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; now in cogen-completer.scm
-
-;;; (define-syntax _complete
-;;;   (syntax-rules ()
-;;;     ((_ body)
-;;;      (let ((var (gensym-local 'mlet)))
-;;;        (shift k (make-residual-let-trivial
-;;; 		 var body (list (k var))))))))
-
-;;; (define-syntax _complete-serious
-;;;   (syntax-rules ()
-;;;     ((_ body)
-;;;      (let ((var (gensym-local 'mlet)))
-;;;        (shift k (make-residual-let-serious
-;;; 		 var body (list (k var))))))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; an implementation using macros
-
 (define-syntax _app
   (syntax-rules ()
     ((_app 0 e ...)
@@ -109,10 +35,18 @@
 
 (define (_lambda-internal lv arity f)
   (let* ((vars (map gensym-local arity))
-	 (body (reset (apply f vars))))
-    (if (= lv 1)
-	(make-residual-closed-lambda vars 'FREE body)
-	(make-ge-lambda (pred lv) vars #f body))))
+	 (body (reset (apply f vars)))
+	 (l (pred lv))
+	 (generate-lambda
+	  (if (zero? l)
+	      (lambda ()
+		(make-residual-closed-lambda vars 'FREE body))
+	      (lambda ()
+		(make-residual-generator-vve '_LAMBDA l vars body)))))
+    (if *lambda-is-pure*
+	(generate-lambda)
+	(_complete			;don't duplicate, experimental
+	 (generate-lambda)))))
 
 (define-syntax _lambda_memo
   (syntax-rules ()
@@ -122,6 +56,7 @@
      (_lambda_memo-internal arg ...))))
 
 (define (_lambda_memo-internal lv arity label vvs bts f)
+  ;; the let* bindings are identical to cogen-direct-anf ---msp
   (let* ((formals (map gensym-local arity))
 	 (lambda-pp (cons label vvs))
 	 (dynamics (top-project-dynamic lambda-pp bts))
@@ -132,9 +67,9 @@
 					 (gensym-local arg)
 					 (gensym-local 'clone))))
 			 actual-fvs))
-	 (cloned-pp (clone-with clone-map lambda-pp bts))
+	 (cloned-pp (top-clone-with clone-map lambda-pp bts))
 	 (cloned-vvs (cdr cloned-pp))
-	 (new-bts (binding-times compressed-dynamics))
+	 (new-bts (map pred (map cdr compressed-dynamics)))
 	 (formal-fvs (map cdr clone-map)))
     ;; this only works in the two-level case for (= lv 1)
     ;; pjt: this is wrong
@@ -241,51 +176,3 @@
      body)				;;;?????????? _complete ??????????
     ((_ lv diff body)
      (_complete `(_EVAL ,(pred lv) ,diff ,body)))))
-
-;;; memo function stuff
-(define-syntax start-memo
-  (syntax-rules ()
-    ((_ package filename fn bts args)
-     (start-memo-internal package filename 1 'fn fn bts args))))
-
-(define (start-memo-internal package filename level fname fct bts args)
-  (initialize-residual-program! package filename)
-  (clear-memolist!)
-  (clear-support-code!)
-  (gensym-local-reset!)
-  (gensym-reset!)
-  (let* ((initial-scope (gensym-local-push!))
-	 (result (multi-memo level fname fct bts args))
-	 (drop-scope (gensym-local-pop!)))
-    result))
-
-;;; the memo-function
-;;; - fn is the name of the function to memoize
-;;; - args are the free variables of the function's body
-;;; - bts are their binding times
-(define (multi-memo level fname fct bts args)
-  (let*
-      ((enter-scope (gensym-local-push!))
-       (full-pp (cons fname args))
-       (pp (top-project-static full-pp bts))
-       (dynamics (top-project-dynamic full-pp bts))
-       (actuals (apply append dynamics))
-       (found
-	(or (assoc pp *memolist*)
-	    (let*
-		((new-name (gensym fname))
-		 (cloned-pp (top-clone-dynamic full-pp bts))
-		 (new-formals (apply append (top-project-dynamic cloned-pp bts)))
-		 (new-entry (add-to-memolist! (cons pp new-name)))
-		 (new-def  (make-residual-definition! new-name
-						      new-formals
-						      (reset (apply fct (cdr cloned-pp))))))
-	      (cons pp new-name))))
-       (res-name (cdr found))
-       (exit-scope (gensym-local-pop!)))
-    (if (= level 1)
-	;; generate call to fn with actual arguments
-	(_complete-serious
-	 (apply make-residual-call res-name actuals))
-	;; reconstruct multi-memo
-	(error "this should not happen"))))
