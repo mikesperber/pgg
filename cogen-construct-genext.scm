@@ -18,12 +18,27 @@
   (if (zero? l)
       (make-residual-if c t e)
       `(_IF ,l ,c ,t ,e)))
+
+(define $primitive-op? (make-fluid (lambda (op) #t)))
+
+(define (with-primitive-op? op? thunk)
+  (let-fluid $primitive-op? op? thunk))
+
+(define (primitive-op? o)
+  ((fluid $primitive-op?) o))
+
+;; "OP" is really a misnomer: this is about *external* procedures,
+;; only some of which are primitive ops
 (define (make-ge-op l o args)
-  `(_OP ,l ,o ,@args))
+  (if (primitive-op? o)
+      `(_OP ,l ,o ,@args)
+      `(_OP_SERIOUS ,l ,o ,@args)))
 (define (make-ge-op-pure l o args)
-  (if (zero? l)
-      (cons o args)
-      `(_OP_PURE ,l ,o ,@args)))
+  (cond
+   ((zero? l) (cons o args))
+   ((primitive-op? o) `(_OP_PURE ,l ,o ,@args))
+   (else `(_OP ,l ,o ,@args))))
+
 (define (make-ge-call f bts args)
   (apply make-residual-call f args))
 (define (make-ge-let hl unf? bl v e body)

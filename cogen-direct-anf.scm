@@ -21,8 +21,8 @@
   (syntax-rules ()
     ((_app 0 e ...)
      (e ...))
-    ((_app 1 e ...)
-     (_complete-serious (make-residual-call e ...)))
+    ((_app 1 e arg ...)
+     (_complete-serious e (list arg ...)))
     ((_app lv e ...)
      (_complete (make-residual-generator-ve* '_APP (pred lv) e ...)))))
 
@@ -30,8 +30,8 @@
   (syntax-rules ()
     ((_app 0 e ...)
      (e ...))
-    ((_app 1 e ...)
-     (_complete-serious-no-result (make-residual-call e ...)))
+    ((_app 1 e arg ...)
+     (_complete-serious-no-result e (list arg ...)))
     ((_app lv e ...)
      (_complete-no-result (make-residual-generator-ve* '_APP (pred lv) e ...)))))
 
@@ -50,7 +50,7 @@
      (_lambda-internal lv 'vars (lambda vars body)))))
 
 (define (_lambda-internal lv arity f)
-  (let* ((vars (map gensym-local arity))
+  (let* ((vars (map make-residual-variable (map gensym-local arity)))
 	 (body (reset (apply f vars)))
 	 (l (pred lv))
 	 (generate-lambda
@@ -74,7 +74,7 @@
 (define (_lambda_memo-internal lv arity label vvs bts f)
   (address-registry-reset!)
   (address-map-reset!)
-  (let* ((formals (map gensym-local arity))
+  (let* ((formals (map make-residual-variable (map gensym-local arity)))
 	 (lambda-pp (cons label vvs))
 	 (dynamics (top-project-dynamic lambda-pp bts))
 	 (compressed-dynamics (remove-duplicates dynamics))
@@ -127,7 +127,7 @@
 			(lambda (var fixed-var ...) body)))))
 
 (define (_vlambda-internal lv arity f)
-  (let* ((vars (map gensym-local arity))
+  (let* ((vars (map make-residual-variable (map gensym-local arity)))
 	 (body (reset (apply f vars)))
 	 (l (pred lv))
 	 (fixed-vars (cdr vars))
@@ -147,7 +147,7 @@
 (define (_vlambda_memo-internal lv arity var label vvs bts f)
   (address-registry-reset!)
   (address-map-reset!)
-  (let* ((fixed-formals (map gensym-local arity))
+  (let* ((fixed-formals (map make-residual-variable (map gensym-local arity)))
 	 (formal (gensym-local var))
 	 (lambda-pp (cons label vvs))
 	 (dynamics (top-project-dynamic lambda-pp bts))
@@ -201,19 +201,18 @@
 (define-syntax _lambda_poly
   (syntax-rules ()
     ((_lambda_poly 0 arity bts body-level label body)
-     (let ((the-residual-piece (list 'vector)))
-       (poly-constructor
-	label
-	'arity
-	bts body-level
-	(lambda arity body)
-	the-residual-piece
-	(_complete-serious the-residual-piece))))
+     (poly-constructor
+      label
+      'arity
+      bts body-level
+      (lambda arity body)
+      (list 'vector)
+      (_complete-serious 'vector '()))) ; #### is this right? ---Mike
     ((_lambda_poly level arity bts body-level label body)
      `(_lambda_poly ,(pred level) arity ',(map pred bts) ,(pred body-level) 'label ,body))))
 
 (define-syntax _begin
-  (syntax-rules (multi-memo _app _op)
+  (syntax-rules (multi-memo _app _op _op-serious)
     ((_begin 0 bl (multi-memo arg ...) e2)
      (begin (multi-memo-no-result arg ...) e2))
     ((_begin 1 bl (multi-memo arg ...) e2)
@@ -226,8 +225,12 @@
      (shift k (make-residual-begin (_app-no-result arg ...) (reset (k e2)))))
     ((_begin 0 bl (_op arg ...) e2)
      (begin (_op-no-result arg ...) e2))
+    ((_begin 0 bl (_op-serious arg ...) e2)
+     (begin (_op-serious-no-result arg ...) e2))
     ((_begin 1 bl (_op arg ...) e2)
      (shift k (make-residual-begin (_op-no-result arg ...) (reset (k e2)))))
+    ((_begin 1 bl (_op-serious arg ...) e2)
+     (shift k (make-residual-begin (_op-serious-no-result arg ...) (reset (k e2)))))
     ((_begin 0 bl e1 e2)
      (begin e1 e2))
     ((_begin 1 bl e1 e2)
@@ -331,7 +334,7 @@
     ((_op 1 cons e1 e2)
      (_complete (make-residual-cons e1 e2)))
     ((_op 1 apply f arg)
-     (_complete-serious (make-residual-apply f arg)))
+     (_complete-serious-apply f arg))
     ((_op 1 op arg ...)
      (_complete (make-residual-primop 'op arg ...)))
     ((_op lv op arg ...)
@@ -348,12 +351,47 @@
     ((_op 1 cons e1 e2)
      (_complete-no-result (make-residual-cons e1 e2)))
     ((_op 1 apply f arg)
-     (_complete-serious-no-result (make-residual-apply f arg)))
+     (_complete-serious-apply-no-result f arg))
     ((_op 1 op arg ...)
      (_complete-no-result (make-residual-primop 'op arg ...)))
     ((_op lv op arg ...)
      (_complete-no-result
       (make-residual-generator-vve* '_OP (pred lv) 'op arg ...)))))
+
+(define-syntax _op-serious
+  (syntax-rules (apply cons _define_data _define)
+    ((_op-serious lv _define_data arg)
+     (make-residual-define-data lv arg))
+    ((_op-serious lv _define var arg)
+     (make-residual-define-mutable lv 'var arg))
+    ((_op-serious 0 op arg ...)
+     (op arg ...))
+    ((_op-serious 1 cons e1 e2)
+     (_complete-serious 'cons (list e1 e2)))
+    ((_op-serious 1 apply f arg)
+     (_complete-serious-apply f arg))
+    ((_op-serious 1 op arg ...)
+     (_complete-serious 'op (list arg ...)))
+    ((_op-serious lv op arg ...)
+     (_complete (make-residual-generator-vve* '_OP-SERIOUS (pred lv) 'op arg ...)))))
+
+(define-syntax _op-serious-no-result
+  (syntax-rules (apply cons _define_data _define)
+    ((_op-serious-no-result lv _define_data arg)
+     (make-residual-define-data lv arg))
+    ((_op-serious-no-result lv _define var arg)
+     (make-residual-define-mutable lv 'var arg))
+    ((_op-serious-no-result 0 op arg ...)
+     (op arg ...))
+    ((_op-serious-no-result 1 cons e1 e2)
+     (_complete-serious-no-result 'cons (list e1 e2)))
+    ((_op-serious-no-result 1 apply f arg)
+     (_complete-serious-apply-no-result f arg))
+    ((_op-serious-no-result 1 op arg ...)
+     (_complete-serious-no-result 'op (list arg ...)))
+    ((_op-serious-no-result lv op arg ...)
+     (_complete-no-result
+      (make-residual-generator-vve* '_OP-SERIOUS (pred lv) 'op arg ...)))))
 
 (define-syntax _op_pure
   (syntax-rules (cons)

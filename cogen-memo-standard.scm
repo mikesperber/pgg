@@ -288,38 +288,40 @@
        (seen (memolist-entry->count! found (+ 1 (memolist-entry->count
 						 found))))
        (res-name (memolist-entry->name found)))
-    (let ((call-expr
-	   (if (= level 1)
-	       (apply make-residual-call res-name actuals)
-	       (make-residual-call 'MULTI-MEMO
-				   (- level 1)
-				   (- bt 1)
-				   `',res-name
-				   res-name
-				   (and maybe-special
-					(make-residual-primop 'LIST
-							      (- (car maybe-special) 1)
-							      (cadr maybe-special)))
-				   `',(map pred dyn-bts)
-				   (apply make-residual-primop 'LIST actuals)))))
-      (if result-needed
-	  (if (zero? bt)
-	      (let* ((** (let loop ()	;; busy waiting: not with true concurrency
-			   (if (not (memolist-entry->value found))
-			       (begin
-				 (relinquish-timeslice)
-				 (loop)))))
-		     (cloned-return-v (top-clone-dynamic (memolist-entry->value found) (list bt)))
-		     (dynamics (top-project-dynamic cloned-return-v (list bt)))
-		     (formals (map car dynamics)))
-		(shift
-		 k
-		 (make-residual-primop
-		  'CALL-WITH-VALUES
-		  (make-residual-closed-lambda '() 'FREE call-expr)
-		  (make-residual-closed-lambda formals 'FREE (k (cadr cloned-return-v))))))
-	      (_complete-serious call-expr))
-	  (_complete-serious-no-result call-expr)))))
+    (call-with-values
+     (lambda ()
+       (if (= level 1)
+	   (values res-name actuals)
+	   (values 'MULTI-MEMO
+		   (list (- level 1)
+			 (- bt 1)
+			 `',res-name
+			 res-name
+			 (and maybe-special
+			      (make-residual-primop 'LIST
+						    (- (car maybe-special) 1)
+						    (cadr maybe-special)))
+			 `',(map pred dyn-bts)
+			 (apply make-residual-primop 'LIST actuals)))))
+     (lambda (proc args)
+       (if result-needed
+	   (if (zero? bt)
+	       (let* ((** (let loop () ;; busy waiting: not with true concurrency
+			    (if (not (memolist-entry->value found))
+				(begin
+				  (relinquish-timeslice)
+				  (loop)))))
+		      (cloned-return-v (top-clone-dynamic (memolist-entry->value found) (list bt)))
+		      (dynamics (top-project-dynamic cloned-return-v (list bt)))
+		      (formals (map car dynamics)))
+		 (shift
+		  k
+		  (make-residual-primop
+		   'CALL-WITH-VALUES
+		   (make-residual-closed-lambda '() 'FREE (make-residual-call proc args))
+		   (make-residual-closed-lambda formals 'FREE (k (cadr cloned-return-v))))))
+	       (_complete-serious proc args))
+	   (_complete-serious-no-result proc args))))))
 
 ;;;was:
 ;;; 		 `(CALL-WITH-VALUES

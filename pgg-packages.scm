@@ -188,6 +188,7 @@
 	  make-ge-freevar
 	  make-ge-const
 	  make-ge-cond
+	  with-primitive-op?
 	  make-ge-op
 	  make-ge-op-pure
 	  make-ge-call
@@ -218,9 +219,10 @@
 	  make-ge-cell-set!-memo
 	  make-ge-cell-eq?-memo))
 
-(define-structure cogen-construct-genext
-  cogen-construct-genext-interface
-  (open scheme cogen-residual cogen-globals)
+(define-structure cogen-construct-genext cogen-construct-genext-interface
+  (open scheme
+	fluids
+	cogen-residual cogen-globals)
   (files cogen-construct-genext))
 
 (define-interface cogen-directives-interface

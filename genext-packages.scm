@@ -17,6 +17,7 @@
 	    _s_t_memo
 	    _if
 	    _op
+	    _op-serious
 	    _op_pure
 	    _freevar
 	    _lift0
@@ -27,23 +28,6 @@
 	    _CELL-EQ?_MEMO
 	    _MAKE-VECTOR_MEMO
 	    _MESSAGE!_MEMO)
-	   :syntax)))
-
-(define-interface cogen-anf-compile-interface
-  (export _vlambda
-	  ((_app
-	    _app_memo
-	    _lambda
-	    _lambda_memo
-	    _begin
-	    _ctor_memo
-	    _s_t_memo
-	    _if
-	    _op
-	    _op_serious
-	    _lift0
-	    _lift
-	    _eval)
 	   :syntax)))
 
 (define-interface cogen-incremental-interface
@@ -69,6 +53,7 @@
   (export make-residual-apply
 	  make-residual-let
 	  make-residual-let-serious
+	  make-residual-let-serious-apply
 	  make-residual-let-trivial
 	  make-residual-begin
 	  make-residual-cons
@@ -79,6 +64,7 @@
 	  make-residual-primop
 	  make-residual-closed-lambda
 	  make-residual-literal
+	  make-residual-variable
 	  make-residual-generator-ve*
 	  make-residual-generator-vve*
 	  make-residual-generator-vve
@@ -224,7 +210,9 @@
 
 (define-structure cogen-library cogen-library-interface
   (open scheme signals auxiliary shift-reset threads
-	cogen-completers cogen-specialize cogen-gensym cogen-boxops)
+	cogen-completers cogen-specialize
+	cogen-gensym cogen-residual
+	cogen-boxops)
   (files cogen-library))
 
 (define-structure cogen-residual cogen-residual-interface
@@ -235,7 +223,9 @@
   (export ((_complete
 	    _complete-no-result
 	    _complete-serious
+	    _complete-serious-apply
 	    _complete-serious-no-result
+	    _complete-serious-apply-no-result
 	    _complete-maybe) :syntax)))
 
 (define-interface cogen-record-interface
@@ -251,17 +241,14 @@
 	cogen-library cogen-completers cogen-residual)
   (files cogen-memo-standard))
 
-(define-structure pgg-library cogen-direct-anf-interface
-  (open scheme escapes signals auxiliary threads placeholders
-	cogen-gensym cogen-boxops cogen-globals cogen-library
-	shift-reset cogen-completers cogen-memo-standard cogen-residual)
-  (files cogen-direct-anf))
+(define-module (make-pgg-library residual)
+  (structure cogen-direct-anf-interface
+    (open scheme escapes signals auxiliary threads placeholders
+	  cogen-gensym cogen-boxops cogen-globals cogen-library
+	  shift-reset cogen-completers cogen-memo-standard residual)
+    (files cogen-direct-anf)))
 
-(define-structure pgg-compiler-library cogen-anf-compile-interface
-  (open scheme escapes signals auxiliary
-	cogen-gensym cogen-boxops cogen-globals cogen-library
-	shift-reset cogen-completers cogen-memo-standard anf-specializer)
-  (files cogen-anf-compile))
+(def pgg-library (make-pgg-library cogen-residual))
 
 (define-structure pgg-residual
   (export ((start-memo define-data) :syntax)

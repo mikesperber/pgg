@@ -42,7 +42,12 @@
    (else
     `(LET ((,var ,exp)) ,body))))
 
-(define make-residual-let-serious make-residual-let)
+(define (make-residual-let-serious var proc args body)
+  (make-residual-let var (apply make-residual-call proc args)
+		     body))
+(define (make-residual-let-serious-apply var proc arg body)
+  (make-residual-let var (make-residual-apply proc arg)
+		     body))
 (define make-residual-let-trivial make-residual-let)
 
 (define (make-residual-begin exp1 exp2)
@@ -240,6 +245,11 @@
   (if (or (number? val) (string? val) (boolean? val))
       val
       `(QUOTE ,val)))
+
+;; we need this abstraction because we need to actually *do* something
+;; when directly generating object code
+(define (make-residual-variable name)
+  name)
 
 (define (make-residual-definition! name formals body)
   (let ((new-def

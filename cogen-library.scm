@@ -239,8 +239,8 @@
 	  (value 'CLONE)
 	  value)
       (if (symbol? value)
-	  (gensym-local-trimmed value)
-	  (gensym-local 'clone))))
+	  (make-residual-variable (gensym-local-trimmed value))
+	  (make-residual-variable (gensym-local 'clone)))))
 
 (define (clone-dynamic value bts)
   (cons (car value)
