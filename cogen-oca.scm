@@ -1,6 +1,6 @@
 ;;; cogen-oca.scm
 
-;;; copyright © 1996, 1997, 1998, 1999 by Peter Thiemann
+;;; copyright © 1996, 1997, 1998, 1999, 2000 by Peter Thiemann
 ;;; non-commercial use is free as long as the original copright notice
 ;;; remains intact
 
@@ -103,7 +103,11 @@
      ((annIsEval? e)
       (loop (annFetchEvalBody e)))
      ((annIsMemo? e)
-      (loop (annFetchMemoBody e)))
+      (oca-add
+       (cond
+	((annFetchMemoSpecial e) => loop)
+	(else (oca-use-var '****unused**** bv)))
+       (loop (annFetchMemoBody e))))
      (else
       (error 'oca-e "Unknown syntax construction")))))
 

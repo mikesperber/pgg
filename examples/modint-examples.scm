@@ -8,3 +8,9 @@
 
 (define module2
   '((finis . ())))
+
+(define module1a
+  '((add . ((jz 1 (mod2 . finis))
+	    (decr 1)
+	    (incr 0)
+	    (jump add)))))
