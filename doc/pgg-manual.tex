@@ -13,8 +13,8 @@
 \begin{document}
 \title{The PGG System---User Manual}
 \author{Peter Thiemann\\
-  University of Nottingham\\
-  pjt@cs.nott.ac.uk}
+  Universität Freiburg\\
+  thiemann@informatik.uni-freiburg.de}
 \maketitle
 
 
@@ -28,6 +28,7 @@ It has the following features
 \item offline partial evaluation using the cogen approach;
 \item correct specialization of imperative code;
 \item side effects performed at specialization time;
+\item modular specialization;
 \item no restrictions on primitives and static inputs (they are not
   restricted to have first-order types);
 \item handles \texttt{eval}, \texttt{apply},
@@ -47,7 +48,6 @@ pointers to relevant literature.
 
 \begin{small}
 \clearpage
-\enlargethispage{\baselineskip}
 \tableofcontents
 \clearpage
 \end{small}
@@ -58,64 +58,87 @@ pointers to relevant literature.
 To use the system, you first have to install the Scheme48 system
 \cite{KelseyRees1995}, which is available from Richard Kelsey's homepage
 \url{http://www.neci.nj.nec.com/homepages/kelsey/}. The current version is
-0.50; PGG has been known to work with versions $\ge$ 0.42.
+0.53; PGG has been known to work with versions $\ge$ 0.42.
 
 Once you have installed Scheme48, unpack the distribution file by 
 \begin{verbatim}
-polihale> mkdir pgg-1.0
-polihale> cd pgg-1.0 
-polihale> zcat <PATH_TO>pgg-1.0.tar.gz | tar xvf -
+hanauma> mkdir pgg-1.1
+hanauma> cd pgg-1.1 
+hanauma> zcat <PATH_TO>pgg-1.1.tar.gz | tar xvf -
 \end{verbatim}
-(with \verb+polihale>+ being the shell's prompt)
-This creates the directory \texttt{pgg-1.0} in the current directory.
+(with \verb+hanauma>+ being the shell's prompt)
+This creates the directory \texttt{pgg-1.1} in the current directory.
 
 Next, you should build yourself an image file of the system, to speed
 up loading later on. To do this type:
 \begin{verbatim}
-polihale> cd pgg-1.0
-polihale> make
+hanauma> cd pgg-1.1
+hanauma> make
 (echo ",bench on"; \
- echo ",config,load cogen-interfaces.scm"; \
- echo ",load-package pgg"; \
- echo ",open pgg signals pretty-print"; \
- echo ",open auxiliary pgg-library"; \
+ echo ",config,load genext-packages.scm pgg-packages.scm"; \
+ for package in pgg-residual pgg ; do \
+   echo ",load-package $package";  done ; \
+ echo ",open pgg signals"; \
+ echo ",open auxiliary pgg-library cogen-specialize pp"; \
  echo ",collect"; \
- echo ",dump pgg.image \"(PGG-1.0)\""; \
- echo ",exit" ) \
-| scheme48 -h 4000000
-Welcome to Scheme 48 0.46 (made by peter on ...).
+ echo ",dump pgg.image \"(PGG-1.1 made by $LOGNAME `date`)\"";
+ echo ",exit" )  | scheme48 -h 10000000
+Welcome to Scheme 48 0.51 (made by pjt on Wed Jun 24 08:54:28 BST 1998).
 Copyright (c) 1993, 1994 by Richard Kelsey and Jonathan Rees.
 Copyright (c) 1996 by NEC Research Institute, Inc.
 Please report bugs to scheme-48-bugs@martigny.ai.mit.edu.
 Type ,? (comma question-mark) for help.
 > Will compile some calls in line
-> cogen-interfaces.scm
+> genext-packages.scm
+pgg-packages.scm
 
-Undefined: (message-low aspaces proxies anf-specializer ...)
-> [pgg
-[auxiliary
-[pretty-print
-...
-Undefined: (parse-type desc-np desc-nc desc-nt desc-type)
-...
-cogen-driver.scm ]
-> > > Before: 202193 words free in semispace
-After:  1311637 words free in semispace
+Undefined: (anf-specializer anf-specializer-interface)
+> [pp /usr/local/lib/scheme48/big/pp.scm]
+[auxiliary auxiliary.scm]
+[cogen-gensym cogen-gensym.scm]
+[cogen-boxops cogen-boxops.scm]
+[cogen-globals cogen-globals.scm]
+[cogen-specialize cogen-specialize.scm]
+[cogen-library cogen-library.scm]
+[shift-reset shift-reset.scm]
+[cogen-residual cogen-residual.scm]
+[cogen-completers cogen-completer.scm]
+[cogen-record cogen-record.scm]
+[cogen-memo-standard cogen-memo-standard.scm]
+[pgg-library cogen-direct-anf.scm]
+[define-data cogen-ctors.scm]
+[pgg-residual]
+> [cogen-env cogen-env.scm]
+[cogen-macro cogen-macro.scm]
+[cogen-abssyn cogen-abssyn.scm]
+[cogen-scheme cogen-scheme.scm]
+[cogen-labset cogen-labset-bylist.scm]
+[cogen-bta cogen-effect.scm cogen-eq-flow.scm
+Undefined: (parse-type desc-np desc-nc desc-nt desc-type btann)
+]
+[cogen-typesig cogen-typesig.scm]
+[cogen-oca cogen-oca.scm]
+[cogen-construct-genext cogen-construct-genext.scm]
+[cogen-skeleton cogen-skeleton.scm]
+[cogen-terminate cogen-terminate.scm]
+[pgg cogen-driver.scm]
+> > > Before: 2377611 words free in semispace
+After:  3560836 words free in semispace
 > Writing pgg.image
-> polihale>
+> 20.221u 0.572s 0:24.01 86.5%  103+50335k 0+90io 27pf+0w
+hanauma>
 \end{verbatim}
 Do not worry about the \texttt{Undefined:} messages, they result from
 mutually recursive modules.
 
 Next time you want to use PGG, type
 \begin{verbatim}
-polihale> scheme48 -h 4000000 -i pgg.image
+hanauma> scheme48 -h 6000000 -i pgg.image
 \end{verbatim}
 to save the time spent with loading and compiling the system. You
 might want to put the above into a shell script. The \texttt{-h}
 parameter determines the heapsize\index{heapsize} which might have to
-be increased 
-when dealing with larger programs. The
+be increased when dealing with larger programs. The
 \texttt{pgg.image}\dindextt{pgg.image} file may be 
 moved to an arbitrary location, it is independent of the directory
 containing the PGG distribution.
@@ -124,7 +147,7 @@ containing the PGG distribution.
 \label{sec:first-steps}
 
 This section goes through a few examples of using PGG. It assumes that
-the system has been started in the \texttt{pgg-1.0} directory. The
+the system has been started in the \texttt{pgg-1.1} directory. The
 subdirectory \texttt{example} contains the sources of all examples.
 
 
@@ -722,7 +745,7 @@ It contains the example programs \texttt{lazy1} and \texttt{lazy2}.
 \end{itemize}
 
 
-\subsection{Modular specialization}
+\subsection{Specialization of modular programs}
 \label{sec:modular}
 
 As an advanced feature, it is possible to encapsulate the generating extension
@@ -789,8 +812,87 @@ Finally, we can specialize in the same way as before.
 > 
 \end{verbatim}
 \end{small}
-The section~\ref{sec:cogen-driver} in the reference part lists a number of
+Section~\ref{sec:cogen-driver} in the reference part lists a number of
 options to gain more control over the module declaration.
+
+
+\subsection{Specialization with respect to modular data}
+\label{sec:modular-data}
+
+It is possible to regard a list of static data as a temporal stream. This
+means that only one element of the list is available for every single run of
+a specialization. The most striking application for this feature is
+the compilation of modular programs by specializing an interpreter.
+
+An an example, we consider the compilation of a simple register machine
+language. Here is an example program.
+\begin{verbatim}
+> (load "examples/modint-examples.scm")
+examples/modint-examples.scm
+> (p module1)
+((add (jz 1 finis)
+      (decr 1)
+      (incr 0)
+      (jump add)))
+> (p module2)
+((finis))
+\end{verbatim}
+The \texttt{main} function of the interpreter accepts four parameters. The
+stream of modules, the entry label, the number of registers, and the
+initial contents of the registers. All inputs but the last one are assumed to
+be statically known. The idea is that the modules (the elements of the stream)
+are supplied as they become available. Specialization proceeds until the next
+module is required.
+\begin{verbatim}
+> (define genext (cogen-driver '("examples/modint.scm") '(main 0 0 0 1)))
+bta-run
+bta-solve
+bta-solve done
+> ,open pgg-residual
+> (writelpp genext "/tmp/modint0.scm")
+> (load "/tmp/modint0.scm")
+> (specialize-$goal "mods" 'add 2)
+'(main-1 x4)
+\end{verbatim}
+Specialization stops right before the first module. So far, it generated code
+for transferring the input list into the registers:
+\begin{verbatim}
+> (p *residual-program*)
+((define (main-1 x-1)
+   (let* ((mlet-2 (car x-1))
+          (mlet-3 (cdr x-1))
+          (mlet-4 (car mlet-3))
+          (mlet-5 (cdr mlet-3)))
+     (jump-2 mlet-2 mlet-4))))
+\end{verbatim}
+The call to \texttt{jump2} calls code that will be generated as soon as the
+next module becomes available. This fact is signalled to the system via the
+\texttt{continue} function.\indextt{continue}
+\begin{verbatim}
+> (continue "mods" (list module2))
+\end{verbatim}
+
+At any point between invocations of \texttt{continue} it is possible to suspend 
+the state of specialization to a file. The corresponding command is\indextt{suspend}
+\begin{verbatim}
+> (suspend "/tmp/suspended.scm")
+\end{verbatim}
+
+Another, later session with \texttt{pgg} can resume this specialization after
+loading the generating extension and reading the suspended file using
+\texttt{resurrect}.\indextt{resurrect} 
+\begin{verbatim}
+> (load "/tmp/modint0.scm")
+> (load "examples/modint-examples.scm")
+> (resurrect "/tmp/suspended.scm")
+#t
+> (continue "mods" (list module1))
+> (continue "mods" (list ))
+\end{verbatim}
+
+The last two calls to \texttt{continue} complete the specialization of the
+interpreter of modular register machine programs.
+
 
 \section{Reference manual}
 \label{sec:reference}
@@ -911,6 +1013,7 @@ which implies the placement of more memoization points, and so on.
 \subsection{Memoization}
 \label{sec:memoization}
 
+\index{memoization point}%
 PGG automatically inserts memoization points on top of dynamic
 conditionals and on top of dynamic lambdas. However, this only happens
 if the branches of the dynamic conditional or the body of the dynamic
@@ -923,7 +1026,7 @@ is a slight refinement of the standard strategy
 It is possible to turn this feature off for a given function by
 defining it using \texttt{define-without-memoization}
 (see~\ref{sec:define-without-memoization}). In any case, 
-memoization functions can be defined and inserted manually
+memoization points can be defined and inserted manually
 (see~\ref{sec:define-memo}). 
 
 
@@ -1011,6 +1114,7 @@ insert memoization points in the body of \texttt{P}.
 
 \begin{verbatim}
 D ::= (define-data TC (C Ci*)+)
+  |   (define-data TC hidden (C Ci*)+)
 \end{verbatim}
 Define the algebraic datatype \texttt{TC} with constructors \texttt{C}
 and selectors \texttt{Ci}. In addition, constructor test operations \texttt{C?}
@@ -1035,6 +1139,11 @@ specializer performs arity raising when appropriate. The constructors,
 selectors, and test operations are binding-time polyvariant, i.e.,
 each use of such an operation may have a different binding-time
 pattern.  
+
+The second form of \texttt{define-data} declares a datatype whose elements are
+ignored by the memoization mechanism. This is a potentially dangerous  
+feature because it can change the meaning of a program during specialization by
+cheating the memoization mechanism.
 
 \subsubsection{define-type}
 \dindextt{define-type}
@@ -1084,7 +1193,9 @@ The \texttt{apply} property states that the operator \texttt{O} is the
 
 \begin{verbatim}
 D ::= (define-memo M Number [Active])
+  |   (define-memo M Number 'deferred)
 \end{verbatim}
+\index{memoization point}%
 Defines \texttt{M} as a unary operator indicating a memoization point at
 level \texttt{Number}. This is also the binding time of the memoization point.
 For two-level specialization this number is
@@ -1094,7 +1205,7 @@ The optional parameter \texttt{Active} defines the minimum level of
 specialization at which the specialization point is active. The default is
 \texttt{0}, that is, the specialization point is always active. Useful in
 connection with multi-level specialization if the same program is specialized
-with different levels.\indextt{multi-level specialization}
+with different levels.\index{multi-level specialization}
 
 Both parameters, \texttt{Number} and \texttt{Active} may be integer expressions 
 using the free variable \texttt{max-level}, which is bound to the maximum
@@ -1107,6 +1218,19 @@ behavior in PGG requires the following declaration.
 (define-memo _sim-memoize 1)
 \end{verbatim}
 
+The second form of the directive declares an operator to construct deferred
+memoization points. An applied occurrence of a deferred memoization point has
+the form
+\begin{verbatim}
+(M V E)
+\end{verbatim}
+\index{memoization point!deferred}
+When specialization hits upon a deferred memoization point, it extracts the
+static skeleton and looks it up in a secondary cache. Just as with standard
+memoization points, it creates a function call to a specialized version of
+\texttt{E}. The difference is that the specialization of \texttt{E} depends on
+a future value of \texttt{V}, so it must be deferred until the value of
+\texttt{V} becomes available.
 
 \subsubsection{load}
 \dindextt{load}
@@ -1136,6 +1260,7 @@ definition.
 \subsection{Commands}
 \label{sec:top-level}
 
+This section summarizes the available top-level commands of the PGG system.
 
 \subsubsection{Creating a generating extension}
 \label{sec:cogen-driver}
@@ -1174,7 +1299,7 @@ This function is defined in module \texttt{pgg}. If it is not accessible try
 \end{verbatim}
 at the top-level Scheme48 prompt.
 
-\index{modular specialization}%
+\index{specialization!modular programs}%
 A number of optional parameters may be specified after the
 \texttt{BindingTime\-Skeleton} argument. They allow the generation of the
 generating extension as a Scheme48 module. The following options are
@@ -1263,6 +1388,54 @@ accessible try
 at the top-level Scheme48 prompt.
 
 
+\subsubsection{Continuing a specialization}
+\label{sec:continue}
+\dindextt{continue}
+
+The function \texttt{continue} continues a specialization that has been
+suspended at a deferred memoization point.
+\begin{verbatim}
+(continue Name Arg)
+\end{verbatim}
+The parameter \texttt{Name} identifies the value that the specialization waits
+for. It must be equal to the symbolic value used as a placeholder for the
+stream value. The example in Section~\ref{sec:modular-data} use the string
+\texttt{"mods"} for this purpose.
+
+The parameter \texttt{Arg} is the next value in the stream. The representation
+of this value and the indication of the end of the stream is up to the
+programmer. The example in Section~\ref{sec:modular-data} use the empty list to 
+indicate end-of-stream and a one-element list for the next item in the stream.
+
+
+\subsubsection{Suspend a deferred specialization}
+\label{sec:suspend}
+\dindextt{suspend}
+
+The function \texttt{suspend} writes the current memoization cache and the
+cache of deferred specializations to a file.
+\begin{verbatim}
+(suspend Filename)
+\end{verbatim}
+The \texttt{Filename} parameter indicates the name of the file in which the
+memoization cache and the deferred cache are stored.
+
+\subsubsection{Resurrect a deferred specialization}
+\label{sec:resurrect}
+\dindextt{resume}
+
+The function \texttt{resurrect} installs a memoization cache and deferred cache 
+from a file. It sets up the system to continue a previously suspended
+specialization.
+\begin{verbatim}
+(resurrect Filename)
+\end{verbatim}
+The \texttt{Filename} parameter indicates the name of the file in which the
+memoization cache and the deferred cache are stored.
+
+Returns \verb!#t! if the file was successfully read. Otherwise, it returns
+\texttt{\#f}. 
+
 \subsection{Settable options}
 \label{sec:options}
 
@@ -1326,6 +1499,15 @@ separately.
   Set optimization level for memoization table. If set to \texttt{n} then
   memoization uses \texttt{n} cascaded association lists, indexed by the first
   \texttt{n} elements of the static projection at a memoization point.
+\item \verb+(set-lambda-is-pure! v)+ Default: \texttt{\#t}.
+  \dindextt{set-lambda-is-pure"!}
+
+  The code generator considers lambda abstractions as pure values if this flag
+  is set.
+\item \verb+(set-lambda-is-toplevel! v)+ Default: \texttt{\#f}.
+  \dindextt{set-lambda-is-toplevel"!}
+
+  Generate a toplevel function for each memoized lambda abstraction if set.
 \end{itemize}
 
 
