@@ -1,3 +1,8 @@
+(define-syntax list
+  (syntax-rules ()
+    ((list) '())
+    ((list x y ...) (cons x (list y ...)))))
+
 (define-syntax caar
   (syntax-rules ()
     ((caar x) (car (car x)))))

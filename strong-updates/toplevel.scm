@@ -16,7 +16,9 @@
 		   full-source))
 	 (abssyn-d* (begin
 		      (set-abssyn-maybe-coerce! #f)
-		      (scheme->abssyn-d def-function* def-syntax* '())))
+		      (scheme->abssyn-d def-function*
+					def-syntax*
+					symtab-pairs)))
 	 (d* (anf-convert abssyn-d*))
 	 (freevars (anf-collect-freevars-d* d*))
 	 (flowmap #f)
@@ -75,5 +77,7 @@
 				(newline))))))
 	    (loop (cdr commands)))))))
 
-
-
+(define symtab-pairs
+  `((cons , (lambda (ctor args) (annMakeCtor ctor 0 '*dummy* args)) 2)
+    (car  ,(annMakeSel1 'cons '*dummy* 1) 1)
+    (cdr  ,(annMakeSel1 'cons '*dummy* 2) 1)))

@@ -98,7 +98,7 @@
 
 (define-structure toplevel toplevel-interface
   (open scheme signals auxiliary
-	cogen-scheme cogen-globals analysis)
+	cogen-abssyn cogen-scheme cogen-globals analysis)
   (files toplevel))
 
 (define-structure finite-map finite-map-interface

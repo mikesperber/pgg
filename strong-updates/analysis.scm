@@ -40,11 +40,12 @@
 		(loop (+ i 1) result)))
 	  result))))
 (define (aval-refsof aval)
+  ;; returns refs and vectors
   (let ((vec (aval->pps aval)))
     (let loop ((i 0) (result empty-labset))
       (if (< i *anf-pp-count*)
 	  (let ((obj (vector-ref *anf-pp-map* i)))
-	    (if (and (anf-ref? obj)
+	    (if (and (or (anf-ref? obj) (anf-vector? obj))
 		     (present? (vector-ref vec i)))
 		(loop (+ i 1) (labset-add i result))
 		(loop (+ i 1) result)))
@@ -138,6 +139,15 @@
       (accessor (anf-app->info anf)))
      (else
       (error "no info available")))))
+
+(define (anf-get-nr anf)
+  (cond
+   ((anf-ref? anf)
+    (anf-ref->nr anf))
+   ((anf-vector? anf)
+    (anf-vector->nr anf))
+   (else
+    (error "anf-get-nr: ref or vectro expected"))))
 
 (define-record cardmap
   (fm)
@@ -251,8 +261,14 @@
 (define (anf-ref-loop! proc)
   (for-each (lambda (obj) (proc (anf-ref->nr obj) obj)) *anf-refs*))
 
+(define (anf-vector-loop! proc)
+  (for-each (lambda (obj) (proc (anf-vector->nr obj) obj)) *anf-vectors*))
+
 (define (anf-lambda-loop! proc)
   (for-each (lambda (obj) (proc (anf-lambda->nr obj) obj)) *anf-lambdas*))
+
+(define (anf-ctor-loop! proc)
+  (for-each (lambda (obj) (proc (anf-ctor->nr obj) obj)) *anf-ctors*))
 
 (define (pp-loop-acc select? init proc)
   (let loop ((i 0) (result init))
@@ -558,8 +574,25 @@
 				   (anf-cond->last-else header)))))
 	      (loop anf-then)
 	      (loop anf-else)))
-	   ((anf-call? header)		;have been eliminated in favor of APP
-	    'handled-differently)	;this has some expense, but is much simpler
+	   ((anf-ctor? header)
+	    (if-init-thunk!
+	     init
+	     (lambda ()
+	       (initialize! init-body)
+	       (add-singleton! (anf-ctor->nr header) formal-aval))))
+	   ((anf-sel? header)
+	    (if-init-thunk!
+	     init
+	     (lambda ()
+	       (initialize! init-body)
+	       (let ((j (- (anf-sel->field header) 1))
+		     (actual-aval (anfvar-lookup (anf-sel->actual header))))
+		 (anf-ctor-loop!
+		  (lambda (i obj)
+		    (add-conditional! i actual-aval
+				      (anfvar-lookup
+				       (list-ref (anf-ctor->actuals obj) j))
+				      formal-aval)))))))
 	   ((anf-lambda? header)
 	    (if-init-thunk!
 	     init
@@ -635,11 +668,55 @@
 		    (add-conditional! i ref-aval
 				      actual-aval
 				      (astore-ref astore i))))))))
-	   ((anf-celleq? header)
+	   ;; vectors
+	   ((anf-vector? header)
 	    (if-init-thunk!
 	     init
 	     (lambda ()
-	       (initialize! init-body))))
+	       (initialize! init-body)
+	       (let* ((nr (anf-vector->nr header))
+		      (anfvars (anf-vector->actuals header))
+		      (aval-store (astore-ref (anf-get-astore body)
+					      (anf-vector->nr header))))
+		 (add-singleton! nr formal-aval)
+		 (if (anf-vector->kind header)
+		     (if (= (length anfvars) 2)
+			 (begin
+			   ;;(display "!!! point 8 make-vector") (newline)
+			   (add-subset! (anfvar-lookup (cadr anfvars)) aval-store)))
+		     (for-each (lambda (anfvar)
+				 ;;(display "!!! point 8 vector") (newline)
+				 (add-subset! (anfvar-lookup anfvar) aval-store))
+			       anfvars))))))
+	   ((anf-vector-ref? header)
+	    (if-init-thunk!
+	     init
+	     (lambda ()
+	       (initialize! init-body)
+	       (let ((actual-aval (anfvar-lookup (anf-vector-ref->vec header)))
+		     (astore (anf-get-astore anf)))
+		 (anf-vector-loop!
+		  (lambda (i obj)
+		    (add-conditional! i actual-aval
+				      (astore-ref astore i)
+				      formal-aval)))))))
+	   ((anf-vector-set? header)
+	    (if-init-thunk!
+	     init
+	     (lambda ()
+	       (initialize! init-body)
+	       (let ((ref-aval (anfvar-lookup (anf-vector-set->vec header)))
+		     (actual-aval (anfvar-lookup (anf-vector-set->actual header)))
+		     (astore (anf-get-astore body)))
+		 (anf-vector-loop!
+		  (lambda (i obj)
+		    (add-conditional! i ref-aval
+				      actual-aval
+				      (astore-ref astore i))))))))
+	   ((anf-call? header)		;have been eliminated in favor of APP
+	    (error "anf-call: this should not happen"))	;this has some expense, but is much simpler
+	   ((anf-celleq? header)	;eliminated in favor of OP
+	    (error "anf-celleq?: this should not happen"))
 	   (else
 	    (error "not supported" anf header)))
 	  (loop body)))
@@ -841,6 +918,16 @@
 	      (loop anf-else)))
 	   ((anf-call? header)		;have been eliminated in favor of APP
 	    'handled-differently)	;this has some expense, but is much simpler
+	   ((anf-ctor? header)
+	    (if-init-thunk!
+	     init
+	     (lambda ()
+	       (cm-join-single! vcm-before formal vcm-after))))
+	   ((anf-sel? header)
+	    (if-init-thunk!
+	     init
+	     (lambda ()
+	       (cm-join-single! vcm-before formal vcm-after))))
 	   ((anf-lambda? header)
 	    (if-init-thunk!
 	     init
@@ -891,6 +978,22 @@
 	     (lambda ()
 	       (cm-join-single! vcm-before formal vcm-after))))
 	   ((anf-assign? header)
+	    (if-init-thunk!
+	     init
+	     (lambda ()
+	       (cm-join-single! vcm-before formal vcm-after))))
+	   ;; vectors
+	   ((anf-vector? header)
+	    (if-init-thunk!
+	     init
+	     (lambda ()
+	       (cm-join-single! vcm-before formal vcm-after))))
+	   ((anf-vector-ref? header)
+	    (if-init-thunk!
+	     init
+	     (lambda ()
+	       (cm-join-single! vcm-before formal vcm-after))))
+	   ((anf-vector-set? header)
 	    (if-init-thunk!
 	     init
 	     (lambda ()
@@ -972,26 +1075,39 @@
 (define (RRR flowmap astore* aval)
   (let* ((current (new-aval))
 	 (current-vec (aval->pps current)))
-    (let loop ((i 0))
-      (if (< i *anf-pp-count*)
-	  (let ((obj (vector-ref *anf-pp-map* i)))
-	    (if (anf-lambda? obj)
-		;; it is a lambda
-		(vector-set! current-vec i
-			     (list (lambda ()
-				     (for-each (lambda (var)
-						 ;;(display "!!! point 9: var = ") (display var) (newline)
-						 (add-subset! (flowmap-lookup flowmap var)
-							      current))
-					       (anf-lambda->free obj)))))
-		;; it is a reference
-		(vector-set! current-vec i
-			     (list (lambda ()
-				     (for-each (lambda (astore)
-						 (add-subset! (astore-ref astore i)
-							      current))
-					       astore*)))))
-	    (loop (+ i 1)))))
+    (anf-lambda-loop!
+     (lambda (i obj)
+       (vector-set! current-vec i
+		    (list (lambda ()
+			    (for-each (lambda (var)
+					;;(display "!!! point 9: var = ") (display var) (newline)
+					(add-subset! (flowmap-lookup flowmap var)
+						     current))
+				      (anf-lambda->free obj)))))))
+    (anf-ref-loop!
+     (lambda (i obj)
+       (vector-set! current-vec i
+		    (list (lambda ()
+			    (for-each (lambda (astore)
+					(add-subset! (astore-ref astore i)
+						     current))
+				      astore*))))))
+    (anf-vector-loop!
+     (lambda (i obj)
+       (vector-set! current-vec i
+		    (list (lambda ()
+			    (for-each (lambda (astore)
+					(add-subset! (astore-ref astore i)
+						     current))
+				      astore*))))))
+    (anf-ctor-loop!
+     (lambda (i obj)
+       (vector-set! current-vec i
+		    (list (lambda ()
+			    (for-each (lambda (anfvar)
+					(add-subset! (flowmap-lookup flowmap (anf-var->name anfvar))
+						     current))
+				      (anf-ctor->actuals obj)))))))
     ;; now toss the first domino
     (add-subset! aval current)
     ;; cleanup
@@ -1082,6 +1198,18 @@
 	      (loop anf-else)))
 	   ((anf-call? header)		;have been eliminated in favor of APP
 	    'handled-differently)	;this has some expense, but is much simpler
+	   ((anf-ctor? header)
+	    (if-init-thunk!
+	     init
+	     (lambda ()
+	       (add-astore-subset! astore-before astore-after)
+	       (cm-leq! rcm-before rcm-after))))
+	   ((anf-sel? header)
+	    (if-init-thunk!
+	     init
+	     (lambda ()
+	       (add-astore-subset! astore-before astore-after)
+	       (cm-leq! rcm-before rcm-after))))
 	   ((anf-lambda? header)
 	    (if-init-thunk!
 	     init
@@ -1208,6 +1336,26 @@
 		      (lambda (i obj)
 			(vector-set! ref-vec i (cons thunk0 (vector-ref ref-vec i)))))))))
 	       (cm-leq! rcm-before rcm-after))))
+	   ;; vectors
+	   ((anf-vector? header)
+	    (if-init-thunk!
+	     init
+	     (lambda ()
+	       (add-astore-subset! astore-before astore-after)
+	       (cm-leq! rcm-before rcm-after)
+	       (cm-set! (anf-vector->nr header) rcm-after cardinality-multiple))))
+	   ((anf-vector-ref? header)
+	    (if-init-thunk!
+	     init
+	     (lambda ()
+	       (add-astore-subset! astore-before astore-after)
+	       (cm-leq! rcm-before rcm-after))))
+	   ((anf-vector-set? header)
+	    (if-init-thunk!
+	     init
+	     (lambda ()
+	       (add-astore-subset! astore-before astore-after)
+	       (cm-leq! rcm-before rcm-after))))
 	   ((anf-celleq? header)
 	    (if-init-thunk!
 	     init
@@ -1296,12 +1444,14 @@
   (let ((vec (astore->vec astore)))
     (let loop ((i 0))
       (if (< i *anf-pp-count*)
-	  (begin
-	    (if (anf-ref? (vector-ref *anf-pp-map* i))
+	  (let ((pp (vector-ref *anf-pp-map* i)))
+	    (if (or (anf-ref? pp) (anf-vector? pp))
 		(let ((entry (vector-ref vec i)))
 		  (if entry
 		      (begin
-			(display " ")
+			(if (anf-ref? pp)
+			    (display " r")
+			    (display " v"))
 			(display i)
 			(display " -> ")
 			(aval-display entry)
@@ -1330,11 +1480,14 @@
   (let ((vec (astore->vec astore)))
     (let loop ((i 0))
       (if (< i *anf-pp-count*)
-	  (begin
-	    (if (anf-ref? (vector-ref *anf-pp-map* i))
+	  (let ((pp (vector-ref *anf-pp-map* i)))
+	    (if (or (anf-ref? pp) (anf-vector? pp))
 		(let ((entry (vector-ref vec i)))
 		  (if entry
 		      (begin
+			(if (anf-ref? pp)
+			    (display "r")
+			    (display "v"))
 			(display i)
 			(display " \\mapsto ")
 			(latex-display-aval entry)
