@@ -246,7 +246,7 @@
   (files cogen-record))
 
 (define-structure cogen-memo-standard cogen-memo-interface
-  (open scheme auxiliary signals shift-reset
+  (open scheme auxiliary signals shift-reset threads
 	cogen-specialize cogen-globals cogen-record cogen-gensym
 	cogen-library cogen-completers cogen-residual)
   (files cogen-memo-standard))
