@@ -3,8 +3,6 @@
 ;;; compiler generator (with control operators)
 ;;;
 
-;;; set result to the unit of the identity monad
-(define result id)
 ;;; interface to create generating extensions
 ;;; syntax constructors
 (define (make-thunk arg) `(LAMBDA () ,arg))
@@ -23,6 +21,8 @@
   `(,f ,@args))
 (define (make-ge-let l v e body)
   `(_LET ,l ',v ,e (LAMBDA (,v) ,body)))
+(define (make-ge-begin l e1 e2)
+  `(_BEGIN ,l ,e1 ,(make-thunk e2)))
 (define (make-ge-lambda-memo l vars btv label fvars bts body)
   `(_LAMBDA_MEMO ',l ',vars ',label (LIST ,@fvars) ',bts
 		 (LAMBDA ,fvars (LAMBDA ,vars ,body))))
@@ -97,14 +97,24 @@
      ((= lv 1)
       (if (and (pair? e)
 	       (not (equal? 'QUOTE (car e))))
-	  (shift k `(LET ((,var ,e))
-		      ,(reset (k (f var)))))
+	  (shift k (make-residual-let var e (reset (k (f var)))))
 	  (f e)))
      (else
       (shift k
 	     `(_LET ,(pred lv) ',orig-var
 		    ,e (LAMBDA (,var)
 			 ,(reset (k (f var))))))))))
+
+(define (_begin lv e1 e2)
+  (cond
+   ((zero? lv)
+    (e2))
+   ((= lv 1)
+    (shift k (make-residual-begin e1 (reset (k (e2))))))
+   (else
+    (shift k `(_BEGIN ,(pred lv)
+		      ,e1 (LAMBDA ()
+			    ,(reset (k (e2)))))))))
 
 (define (_ctor_memo lv bts ctor . args)
   (let ((new-bts (map pred bts)))

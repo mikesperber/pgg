@@ -1,4 +1,4 @@
-(define (main d y)
+(define (main y d)
   (let ((f (lambda (z) (+ z y)))
 	(g (lambda (z) (- z y))))
     (cons (mymap f d)

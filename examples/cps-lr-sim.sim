@@ -1,0 +1,2 @@
+(loadt "../lr-essence/common/grammar.adt")
+(loads "examples/cps-lr.scm")

@@ -16,9 +16,61 @@
 
 ;;; set result to the unit of the continuation monad
 (define result result-c)
-;;; set creation of conditional arms
-(define (make-conditional-arm e) e)
 
+;;; interface to create generating extensions
+;;; syntax constructors
+(define (make-ge-var l v)
+  v)
+(define (make-ge-const c)
+  `(_LIFT0 1 ,c))
+(define (make-ge-cond l c t e)
+  `(_IF ,l ,c ,t ,e))
+(define (make-ge-op l o args)
+  `(_OP ,l ,o ,@args))
+(define (make-ge-call f args)
+  `(,f ,@args))
+(define (make-ge-let l v e body)
+  `(_LET ,l ((,v ,e)) ,body))
+(define (make-ge-begin l e1 e2)
+  `(_BEGIN ,l ,e1 ,e2))
+(define (make-ge-lambda-memo l vars btv label fvars bts body)
+  `(_LAMBDA_MEMO ',l ',vars ',label (LIST ,@fvars) ',bts
+		 (LAMBDA_RESULT ,fvars (LAMBDA_RESULT ,vars ,body))))
+(define (make-ge-vlambda-memo l fixed-vars var btv label fvars bts body)
+  `(_VLAMBDA_MEMO ',l ',fixed-vars ',var ',label (LIST ,@fvars) ',bts
+		 (LAMBDA ,fvars (LAMBDA (,@fixed-vars . ,var) ,body))))
+(define (make-ge-app-memo l f btv args)
+  `(_APP_MEMO ,l ,f ,@args))
+(define (make-ge-lambda l vars btv body)
+  `(_LAMBDA ',l ',vars (LAMBDA ,vars ,body)))
+(define (make-ge-app l f args)
+  `(_APP ,l ,f ,@args))
+(define (make-ge-ctor-memo l bts ctor args)
+  `(_CTOR_MEMO ,l ,bts ,ctor ,@args))
+(define (make-ge-sel-memo l sel a)
+  `(_ST_MEMO ,l ,sel ,a))
+(define (make-ge-test-memo l tst a)
+  `(_ST_MEMO ,l ,tst ,a))
+(define (make-ge-ctor l ctor args)
+  `(_OP ,l ,ctor ,@args))
+(define (make-ge-sel l sel a)
+  `(_OP ,l ,sel ,a))
+(define (make-ge-test l tst a)
+  `(_OP ,l ,tst ,a))
+(define (make-ge-lift l diff a)
+  `(_LIFT ,l ,diff ,a))
+(define (make-ge-eval l diff a)
+  `(_EVAL ,l ,diff ,a))
+
+
+(define (make-residual-let var exp body)
+  (if (and (pair? body) (memq (car body) '(LET LET*)))
+      (let ((header (cadr body))
+	    (body (caddr body)))
+	`(LET* ((,var ,exp) ,@header) ,body))
+      `(LET ((,var ,exp)) ,body)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; application with arbitrary many arguments
 ;;; _app : Level \times K Code \times (K Code)^* -> K Code
 (define (_app lv fc . argsc)
@@ -53,129 +105,111 @@
 
 ;;; lambda abstraction with arbitrary arity
 ;;;
-;;; static function representation by a 4-tuple consisting of
-;;; (lambda DFV (lambda vars body)), the unique label of the lambda,
-;;; the list FV of all free variables, and the binding times of the
-;;; free variables. the tuple is represented by a function which maps
-;;; 'value, 'label, 'vvs, and 'bts to the respective components of the
-;;; tuple. 
-;;; [this contortion is not really necessary for ALL lambdas but only
-;;; for those that are eventually memoized]
-;;; the main problem here lies in the binding times of the free
-;;; variables which are independent of the binding times of the
-;;; function and the bound variables
-;;;
 ;;; _lambda_memo : Level \times Ident^* \times Label \times 2Value^*
 ;;; \times BT^* \times (2Value^* -> (K Code)^* -> K Code) -> K Code
-(define (_lambda_memo lv arity label vvcs bts f)
+(define-syntax _lambda_memo
+  (syntax-rules ()
+    ((_ 0 arity label fvcs bts f)
+     (lambda (k)
+       (k (static-constructor label f (map (lambda (g) (g id)) fvcs) bts))))
+    ((_ arg ...)
+     (_lambda_memo-internal arg ...))))
+
+(define (_lambda_memo-internal lv arity label fvcs bts f)
   (lambda (kappa)
-    (let* ((vars (map gensym arity))
-	   (varcs (map result vars)))
-      (let* ((dynamics (project-dynamic (cons label vvcs) bts))
-	     (new-vvcs (apply append dynamics))
-	     (new-bts (binding-times dynamics))
-	     (fvs (map (lambda (x) (gensym 'fv)) bts))
-	     (fvcs (map result fvs)))
-	(lib-arg-list
-	 new-vvcs
-	 (lambda (new-vvs)
-	   (if (= lv 1)
-	       (kappa `(STATIC-CONSTRUCTOR
-			',label
-			(LAMBDA ,fvs
-			  (LAMBDA ,vars
-			    ,((apply (apply f fvcs) varcs) id)))
-			(LIST ,@new-vvs)
-			',new-bts))
-	       ;; > lv 1
-	       (kappa `(_LAMBDA_MEMO
-			,(- lv 1)
-			',arity
-			',(gensym label)
-			(LIST ,@new-vvs)
-			',new-bts
-			(LAMBDA ,fvs
-			  (LAMBDA ,vars
-			    ,((apply (apply f fvcs) varcs) id))))))))))))
+    (let* ((vars (map gensym-local arity))
+	   (varcs (map result vars))
+	   (lambda-pp (cons label (map (lambda (comp) (comp id)) fvcs)))
+	   (dynamics (project-dynamic lambda-pp bts))
+	   (new-freevars (apply append dynamics))
+	   (new-bts (binding-times dynamics))
+	   (cloned-pp (clone-dynamic lambda-pp bts))
+	   (formal-fvs (apply append (project-dynamic cloned-pp bts)))
+	   (actual-fvs (cdr cloned-pp)))
+      ;; lv >= 1
+      (kappa `(_LAMBDA_MEMO
+	       ,(- lv 1)
+	       ',arity
+	       ',(gensym 'cls)
+	       (LIST ,@new-freevars)
+	       ',new-bts
+	       (LAMBDA_RESULT ,formal-fvs
+                 (LAMBDA_RESULT ,vars
+		   ,((apply (apply f actual-fvs) vars) id))))))))
+
+(define-syntax lambda_result
+  (syntax-rules ()
+    ((_ () body ...)
+     (lambda () body ...))
+    ((_ (fv ...) body ...)
+     (lambda (fv ...)
+       (let ((fv (result fv)) ...) body ...)))))
 
 ;;; lambdas that are never memoized
-;;; i.e., lambdas of continuations that we introduced ourselves are
-;;; certainly candidates for these lambdas (does this ever happen?)
 ;;; remember we live in CPS: variables must ALWAYS be bound to
 ;;; continuations returning variables!
 ;;; `arity' is the list of the original variable names
+
 (define (_lambda lv arity f)
-  (lambda (kappa)
-    (let* ((vars (map gensym arity))
-	   (varcs (map result vars)))
-      (if (= lv 1)
-	  (kappa `(LAMBDA ,vars
-		    ,((apply f varcs) id)))
+  (if (zero? lv)
+      (result (lambda vars
+		(apply f (map result vars))))
+      (let* ((vars (map gensym-local arity))
+	     (varcs (map result vars)))
+	(lambda (kappa)
 	  (kappa `(_LAMBDA ,(- lv 1) ',arity
 			   (LAMBDA ,vars ,((apply f varcs) id))))))))
 
 ;;; LET with context propagation
-(define (_let lv e f)
+(define-syntax _let
+  (syntax-rules ()
+    ((_ lv ((?v e)) body)
+     (_let-internal lv '?v e (lambda (?v) body)))))
+
+(define (_let-internal lv orig-var ec f)
   (lambda (kappa)
-    (let* ((var (gensym 'fresh))
+    (let* ((var (gensym orig-var))
 	   (varc (lambda (k) (k var))))
-      (e
+      (ec
        (lambda (value)
 	 (cond
-	  ((or (zero? lv)
-	       (and (= lv 1) (not (pair? value))))
+	  ((zero? lv)
+	   ((f (result value)) kappa))
+	  ((and (= lv 1) (or (not (pair? value)) (equal? 'QUOTE (car value))))
 	   ((f (result value)) kappa))
 	  (else
-	   `(_LET ,(- lv 1) ,value
-		  (LAMBDA (,var) ,((f varc) kappa))))))))))
+	   `(_LET ,(- lv 1) ((,var ,value))
+		  ,((f varc) kappa)))))))))
+
+(define (_begin lv e1c e2c)
+  (lambda (kappa)
+    (if (= lv 0)
+	(e1c (lambda (y1) (e2c kappa)))
+	(e1c (lambda (y1) `(_BEGIN ,(pred lv) ,y1 ,(e2c kappa)))))))
 
 ;;; constructors with memoization
-(define (_ctor_memo lv bts ctor . argsc)
-  (let ((bts (map pred bts)))
-    (if (zero? lv)
-	(lambda (kappa)
-	  (lib-arg-list
-	   argsc
-	   (lambda (args)
-	     (kappa
-	      (STATIC-CONSTRUCTOR ctor
-				  (eval ctor (interaction-environment))
-				  args
-				  bts)))))
-	(lambda (kappa)
-	  (kappa
-	   `(_CTOR_MEMO ,(- lv 1) ',bts ',ctor
-			,@(map (lambda (ac) (ac id)) argsc)))))))
+(define-syntax _ctor_memo
+  (syntax-rules ()
+    ((_ 0 bts ctor argc ...)
+     (lambda (k)
+       (lib-arg-list (list argc ...)
+		     (lambda (args)
+		       (k (STATIC-CONSTRUCTOR 'ctor
+					      ctor
+					      args
+					      'bts) )))))
+    ((_ lv (bt ...) ctor argc ...)
+     (lambda (k)
+       (k `(_CTOR_MEMO ,(pred lv) (,(pred bt) ...) ctor
+		       ,(argc id) ...))))))
 
-;;; selectors for constructors with memoization
-(define (_sel_memo lv sel argc)
-  (if (zero? lv)
-      (lambda (kappa)
-	(argc
-	 (lambda (v)
-	   (kappa (sel (v 'VALUE))))))
-      (lambda (kappa)
-	(kappa
-	 (cond
-	  ((= lv 1)
-	   `(_SEL_MEMO ,(- lv 1)  ,sel ,(argc id)))
-	  (else
-	   `(_SEL_MEMO ,(- lv 1) ',sel ,(argc id))))))))
-
-;;; test for constructors with memoization
-(define (_test_memo level ctor-test argc)
-  (if (zero? level)
-      (lambda (kappa)
-	(argc
-	 (lambda (v)
-	   (kappa (ctor-test (v 'value))))))
-      (lambda (kappa)
-	(kappa
-	 (cond
-	  ((= level 1)
-	   `(_TEST_MEMO ,(- level 1) ,ctor-test ,(argc id)))
-	  (else
-	   `(_TEST_MEMO ,(- level 1) ',ctor-test ,(argc id))))))))
+;;; selectors and tests for constructors with memoization
+(define-syntax _s_t_memo
+  (syntax-rules ()
+    ((_ 0 sel/test argc)
+     (lambda (k) (argc (lambda (arg) (k (sel/test (arg 'VALUE)))))))
+    ((_ lv sel/test argc)
+     (lambda (k) (k `(_S_T_MEMO ,(pred lv) sel/test ,(argc id)))))))
 
 ;;; conditional
 (define (_If level e1c e2c e3c)
@@ -186,43 +220,28 @@
 	      `(_IF ,(- level 1) ,e1 ,(e2c kappa) ,(e3c kappa)))))))
 
 ;;; primitive operators
-(define (_Op level op . argsc)
-  (if (zero? level)
-      (lambda (kappa)
-	(lib-arg-list
-	 argsc
-	 (lambda (args)
-	   (kappa (apply op args)))))
-      (lambda (kappa)
-	(kappa
-	 (cond
-	  ((= 1 level)
-	   `(_OP 0 ,op ,@(map (lambda (ac) (ac id)) argsc)))
-	  (else
-	   `(_OP ,(- level 1) ',op ,@(map (lambda (ac) (ac id)) argsc))))))))
+(define-syntax _op
+  (syntax-rules ()
+    ((_ 0 op argc ...)
+     (lambda (k) (lib-arg-list (list argc ...) (lambda (args) (k (apply op args))))))
+    ((_ lv op argc ...)
+     (lambda (k) (k `(_OP ,(pred lv) op ,(argc id) ...))))))
 
 ;;; differing from [GJ1995] we need two different lift operators, as
 ;;; the 2nd argument of _Lift is a number and not some syntactic construct
-(define (_Lift0 level val)
-  (lambda (kappa)
-    (if (= level 0)
-	(kappa val)
-	(kappa `(_LIFT0 ,(- level 1) ',val)))))
+(define-syntax _lift0
+  (syntax-rules ()
+    ((_ 0 val)
+     (lambda (k) (k 'val)))
+    ((_ lv val)
+     (lambda (k) (k `(_LIFT0 ,(pred lv) val))))))
 
-(define (_Liftc level valc)
-  (lambda (kappa)
-    (if (= level 0)
-	(kappa valc)
-	(valc (lambda (val)
-	       (kappa `(_LIFT0 ,(- level 1) ',val)))))))
-
-(define (_Lift level diff valc)
-  (lambda (kappa)
-    (valc
-     (lambda (value)
-       (if (= level 1)
-	   (kappa `(_LIFTc ,diff ,value))
-	   (kappa `(_LIFT ,(- level 1) ,diff ,value)))))))
+(define-syntax _lift
+  (syntax-rules ()
+    ((_ 0 diff valc)
+     (lambda (k) (valc (lambda (val) (k `(_LIFT0 ,(pred diff) ,val))))))
+    ((_ lv diff valc)
+     (lambda (k) (valc (lambda (val) (k `(_LIFT ,(pred lv) ,diff ,val))))))))
 
 ;;; general argument-list processing
 ;;; accept a list of argument continuations `argsc' and a continuation
@@ -235,68 +254,77 @@
 	 (lib-arg-list (cdr argsc)
 		       (lambda (args) (c (cons arg args))))))))
 
-;;; no longer used
-(define (lib-arg-list-bts argsc bts c)
-  (if (null? argsc)
-      (c '())
-      (if (zero? (car bts))
-	  (lib-arg-list-bts (cdr argsc) (cdr bts)
-			    (lambda (args)
-			      (c (cons (car argsc) args))))
-	  ((car argsc)
-	   (lambda (arg)
-	     (lib-arg-list-bts (cdr argsc) (cdr bts)
-			       (lambda (args) (c (cons arg args)))))))))
+;;; memo function stuff
+(define-syntax start-memo
+  (syntax-rules ()
+    ((_ level fn bts args)
+     (start-memo-internal level 'fn fn bts args))))
 
-;;; transform the arguments to CPS, if necessary
-(define (start-memo level fn bts args)
+(define (nextlevel memo-template args)
+  (let ((level (list-ref memo-template 1))
+	(goal-proc (list-ref memo-template 3))
+	(bts (cadr (list-ref memo-template 4))))
+    (start-memo-internal level
+			 goal-proc
+			 (eval goal-proc (interaction-environment))
+			 bts
+			 args)))
+
+;;; transform the arguments to CPS computations, if necessary
+(define (start-memo-internal level fname fct bts args)
   (clear-residual-program!) 
   (clear-memolist!)
-  ((multi-memo level fn bts
+  (gensym-local-reset!)
+  (gensym-reset!)
+  ((multi-memo level fname fct bts
 	       (map (lambda (arg)
 		      (if (procedure? arg) arg (result arg))) args))
-   id))
+   (lambda (result)
+     (let* ((goal-proc (car *residual-program*))
+	    (defn-template (take 2 goal-proc))
+	    (defn-body (list-tail goal-proc 2)))
+       (set! *residual-program*
+	     (list (append defn-template
+			   (cdr *residual-program*)
+			   defn-body)))
+       result))))
 
 ;;;
 ;;; the memo-function
 ;;; - fn is the name of the function to memoize
 ;;; - args are the free variables of the function's body
 ;;; - bts are their binding times
-(define (multi-memo level fn bts argsc)
+(define (multi-memo level fname fct bts argsc)
   (lambda (kappa)
     (lib-arg-list
      argsc 
      (lambda (args)
        (let*
-	   ((full-pp (cons fn args))
+	   ((enter-scope (gensym-local-push!))
+	    (full-pp (cons fname args))
 	    (pp (project-static full-pp bts))
 	    (dynamics (project-dynamic full-pp bts))
 	    (actuals (apply append dynamics))
 	    (found
 	     (or (assoc pp *memolist*)
 		 (let*
-		     ((new-name (gensym fn))
+		     ((new-name (gensym fname))
 		      (cloned-pp (clone-dynamic full-pp bts))
-		      (new-formals (apply append
-					  (project-dynamic cloned-pp
-							   bts)))
+		      (new-formals (apply append (project-dynamic cloned-pp bts)))
 		      (new-entry (add-to-memolist! (cons pp new-name)))
-		      (new-def
-		       (let ((func (eval fn (interaction-environment)))
-			     (kappa (gensym 'kappa)))
-			 `(DEFINE (,new-name ,@new-formals)
-			    ,((apply func (map result (cdr cloned-pp)))
-			      id)))))
+		      (new-def `(DEFINE (,new-name ,@new-formals)
+				  ,((apply fct (map result (cdr cloned-pp))) id))))
 		   (add-to-residual-program! new-def)
 		   (cons pp new-name))))
-	    (res-name (cdr found)))
-	 (let ((w (gensym 'w)))
-	   (if (= level 1)
+	    (res-name (cdr found))
+	    (exit-scope (gensym-local-pop!)))
+	 ;; (display (list "multi-memo" fname args actuals)) (newline)
+	 (if (= level 1)
 	     ;; generate call to fn with actual arguments
-	       (kappa `(,res-name ,@actuals))
-	       ;; reconstruct multi-memo
-	      (kappa `(MULTI-MEMO ,(- level 1)
-			   ',res-name
-			   ',(binding-times dynamics)
-			   (LIST ,@actuals))))))))))
+	     (kappa `(,res-name ,@actuals))
+	     ;; reconstruct multi-memo
+	     (kappa `(MULTI-MEMO ,(- level 1)
+				 ',res-name ,res-name
+				 ',(binding-times dynamics)
+				 (LIST ,@actuals)))))))))
 

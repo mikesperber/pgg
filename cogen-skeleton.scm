@@ -1,6 +1,9 @@
 ;;; skeleton for multi-level cogen
 ;;; $Id$
 ;;; $Log$
+;;; Revision 1.16  1996/08/14 09:00:16  thiemann
+;;; revived CPS version and some polishing
+;;;
 ;;; Revision 1.15  1996/08/01 11:53:09  thiemann
 ;;; modified bta of operators
 ;;;
@@ -94,12 +97,14 @@
      ((annIsLet? e)
       (let* ((level (annExprFetchLevel (annFetchLetHeader e)))
 	     (var (annFetchLetVar e))
-	     (unfoldability (annFetchLetUnfoldability e))
-	     (n-level (if unfoldability level (+ level 1))))
-	(make-ge-let n-level
-		     var
-		     (loop (annFetchLetHeader e))
-		     (loop (annFetchLetBody e)))))
+	     (n-level (if (annFetchLetUnfoldability e)
+			  level
+			  (+ level 1)))
+	     (header (loop (annFetchLetHeader e)))
+	     (body (loop (annFetchLetBody e))))
+	(if (= 0 (annFetchLetUseCount e))
+	    (make-ge-begin n-level header body)
+	    (make-ge-let n-level var header body))))
      ((annIsLambda? e)
 ;;;      `(_LAMBDA ,(+ 1 (annExprFetchLevel e))
 ;;;		(LAMBDA ,(annFetchLambdaVars e)

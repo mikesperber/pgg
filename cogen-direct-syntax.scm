@@ -3,12 +3,11 @@
 ;;; compiler generator (with control operators)
 ;;;
 
-;;; set result to the unit of the identity monad
-(define result id)
 (define-syntax maybe-reset		;exchange if needed
   (syntax-rules ()
     ((_ x) x)
     ((_ x) (reset x))))
+
 ;;; interface to create generating extensions
 ;;; syntax constructors
 (define (make-ge-var l v)
@@ -23,6 +22,8 @@
   `(,f ,@args))
 (define (make-ge-let l v e body)
   `(_LET ,l ((,v ,e)) ,body))
+(define (make-ge-begin l e1 e2)
+  `(_BEGIN ,l ,e1 ,e2))
 (define (make-ge-lambda-memo l vars btv label fvars bts body)
   `(_LAMBDA_MEMO ',l ',vars ',label (LIST ,@fvars) ',bts
 		 (LAMBDA ,fvars (LAMBDA ,vars ,body))))
@@ -38,27 +39,19 @@
 (define (make-ge-ctor-memo l bts ctor args)
   `(_CTOR_MEMO ,l ,bts ,ctor ,@args))
 (define (make-ge-sel-memo l sel a)
-  `(_SEL_MEMO ,l ,sel ,a))
+  `(_S_T_MEMO ,l ,sel ,a))
 (define (make-ge-test-memo l tst a)
-  `(_TEST_MEMO ,l ,tst ,a))
+  `(_S_T_MEMO ,l ,tst ,a))
 (define (make-ge-ctor l ctor args)
-  `(_CTOR ,l ,ctor ,@args))
+  `(_OP ,l ,ctor ,@args))
 (define (make-ge-sel l sel a)
-  `(_SEL ,l ,sel ,a))
+  `(_OP ,l ,sel ,a))
 (define (make-ge-test l tst a)
-  `(_TEST ,l ,tst ,a))
+  `(_OP ,l ,tst ,a))
 (define (make-ge-lift l diff a)
   `(_LIFT ,l ,diff ,a))
 (define (make-ge-eval l diff a)
   `(_EVAL ,l ,diff ,a))
-
-
-(define (make-residual-let var exp body)
-  (if (and (pair? body) (memq (car body) '(LET LET*)))
-      (let ((header (cadr body))
-	    (body (caddr body)))
-	`(LET* ((,var ,exp) ,@header) ,body))
-      `(LET ((,var ,exp)) ,body)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; an implementation using macros
@@ -86,7 +79,14 @@
 	fun
 	`(_LAMBDA ,(pred lv) ',arity ,fun))))
 
-(define (_lambda_memo lv arity label vvs bts f)
+(define-syntax _lambda_memo
+  (syntax-rules ()
+    ((_ 0 arity label vvs bts f)
+     (static-constructor label f vvs bts))
+    ((_ arg ...)
+     (_lambda_memo-internal arg ...))))
+
+(define (_lambda_memo-internal lv arity label vvs bts f)
   (let* ((formals (map gensym-local arity))
 	 (lambda-pp (cons label vvs))
 	 (dynamics (project-dynamic lambda-pp bts))
@@ -101,24 +101,16 @@
 	 (cloned-vvs (cdr cloned-pp))
 	 (new-bts (binding-times compressed-dynamics))
 	 (formal-fvs (map cdr clone-map)))
-    (if (= lv 1)
-	`(STATIC-CONSTRUCTOR
-	  ',label
-	  (LAMBDA ,formal-fvs
-	    (LAMBDA ,formals
-	      ,(reset (apply (apply f cloned-vvs) formals))))
-	  (LIST ,@actual-fvs)
-	  ',new-bts)
-	;; > lv 1
-	`(_LAMBDA_MEMO
-	  ,(- lv 1)
-	  ',arity
-	  ',(gensym 'cls)
-	  (LIST ,@actual-fvs)
-	  ',new-bts
-	  (LAMBDA ,formal-fvs
-	    (LAMBDA ,formals
-	      ,(reset (apply (apply f cloned-vvs) formals))))))))
+    ;; (> lv 0)
+    `(_LAMBDA_MEMO
+      ,(- lv 1)
+      ',arity
+      ',(gensym 'cls)
+      (LIST ,@actual-fvs)
+      ',new-bts
+      (LAMBDA ,formal-fvs
+	(LAMBDA ,formals
+	  ,(reset (apply (apply f cloned-vvs) formals)))))))
 
 (define (_vlambda lv arity var f)
   (let* ((vars (map gensym-local arity))
@@ -131,8 +123,10 @@
 
 (define-syntax _let
   (syntax-rules ()
+    ((_ 0 ((?v e)) body)
+     (let ((?v e)) body))
     ((_ lv ((?v e)) body)
-     (_let-internal lv '?v e (lambda (?v) body)))))
+     (_let-internal lv '?v (maybe-reset e) (lambda (?v) body)))))
 
 (define (_let-internal lv orig-var e f)
   (let ((var (gensym-local orig-var)))
@@ -147,6 +141,15 @@
      (else
       (shift k (make-ge-let (pred lv) var e (reset (k (f var)))))))))
 
+(define-syntax _begin
+  (syntax-rules ()
+    ((_ 0 e1 e2)
+     (begin e1 e2))
+    ((_ 1 e1 e2)
+     (shift k (make-residual-begin (maybe-reset e1) (reset (k e2)))))
+    ((_ lv e1 e2)
+     (shift k `(_BEGIN ,(pred lv) ,(maybe-reset e1) ,(reset (k e2)))))))
+
 (define-syntax _ctor_memo
   (syntax-rules ()
     ((_ 0 bts ctor arg ...)
@@ -154,46 +157,12 @@
     ((_ lv (bt ...) ctor arg ...)
      `(_CTOR_MEMO ,(pred lv) (,(pred bt) ...) ctor ,(maybe-reset arg) ...))))
 
-(define-syntax _sel_memo
+(define-syntax _s_t_memo
   (syntax-rules ()
     ((_ 0 sel v)
      (sel (v 'VALUE)))
     ((_sel_memo lv sel v)
-     `(_SEL_MEMO ,(pred lv) sel ,(maybe-reset v)))))
-
-(define-syntax _test_memo
-  (syntax-rules ()
-    ((_ 0 ctor-test v)
-     (ctor-test (v 'VALUE)))
-    ((_ lv ctor-test v)
-     `(_TEST_MEMO ,(pred lv) ctor-test ,(maybe-reset v)))))
-
-(define-syntax _ctor
-  (syntax-rules ()
-    ((_ 0 ctor arg ...)
-     (ctor arg ...))
-    ((_ 1 ctor arg ...)
-     `(ctor ,(maybe-reset arg) ...))
-    ((_ lv ctor arg ...)
-     `(_CTOR ,(pred lv) ctor ,(maybe-reset arg) ...))))
-
-(define-syntax _sel
-  (syntax-rules ()
-    ((_ 0 sel v)
-     (sel v))
-    ((_ 1 sel v)
-     `(sel ,(maybe-reset v)))
-    ((_ lv sel v)
-     `(_SEL ,(pred lv) sel ,(maybe-reset v)))))
-
-(define-syntax _test
-  (syntax-rules ()
-    ((_ 0 ctor-test v)
-     (ctor-test v))
-    ((_ 1 ctor-test v)
-     `(ctor-test ,(maybe-reset v)))
-    ((_ lv ctor-test v)
-     `(_TEST ,(pred lv) ctor-test ,(maybe-reset v)))))
+     `(_S_T_MEMO ,(pred lv) sel ,(maybe-reset v)))))
 
 (define-syntax _if
   (syntax-rules ()

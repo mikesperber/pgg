@@ -2,6 +2,9 @@
 ;;;
 ;;; $Header$
 ;;; $Log$
+;;; Revision 1.3  1996/08/14 09:00:29  thiemann
+;;; revived CPS version and some polishing
+;;;
 ;;; Revision 1.2  1996/06/03 07:35:07  thiemann
 ;;; checkpoint after including new equational BTA
 ;;;
@@ -39,16 +42,16 @@
 ;;; E ::= V | K | (if E1 E2 E3)  | (call P E*) | (O E*) |
 ;;;       (lambda V E) | (apply E1 E2) 
 
-(define-operator (dynamic-car d) d)
-(define-operator (dynamic-cdr d) d)
+(define-primitive dynamic-car (all t t) dynamic)
+(define-primitive dynamic-cdr (all t t) dynamic)
 
 ;;;(loadt "scheme1.adt")
 ;;;(loadt "list.adt")
-(defdata mylist
+(define-data mylist
   (my-cons my-car my-cdr)
   (my-nil))
 ;;;(loadt "closure.adt")
-(defdata myclosure
+(define-data myclosure
   (mk-error)
   (mk-value   get-value)
   (mk-closure closure-nr closure-vars)
@@ -64,9 +67,9 @@
 
 ;;; tagging, s1-list->my-list-by, type propagation through contexts
 ;;; needs (standard-memoization-off)
-(defmemo _sim-memoize only)
+(define-memo _sim-memoize 1)
 
-(define (s1-2int P XS* XD*)
+(define-without-memoization (s1-2int P XS* XD*)
   (let* ((main (car P))
 	 (name (s1-get-proc-name main))
 	 (args (s1-get-proc-args main))
@@ -84,12 +87,12 @@
 ;;; transform data to an expression yielding that data
 ;;; all quoted expressions should probably be activated?!
 ;;; yes, that simplifies matters considerably!
-(define (s1-activate d)
+(define-without-memoization (s1-activate d)
   (list 'quote d))
 
 ;;; build quoted first-order data
 ;;; bt: S -> Ps
-(define (s1-build-data d)
+(define-without-memoization (s1-build-data d)
   (cond
    ((not (list? d))
     (mk-constant '() d))
@@ -104,7 +107,7 @@
 ;;; specialized program's input. Dynamic parts are marked by '***
 ;;; (what else :-)
 ;;; Hmm, might be better to call them cv1 to cvn?
-(define (s1-2int-skeleton P call-XS* XD*)
+(define-without-memoization (s1-2int-skeleton P call-XS* XD*)
   (let* ((procname (car call-XS*))
 	 (skeletons (cdr call-XS*))
 	 (main (s1-lookup-defn P procname))
@@ -120,7 +123,7 @@
   (s1-int (cons newmain P) XD*)))
 
 ;;; returns (my-cons expression new-count)
-(define (s1-skeleton->expression skeleton count)
+(define-without-memoization (s1-skeleton->expression skeleton count)
   (cond
    ((pair? skeleton)
     (let* ((ec-car (s1-skeleton->expression (car skeleton) count))
@@ -134,7 +137,7 @@
    (else
     (my-cons skeleton count))))
 
-(define (s1-skeleton->expression* skeleton* count)
+(define-without-memoization (s1-skeleton->expression* skeleton* count)
   (if (null? skeleton*)
       (my-cons '() count)
       (let* ((ec (s1-skeleton->expression (car skeleton*) count))
@@ -142,12 +145,12 @@
 	(my-cons (cons (my-car ec) (my-car ec*))
 		 (my-cdr ec*)))))
 
-(define (s1-skeleton-var n)
+(define-without-memoization (s1-skeleton-var n)
   (string->symbol (string-append "v" (number->string n))))
 
 ;;; one-level interpreter starts here:
 
-(define (s1-int P X*)
+(define-without-memoization (s1-int P X*)
   (let* ((PR (s1-flow-analysis P))
 	 (D* (car PR))			;list of annotated definitions
 	 (I (s1-cltable D*))		;closure table
@@ -167,7 +170,7 @@
 ;;; A* - my-list of tagged values
 ;;; T  - list of labels of dynamic lambdas
 ;;; E  - expression to evaluate
-(define (s1-eval P R I O V* A* T E0)
+(define-without-memoization (s1-eval P R I O V* A* T E0)
   (let* ((flow-var (s1-flow-of E0))
 	 (E (s1-meat-of E0))
 	 (dynamic-closures (if T #f #t))) ;just to make T static...
@@ -359,7 +362,7 @@
 	      (A* (restrict-and-dynamize V* A* V0*)))
 	  (nl) (dpy "dynamic conditional: ") (dpy E) (nl)
 	  (mk-value
-	   (_sim-memoize 1
+	   (_sim-memoize
 	    (if (get-value b)
 		(get-value (dynamize-everything (s1-eval P R I O V* A* T (s1-get-if-then E))))
 		(get-value (dynamize-everything (s1-eval P R I O V* A* T (s1-get-if-else E))))))))))))
@@ -419,7 +422,7 @@
 		    (if (and ratorinfo
 			     (> 1 (cdr ratorinfo)))
 			(mk-value
-			 (_sim-memoize 1
+			 (_sim-memoize
 			  (get-value
 			   (dynamize-everything
 			    (s1-eval P R I O
@@ -440,7 +443,7 @@
 		       (dyn-nr (car dyn-cl)))
 		  (let loop ((d-lambdas d-lambdas))
 		    (mk-value
-		     (_sim-memoize 1
+		     (_sim-memoize
 		      (get-value
 		       (if (or (null? (cdr d-lambdas))
 			       (equal? (car d-lambdas) dyn-nr))
@@ -498,19 +501,19 @@
 
 ;;; apply  operator oo to argument list
 (define (s0-apply-op oo flow-var args)
-  (dpy "s0-apply-op ") (dpy oo)
-  (cond
-   ((my-nil? args)
-    (dpy " <no args>"))
-   ((mk-constant? (my-car args))
-    (dpy " constant ") (dpy (constant-arg (my-car args))))
-   ((mk-data? (my-car args))
-    (dpy " data"))
-   ((mk-value? (my-car args))
-    (dpy " value"))
-   (else
-    (dpy " otherwise")))
-  (nl)
+;;;  (dpy "s0-apply-op ") (dpy oo)
+;;;  (cond
+;;;   ((my-nil? args)
+;;;    (dpy " <no args>"))
+;;;   ((mk-constant? (my-car args))
+;;;    (dpy " constant ") (dpy (constant-arg (my-car args))))
+;;;   ((mk-data? (my-car args))
+;;;    (dpy " data"))
+;;;   ((mk-value? (my-car args))
+;;;    (dpy " value"))
+;;;   (else
+;;;    (dpy " otherwise")))
+;;;  (nl)
   (cond
    ;; data constructors & selectors, only applicable to partially static arguments!
    ((equal? 'cons oo)
@@ -698,7 +701,7 @@
 
 ;;; dynamize first-order data, 
 
-(define (s1-dynamize-data d)
+(define-without-memoization (s1-dynamize-data d)
   (mk-value
    (let loop ((v d))
      (cond

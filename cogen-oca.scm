@@ -37,6 +37,7 @@
 	(annSetLetUnfoldability!
 	 e (or (= 1 oc)			; beware from inlining side effecting ops!
 	       (and (zero? oc) (annExprTerminates? body))))
+	(annSetLetUseCount! e oc)
 	(oca-add (loop (annFetchLetHeader e))
 		 (cdr oca-body))))
      ((annIsVLambda? e)

@@ -1,0 +1,102 @@
+(define repetitions 100)
+(verbose-prep-off)
+
+;;; first run on append
+(display "Similix (app) :") (newline)
+;;;
+(display "!!!preprocessing") (newline)
+(preprocess! 'app '(s d) "examples/app")
+,time (ntimes (lambda () (preprocess! 'app '(s d) "examples/app"))
+	      repetitions)
+(display (list "^^^preprocessing time *" repetitions)) (newline)
+(display "!!!generating compiler") (newline)
+(cogen 1)
+,time (cogen repetitions)
+(display (list "^^^generation time *" repetitions)) (newline)
+(display "!!!compiling") (newline)
+(comp '((a b c) ***))
+,time (comp '((a b c) ***) repetitions)
+(display (list "^^^compilation time *" repetitions)) (newline)
+(display "!!!specializing") (newline)
+,time (begin (similix '((a b c) ***) repetitions) #f)
+(display (list "^^^specialization time *" repetitions)) (newline)
+
+;;; second run with partially static data
+(display "----------------------------------------------------------------------") (newline)
+(display "Similix (ctors) :") (newline)
+;;;
+(display "!!!preprocessing") (newline)
+(preprocess! 'main '(s d) "examples/ctors")
+,time (ntimes (lambda () (preprocess! 'main '(s d) "examples/ctors"))
+	      repetitions)
+(display (list "^^^preprocessing time *" repetitions)) (newline)
+
+(display "!!!generating compiler") (newline)
+(cogen 1)
+,time (cogen repetitions)
+(display (list "^^^generation time *" repetitions)) (newline)
+
+(display "!!!compiling") (newline)
+(comp '((a b c) ***))
+,time (comp '((a b c) ***) repetitions)
+(display (list "^^^compilation time *" repetitions)) (newline)
+
+(display "!!!specializing") (newline)
+,time (begin (similix '((a b c) ***) repetitions) #f)
+(display (list "^^^specialization time *" repetitions)) (newline)
+
+;;; third run with partially static functions
+(display "----------------------------------------------------------------------") (newline)
+(display "Similix (lambda) :") (newline)
+;;;
+(display "!!!preprocessing") (newline)
+(preprocess! 'main '(s d) "examples/lambda")
+,time (ntimes (lambda () (preprocess! 'main '(s d) "examples/lambda"))
+	      repetitions)
+(display (list "^^^preprocessing time *" repetitions)) (newline)
+
+(display "!!!generating compiler") (newline)
+(cogen 1)
+,time (cogen repetitions)
+(display (list "^^^generation time *" repetitions)) (newline)
+
+(display "!!!generating compiler") (newline)
+(display "!!!compiling") (newline)
+(comp (list 42 '***))
+,time (comp (list 42 '***) repetitions)
+(display (list "^^^compilation time *" repetitions)) (newline)
+
+(display "!!!specializing") (newline)
+,time (begin (similix (list 42 '**) repetitions) #f)
+(display (list "^^^specialization time *" repetitions)) (newline)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define repetitions 1)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(display "----------------------------------------------------------------------") (newline)
+(display "Similix (cps-lr) :") (newline)
+(load "../lr-essence/examples/grammars.scm")
+;;;
+(display "!!!preprocessing") (newline)
+(preprocess! 'do-parse '(s s d) "examples/cps-lr-sim")
+,time (ntimes (lambda () (preprocess! 'do-parse '(s s d) "examples/cps-lr-sim"))
+	      repetitions)
+(display (list "^^^preprocessing time *" repetitions)) (newline)
+
+(display "!!!generating compiler") (newline)
+(cogen 1)
+,time (cogen repetitions)
+(display (list "^^^generation time *" repetitions)) (newline)
+
+(display "!!!generating compiler") (newline)
+(display "!!!compiling") (newline)
+(comp (list g10-attrib 1 '***))
+,time (comp (list g10-attrib 1 '***) repetitions)
+(display (list "^^^compilation time *" repetitions)) (newline)
+
+(display "!!!specializing") (newline)
+,time (begin (similix (list g10-attrib 1 '**) repetitions) #f)
+(display (list "^^^specialization time *" repetitions)) (newline)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+,exit

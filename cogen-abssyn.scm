@@ -105,7 +105,7 @@
   (vector-ref e 5))
 ;;; let, one variable
 (define (annMakeLet v e1 e2)
-  (vector 'LET #f #f 0 v e1 e2 #f))
+  (vector 'LET #f #f 0 v e1 e2 #f 0))
 (define (annIsLet? e)
   (equal? 'LET (vector-ref e 0)))
 (define (annFetchLetVar e)
@@ -118,6 +118,10 @@
   (vector-ref e 7))
 (define (annSetLetUnfoldability! e prop)
   (vector-set! e 7 prop))
+(define (annFetchLetUseCount e)
+  (vector-ref e 8))
+(define (annSetLetUseCount! e count)
+  (vector-set! e 8 count))
 ;;; vlambda
 (define (annMakeVLambda label fixed-formals var-formal body)
   (vector 'VLAMBDA #f #f 0 fixed-formals var-formal body label #f))
