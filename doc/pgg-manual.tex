@@ -1,0 +1,1423 @@
+\documentclass[11pt]{article}
+
+\usepackage{makeidx}
+\usepackage[latin1]{inputenc}
+\usepackage{url}
+
+\newcommand{\define}[1]{\emph{#1}\index{#1}}
+\newcommand{\indextt}[1]{\index{#1@\texttt{#1}}}
+\newcommand{\dindextt}[1]{\index{#1@\texttt{#1}|textbf}}
+
+\makeindex
+%%% makeindex -s pgg-manual.ist pgg-manual.idx
+\begin{document}
+\title{The PGG System---User Manual}
+\author{Peter Thiemann\\
+  University of Nottingham\\
+  pjt@cs.nott.ac.uk}
+\maketitle
+
+
+\section{Introduction}
+\label{sec:introduction}
+
+The PGG system is a partial evaluation system for the full Scheme
+language as defined in the R5RS report \cite{KelseyClingerRees1998}.
+It has the following features
+\begin{itemize}
+\item offline partial evaluation using the cogen approach;
+\item correct specialization of imperative code;
+\item side effects performed at specialization time;
+\item no restrictions on primitives and static inputs (they are not
+  restricted to have first-order types);
+\item handles \texttt{eval}, \texttt{apply},
+  \texttt{call-with-values}, and control operators correctly;
+\item flexible control of memoization;
+\item language extensions (user-defined algebraic datatypes,
+  \texttt{make-cell}, \texttt{cell-set!}, \texttt{cell-ref},
+  \texttt{cell-eq?}); 
+\item representation analysis;
+\item fast specialization (the system produces generating extensions);
+\item multi-level specialization.
+\end{itemize}
+As a non-feature, the system does not have a post-processor.
+This manual does not contain explanatory material about offline
+partial evaluation. Section~\ref{sec:partial-evaluation} gives some
+pointers to relevant literature.
+
+\begin{small}
+\clearpage
+\enlargethispage{\baselineskip}
+\tableofcontents
+\clearpage
+\end{small}
+
+\section{Installation}
+\label{sec:installation}
+
+To use the system, you first have to install the Scheme48 system
+\cite{KelseyRees1995}, which is available from Richard Kelsey's homepage
+\url{http://www.neci.nj.nec.com/homepages/kelsey/}. The current version is
+0.50; PGG has been known to work with versions $\ge$ 0.42.
+
+Once you have installed Scheme48, unpack the distribution file by 
+\begin{verbatim}
+polihale> mkdir pgg-1.0
+polihale> cd pgg-1.0 
+polihale> zcat <PATH_TO>pgg-1.0.tar.gz | tar xvf -
+\end{verbatim}
+(with \verb+polihale>+ being the shell's prompt)
+This creates the directory \texttt{pgg-1.0} in the current directory.
+
+Next, you should build yourself an image file of the system, to speed
+up loading later on. To do this type:
+\begin{verbatim}
+polihale> cd pgg-1.0
+polihale> make
+(echo ",bench on"; \
+ echo ",config,load cogen-interfaces.scm"; \
+ echo ",load-package pgg"; \
+ echo ",open pgg signals pretty-print"; \
+ echo ",open auxiliary pgg-library"; \
+ echo ",collect"; \
+ echo ",dump pgg.image \"(PGG-1.0)\""; \
+ echo ",exit" ) \
+| scheme48 -h 4000000
+Welcome to Scheme 48 0.46 (made by peter on ...).
+Copyright (c) 1993, 1994 by Richard Kelsey and Jonathan Rees.
+Copyright (c) 1996 by NEC Research Institute, Inc.
+Please report bugs to scheme-48-bugs@martigny.ai.mit.edu.
+Type ,? (comma question-mark) for help.
+> Will compile some calls in line
+> cogen-interfaces.scm
+
+Undefined: (message-low aspaces proxies anf-specializer ...)
+> [pgg
+[auxiliary
+[pretty-print
+...
+Undefined: (parse-type desc-np desc-nc desc-nt desc-type)
+...
+cogen-driver.scm ]
+> > > Before: 202193 words free in semispace
+After:  1311637 words free in semispace
+> Writing pgg.image
+> polihale>
+\end{verbatim}
+Do not worry about the \texttt{Undefined:} messages, they result from
+mutually recursive modules.
+
+Next time you want to use PGG, type
+\begin{verbatim}
+polihale> scheme48 -h 4000000 -i pgg.image
+\end{verbatim}
+to save the time spent with loading and compiling the system. You
+might want to put the above into a shell script. The \texttt{-h}
+parameter determines the heapsize\index{heapsize} which might have to
+be increased 
+when dealing with larger programs. The
+\texttt{pgg.image}\dindextt{pgg.image} file may be 
+moved to an arbitrary location, it is independent of the directory
+containing the PGG distribution.
+
+\section{First Steps}
+\label{sec:first-steps}
+
+This section goes through a few examples of using PGG. It assumes that
+the system has been started in the \texttt{pgg-1.0} directory. The
+subdirectory \texttt{example} contains the sources of all examples.
+
+
+\subsection{Power}
+
+One of the simplest examples is the exponentiation function \texttt{power}. It
+resides in file \texttt{examples/power.scm}. 
+\begin{verbatim}
+(define (power x n)
+  (if (= 0 n)
+      1
+      (* x (power x (- n 1))))) 
+\end{verbatim}
+To specialize it, PGG must know three things
+\begin{itemize}
+\item where to find the source program;
+\item the name of the entry point;
+\item the binding times of the parameters of the entry point.
+\end{itemize}
+The latter two are specified using a binding-time skeleton,\index{binding time!skeleton}
+i.e., a list that contains the entry point and the binding times of
+the parameters. In the example, \texttt{'(power 1 0)} is a sensible
+binding-time skeleton. It specifies the entry point \texttt{power} and
+the binding times \texttt{1} (dynamic) for the base \texttt{x} and \texttt{0}
+(static) for the exponent \texttt{n}.
+\indextt{cogen-driver}
+\begin{small}
+\begin{verbatim}
+> (cogen-driver (list "examples/power.scm") '(power 1 0))
+bta-run
+bta-solve
+bta-solve done
+'((define (power x_1 n_1) (_if 0 1 (_op 0 = '0 n_1) (_lift ...
+> 
+\end{verbatim}
+\end{small}
+PGG's answer is the corresponding generating extension. Pretty
+printing yields:
+\begin{small}
+\begin{verbatim}
+(define (power x_1 n_1)
+   (_if 0 1
+        (_op 0 = 0 n_1)
+        (_lift 0 1 1)
+        (_op 1 * x_1 (power x_1 (_op 0 - n_1 1)))))
+ (define ($goal x_1 n_1) (power x_1 n_1)))
+\end{verbatim}
+\end{small}
+To use the generating extension, we need to compile it. There are
+several ways to do that:
+\indextt{cogen-driver}
+\begin{small}
+\begin{verbatim}
+> (define genext
+>   (cogen-driver (list "examples/power.scm") '(power 1 0)))
+bta-run
+bta-solve
+bta-solve done
+> (eval `(begin ,@genext) (interaction-environment))
+>
+\end{verbatim}
+\end{small}
+Alternatively, we can first save the generating extension to a file
+and then load and compile the file.
+\begin{small}
+\begin{verbatim}
+> (writelpp genext "/tmp/power-10.scm")
+> (load "/tmp/power-10.scm")
+/tmp/power-10.scm 
+> 
+\end{verbatim}
+\end{small}
+This approach is recommended if the source program does not yet
+specialize satisfactorily. In this case, inspection of the generating
+extension reveals possible problems. For this reason, the syntax of
+the generating extension is as close as possible to binding-time
+annotated Scheme.
+
+Now that we have loaded the generating extension, we are ready to
+specialize. The \texttt{specialize} function takes as parameters the
+binding-time skeleton \texttt{'(\$goal 1 0)} and an
+argument template \texttt{'(ignored 0)}. The binding-time skeleton names the
+entry point and lists the binding times. The argument template lists \emph{all}
+arguments, one for each binding time in the skeleton. The arguments
+corresponding to non-zero binding times
+must be symbols, because they serve as stubs for variable names. The
+arguments corresponding to zero binding times serve as the static inputs.
+\begin{small}
+\begin{verbatim}
+> (specialize '($goal 1 0) '(ignored 0))
+'($goal-1 ignored)
+> *residual-program*
+'((define ($goal-1 ignored-1) 1))
+> 
+\end{verbatim}
+\end{small}
+The specializer responds with the call template for the residual
+program, \texttt{'(\$goal-1 ignored)}, indicating that \texttt{\$goal-1}
+is the entry point of the residual program and that it takes one
+parameter. 
+The specializer puts the residual program in variable
+\indextt{*residual-program*}\texttt{*residual-program*}, for further
+examination, compilation, 
+or to save it to a file.
+
+Here is a more interesting run, specializing \texttt{power} for
+\texttt{n=4}.
+\begin{small}
+\begin{verbatim}
+> (specialize '($goal 1 0) '(x 4))
+'($goal-1 x)
+> (p *residual-program*)
+(define ($goal-1 x-1)
+  (let* ((mlet-5 (* x-1 1))
+         (mlet-4 (* x-1 mlet-5))
+         (mlet-3 (* x-1 mlet-4)))
+    (* x-1 mlet-3)))
+\end{verbatim}
+\end{small}
+(The function \texttt{p} invokes the pretty printer.)
+
+This residual program looks more complicated than we expected. The
+reason is that PGG---by default---avoids to duplicate or to reorder
+residual code. This feature makes it easy to have impure
+(side-effecting) primitives. In the present case, we know that
+\texttt{*} is pure and that no code duplication arises from it. Given
+an appropriate declaration as in  the file \texttt{"examples/pure-arith.scm"},
+\begin{small}
+\begin{verbatim}
+(define-primitive * - pure)
+\end{verbatim}
+\end{small}
+Now we can say
+\begin{small}
+\begin{verbatim}
+> (define genext
+>   (cogen-driver (list "examples/power.scm"
+>                       "examples/pure-arith.scm") '(power 1 0)))
+...
+> (eval `(begin ,@genext) (interaction-environment))
+> (specialize '($goal 1 0) '(x 4))
+\end{verbatim}
+\end{small}
+and PGG generates the expected code:
+\begin{small}
+\begin{verbatim}
+(define ($goal-1 x-1)
+  (* x-1 (* x-1 (* x-1 (* x-1 1))))
+\end{verbatim}
+\end{small}
+A post-processor would have reduced the expression \texttt{(* x-1 1)}
+to \texttt{x-1}. This example demonstrates that there is none. It is
+nevertheless possible to obtain the same effect by slightly rewriting
+the source program.
+
+
+\subsection{Lambda interpreter}
+\label{sec:lambda-interpreter}
+
+This section shows a classic example, an interpreter for an applied
+lambda calculus with Scheme's constants,  a conditional, and primitive
+operations. The input to the interpreter is a lambda expression, a list of free 
+variables, and a list of values of the free variables. The following grammar
+specifies the concrete syntax of expressions.
+\begin{verbatim}
+E ::= X | (lambda (X) E) | (apply E E)
+   |  C | (if E E E) | (O E*)
+\end{verbatim}
+This interpreter employs \emph{partially static data} to represent the
+environment. The environment is a list of pairs of variable name and
+value. The intention is that the length of the list and all variable
+names are static, but the values are dynamic. Traditionally\footnote{In partial 
+  evaluation, that is.}, the
+Scheme built-in lists cannot be used for this, so we define a new
+algebraic datatype for this purpose.
+\begin{small}\indextt{define-data}
+\begin{verbatim}
+(define-data my-list (my-nil) (my-cons my-car my-cdr)) 
+\end{verbatim}
+\end{small}
+This line declares the algebraic datatype \texttt{my-list} with
+constructors \texttt{my-nil} and \texttt{my-cons}
+(see~\ref{sec:define-data}). The elements of this datatype may be
+\define{partially static}, i.e., the components may have a different
+(higher) binding time than the structure itself. In addition, they can
+be memoized separately. 
+
+It is a little tedious to enter such an environment by hand, so we
+also supply a function that transforms a static list of names and a
+dynamic list of values into an environment. Finally, it calls the
+interpreter function \texttt{int}.
+\begin{small}
+\begin{verbatim}
+(define (main exp names values)
+  (let loop ((names names) (values values) (env (my-nil)))
+    (if (null? names)
+        (int exp env)
+        (loop (cdr names) (cdr values)
+              (my-cons (my-cons (car names) (car values)) env)))))
+\end{verbatim}
+\end{small}
+The interpreter has two local functions, \texttt{int*} and
+\texttt{apply-prim}. \texttt{Int*} evaluates a
+list of expressions to a list of values. \texttt{Apply-prim} takes a
+primitive operator and a list of value and returns the result. The
+interesting part of \texttt{apply-prim} is its use of
+\texttt{eval}. \texttt{Eval}'s argument
+\texttt{op} is static, whereas the result of \texttt{eval} is
+dynamic. 
+\begin{small}
+\begin{verbatim}
+(define (int exp env)
+  (let loop ((exp exp))
+    (define (int* exp*)
+      (let recur ((exp* exp*))
+        (if (null? exp*)
+            '()
+            (cons (loop (car exp*))
+                  (recur (cdr exp*))))))
+    (define (apply-prim op args)
+      (apply (eval op (interaction-environment))
+             args))
+    (cond
+     ((constant? exp)
+      exp)
+     ((not (pair? exp))
+      (lookup exp env))
+     ((eq? (car exp) 'IF)
+      (let ((test-exp (cadr exp))
+            (then-exp (caddr exp))
+            (else-exp (cadddr exp)))
+        (if (loop test-exp)
+            (loop then-exp)
+            (loop else-exp))))
+     ((eq? (car exp) 'LAMBDA)
+      (lambda (y)
+        (int (caddr exp) (my-cons (my-cons (caadr exp) y) env))))
+     ((eq? (car exp) 'APPLY)
+      ((loop (cadr exp))
+       (loop (caddr exp))))
+     (else
+      (apply-prim (car exp) (int* (cdr exp)))))))
+\end{verbatim}
+\end{small}
+All that's missing are two auxiliary functions, \texttt{constant?} and
+\texttt{lookup}, that indicate whether an expression denotes a
+constant and perform lookup in the environment.
+\begin{small}
+\begin{verbatim}
+(define (constant? e)
+  (or (boolean? e)
+      (number? e)
+      (and (pair? e) (eq? (car e) 'QUOTE))))
+
+(define (lookup v env)
+  (let loop ((env env))
+    (if (eq? v (my-car (my-car env)))
+        (my-cdr (my-car env))
+        (loop (my-cdr env)))))
+\end{verbatim}
+\end{small}
+As already mentioned, the idea is that the inputs \texttt{exp}  and
+\texttt{names} are static and that \texttt{values} is dynamic. So we start
+the binding-time analysis with
+\begin{small}
+\begin{verbatim}
+> (define genext 
+>   (cogen-driver (list "examples/int.scm") '(main 0 0 1)))
+bta-run
+bta-solve
+bta-solve done
+> 
+\end{verbatim}
+\end{small}
+To load this generating extension, we need to load the
+\texttt{define-data} operation from module \texttt{pgg-residual}.
+\begin{small}\indextt{define-data}
+\begin{verbatim}
+> ,open pgg-residual
+Load structure pgg-residual (y/n)? y
+[pgg-residual
+cogen-ctors.scm ]
+Newly accessible in user: (define-data)
+(eval `(begin ,@genext) (interaction-environment))
+> (specialize '($goal 0 0 1) '(5 () values))
+'($goal-1 values)
+> (p *residual-program*)
+((define ($goal-1 values-1) 5))
+32
+> (specialize '($goal 0 0 1) '((+ x y) (x y) values))
+'($goal-1 values)
+> (p *residual-program*)
+((define ($goal-1 values-1)
+   (let* ((mlet-2 (cdr values-1))
+          (mlet-3 (car values-1))
+          (mlet-4 (cdr mlet-2))
+          (mlet-5 (car mlet-2)))
+     (+ mlet-3 mlet-5))))
+26
+> (specialize '($goal 0 0 1) '((lambda (x) (+ x y)) (y) values))
+'($goal-1 values)
+> (p *residual-program*)
+((define ($goal-1 values-1)
+   (define (loop_2-3-2 mlet-3-1)
+     (lambda (y_1-2)
+       (+ y_1-2 mlet-3-1)))
+   (let* ((mlet-2 (cdr values-1))
+          (mlet-3 (car values-1)))
+     (loop_2-3-2 mlet-3))))
+28
+> 
+\end{verbatim}
+\end{small}
+The examples demonstrate that the environment is specialized
+away. Only the dynamic values survive and become parameters (this is
+called ``arity raising'').
+Furthermore, \texttt{eval} and \texttt{apply} have been specialized
+satisfactorily, as demonstrated by the last two specializations:
+\texttt{(+ mlet-3 mlet-5)} and \texttt{(+ y\_1-2 mlet-3-1)} is the
+corresponding residual code. 
+
+We can get rid of the auxiliary definition of \verb+loop_2-3-2+ by
+turning off memoization for the function \texttt{int}. We just change
+the first line of its definition to 
+\indextt{define-without-memoization}
+\begin{small}
+\begin{verbatim}
+(define-without-memoization (int exp env)
+  ...)
+\end{verbatim}
+\end{small}
+After constructing a new generating extension, we obtain a
+satisfactory residual program.
+\begin{small}
+\begin{verbatim}
+(define ($goal-1 values-1)
+  (let* ((mlet-2 (cdr values-1))
+         (mlet-3 (car values-1)))
+    (lambda (y_1-4) (+ y_1-4 mlet-3))))
+\end{verbatim}
+\end{small}
+
+\subsection{Cyclic}
+\label{sec:cyclic}
+
+This example demonstrates specialization of imperative programs.
+\begin{small}\indextt{define-data}
+\begin{verbatim}
+(define-data my-list (my-nil) (my-cons my-car my-cdr)) 
+(define (main d)
+  (let ((cycle (my-cons 1 (make-cell (my-nil)))))
+    (cell-set! (my-cdr cycle) cycle)
+    (zip d cycle)))
+(define (zip d s)
+  (if (null? d)
+      '()
+      (cons (cons (car d) (my-car s))
+            (zip (cdr d) (cell-ref (my-cdr s))))))
+\end{verbatim}
+\end{small}
+The list \texttt{cycle} is
+completely static, but the cdr of \texttt{cycle} contains a reference
+to cycle itself. This cyclic list of ones is passed as an argument to the
+function \texttt{zip} which zips it together with a dynamic
+list \texttt{d}. Unrolling the dynamic list involves memoization,
+hence the specializer must memoize the cyclic structure passed as an
+argument to \texttt{zip} to avoid infinite specialization. Here is
+what happens.
+\indextt{cogen-driver}
+\begin{small}
+\begin{verbatim}
+> (define genext
+>   (cogen-driver (list "examples/cyclic.scm") '(main 1)))
+bta-run
+effect analysis: fixpointing done
+bta-solve
+bta-solve done
+> (p genext)
+((define-data
+   my-list
+   (my-nil)
+   (my-cons my-car my-cdr))
+ (define (main d_2)
+   (let ((cycle_1
+           (_ctor_memo 0 (0 0)
+             my-cons
+             1
+             (_make-cell_memo 0 3 0 (_ctor_memo 0 () my-nil)))))
+     (_cell-set!_memo 0
+       (_s_t_memo 0 my-cdr cycle_1)
+       cycle_1)
+     (zip d_2 cycle_1)))
+ (define (zip d_1 s_1)
+   (multi-memo 1 'zip-4 zip-4 '(1 0) (list d_1 s_1)))
+ (define (zip-4 d_1 s_1)
+   (_if 1 1
+        (_op 1 null? d_1)
+        (_lift 0 1 '())
+        (_op 1
+             cons
+             (_op 1
+                  cons
+                  (_op 1 car d_1)
+                  (_lift 0 1 (_s_t_memo 0 my-car s_1)))
+             (zip (_op 1 cdr d_1)
+                  (_s_t_memo 0 cell-ref (_s_t_memo 0 my-cdr s_1))))))
+ (define ($goal d_2)
+   (begin
+     (_op 0 _define_data '(my-list (my-nil) (my-cons my-car my-cdr)))
+     (main d_2))))
+>
+\end{verbatim}
+\end{small}
+The function \texttt{\_ctor\_memo} constructs the memoized
+representation of a constructor. Its first argument is the binding
+time of the structure itself, its second argument is the list of
+binding times of the components (all \texttt{0} in this
+case). \texttt{\_make-cell\_memo} constructs a memoized reference cell,
+the first argument is the binding time of the address and the next
+argument \texttt{3} is the unique label of the corresponding
+\texttt{make-cell} operation in the source
+program. \texttt{\_s\_t\_memo} accesses or tests memoized data
+objects, the implementation handles them all uniformly.
+
+The operation \texttt{\_define-data} serves to transfer the datatype
+definition to the residual program.
+
+To load this generating extension, we need to make the
+\texttt{define-data} operation available.
+\begin{small}\indextt{define-data}
+\begin{verbatim}
+> ,open pgg-residual
+Load structure pgg-residual (y/n)? y
+[pgg-residual
+cogen-ctors.scm ]
+Newly accessible in user: (define-data)
+> (eval `(begin ,@genext) (interaction-environment))
+> (specialize '($goal 1) '(x))
+'($goal-1 x)
+> (p *residual-program*)
+((define ($goal-1 x-1)
+   (define (zip-4-2 x-1-1)
+     (let ((mlet-2 (null? x-1-1)))
+       (if mlet-2
+         '()
+         (let* ((mlet-5 (car x-1-1))
+                (mlet-4 (cons mlet-5 1))
+                (mlet-6 (cdr x-1-1))
+                (mlet-7 (zip-4-2 mlet-6)))
+           (cons mlet-4 mlet-7)))))
+   (zip-4-2 x-1)))
+\end{verbatim}
+\end{small}
+The cyclic structure vanishes on specialization. The construction of
+the pair \texttt{(x . 1)} is implemented by \texttt{(cons mlet-5 1)}.
+
+
+\subsection{Guide to the other examples}
+\label{sec:guide}
+
+\begin{itemize}
+\item \texttt{examples/2lazy.scm} a two-level interpreter for a lazy
+  first-order 
+  language, implements updatable closures using references.
+\begin{small}
+\begin{verbatim}
+> (define genext
+>   (cogen-driver (list "examples/2lazy.scm") '(lazy-2int 0 0 0 1)))
+> (eval `(begin ,@genext) (interaction-environment))
+\end{verbatim}
+\end{small}
+The parameters of \texttt{(lazy-2int prg goal xs* xd*)} are
+  \begin{itemize}
+  \item \texttt{prg} the program;
+  \item \texttt{goal} the entry point of \texttt{prg} (a symbol);
+  \item \texttt{xs*} the static parameters;
+  \item \texttt{xd*} the dynamic parameters.
+  \end{itemize}
+  The static parameters may include \emph{configuration variables} of
+  the form \texttt{(CV $i$)} which refers to the $i$th dynamic
+  parameter.
+
+  To perform specialization, we need to load some auxiliary functions
+\begin{small}
+\begin{verbatim}
+(load "examples/2lazy-support.scm")
+\end{verbatim}
+\end{small}
+It contains the example programs \texttt{lazy1} and \texttt{lazy2}.
+  Example calls of the specializer include
+\begin{small}
+\begin{verbatim}
+> (specialize '($goal 0 0 0 1) (list lazy1 'f '(42) 'DYN))
+> (specialize '($goal 0 0 0 1) (list lazy1 'f '((CV 1)) 'DYN))
+> (specialize '($goal 0 0 0 1) (list lazy2 'f '((CV 1) (CV 2) (CV 3)) 'DYN))
+> (specialize '($goal 0 0 0 1) (list lazy2 'f '((CV 1) (CV 2) 13) 'DYN))
+> (specialize '($goal 0 0 0 1) (list lazy2 'f '((CV 1) 7 11) 'DYN))
+> (specialize '($goal 0 0 0 1) (list lazy2 'f '(#t (CV 1) (CV 2)) 'DYN))
+> (specialize '($goal 0 0 0 1) (list lazy2 'f '(#f (CV 1) (CV 2)) 'DYN))
+> (specialize '($goal 0 0 0 1) (list lazy2 'f '(#f (CV 1) 17) 'DYN))
+\end{verbatim}
+\end{small}
+\item \texttt{examples/app.scm} contains the append function for
+  lists.  
+\item \texttt{examples/dotprod.scm} compute the scalar product of
+  three vectors. This is an example for multi-level
+  specialization\index{multi-level specialization}.
+  \begin{small}
+\begin{verbatim}
+> (define genext (cogen-driver (list "examples/dotprod.scm")
+>                              '(dotprod 0 1 2 3)))
+> (eval `(begin ,@genext) (interaction-environment))
+> (specialize '($goal 0 1 2 3) '(2 v1 v2 v3))
+'(multi-memo 2 '$goal-1 $goal-1 '(0 1 2) (list v1 v2 v3))
+\end{verbatim}
+  \end{small}
+  This answer indicates that the residual program is again a
+  generating extension, which can be loaded and specialized
+  further. Let's have a look
+  \begin{small}
+\begin{verbatim}
+> (p *residual-program*)
+((define ($goal-1 v1-3 v2-2 v3-1)
+   (let* ((mlet-7 (car v1-3))
+          (mlet-8 (_op 1 car v2-2))
+          (mlet-6 (_op 1 * (_lift0 1 mlet-7) mlet-8))
+          (mlet-9 (_op 2 car v3-1))
+          (mlet-5 (_op 2 * (_lift 1 1 mlet-6) mlet-9))
+          (mlet-10 (cdr v1-3))
+          (mlet-11 (_op 1 cdr v2-2))
+          (mlet-12 (_op 2 cdr v3-1))
+          (mlet-16 (car mlet-10))
+          (mlet-17 (_op 1 car mlet-11))
+          (mlet-15 (_op 1 * (_lift0 1 mlet-16) mlet-17))
+          (mlet-18 (_op 2 car mlet-12))
+          (mlet-14 (_op 2 * (_lift 1 1 mlet-15) mlet-18))
+          (mlet-19 (cdr mlet-10))
+          (mlet-20 (_op 1 cdr mlet-11))
+          (mlet-21 (_op 2 cdr mlet-12))
+          (mlet-13 (_op 2 + mlet-14 (_lift0 2 '0))))
+     (_op 2 + mlet-5 mlet-13))))
+\end{verbatim}
+  \end{small}
+  This time, we have to \emph{load the residual program} to continue
+  specializing. The answer from the previous specialization step tells
+  us the name \texttt{\$goal-1} of the entry point.
+  \begin{small}
+\begin{verbatim}
+> (eval `(begin ,@*residual-program*) (interaction-environment))
+> (specialize '($goal-1 0 1 2) '((111 222) v2 v3))
+'(multi-memo 1 '$goal-1-1 $goal-1-1 '(0 1) (list v2 v3))
+> (eval `(begin ,@*residual-program*) (interaction-environment))
+> (specialize '($goal-1-1 0 1) '((333 444) v3))
+'($goal-1-1-1 v3)
+> (p *residual-program*)
+((define ($goal-1-1-1 v3-1)
+   (let* ((mlet-2 (car v3-1))
+          (mlet-3 (* 36963 mlet-2))
+          (mlet-4 (cdr v3-1))
+          (mlet-5 (car mlet-4))
+          (mlet-6 (* 98568 mlet-5))
+          (mlet-7 (cdr mlet-4))
+          (mlet-8 (+ mlet-6 0)))
+     (+ mlet-3 mlet-8))))
+\end{verbatim}
+  \end{small}
+  This is the final specialized program after three steps.
+\item \texttt{object} a class of counter objects. A mini-example with
+  state.
+\begin{small}
+\begin{verbatim}
+> (define genext (cogen-driver (list "examples/object.scm") '(main)))
+> (eval `(begin ,@genext) (interaction-environment))
+> (specialize '($goal) '())
+\end{verbatim}
+\end{small}
+\item \texttt{pm} Olivier Danvy's pattern matcher
+  \begin{small}
+\begin{verbatim}
+> (define genext (cogen-driver (list "examples/pm.scm") '(match 0 1)))
+\end{verbatim}
+  \end{small}
+\item \texttt{unify} imperative unification of terms where variables
+  are implemented by references.
+  \begin{small}
+\begin{verbatim}
+> (define genext (cogen-driver (list "examples/unify.scm") '(main 0 1)))
+> (eval `(begin ,@genext) (interaction-environment))
+> (specialize '($goal 0 1) (list  '(cst 555) 'YYY))
+> (specialize '($goal 0 1) (list  '(var 555) 'YYY))
+> (specialize '($goal 0 1) (list  '(bin (var 1) (var 1)) 'YYY))
+> (specialize '($goal 0 1) (list  '(bin (var 1) (bin (cst 4711) (var 1))) 'YYY))
+\end{verbatim}
+  \end{small}
+\end{itemize}
+
+\section{Reference manual}
+\label{sec:reference}
+
+
+\subsection{Notation}
+\label{sec:notation}
+
+The syntax definition uses an extended BNF where all symbols are
+terminals, except 
+\begin{itemize}
+\item nonterminal symbols are capitalized;
+\item \verb-::=-, \verb-|-, \verb-*-, \verb-+-, \verb-[-, \verb-]- are
+  metasymbols with the usual meaning (definition, alternative, zero or
+  more repetitions, one or more repetitions, begin of optional part, end
+  of optional part).
+\end{itemize}
+
+\subsection{Type system}
+\label{sec:type-system}
+
+The type system is the system of simple types with a $\top$ type and
+recursion. The type language comprises the types
+\begin{itemize}
+\item basic, for every expression that \emph{never} evaluates to a
+  function or an element of an algebraic datatype as defined by
+  \texttt{define-data};\indextt{define-data}
+\item $[\tau_1,\dots,\tau_n]\to\tau_0$, for every expression that
+  \emph{always} evaluates to a function;
+\item $\texttt{TC}[\tau_1,\dots,\tau_n]$, for every expression that
+  \emph{always} evaluates to an element of the algebraic datatype
+  named \texttt{TC} (the $\tau_i$ are the types of the arguments of
+  the constructors in some unspecified fixed order);
+\item $\top$, for every expression that cannot be given one of the
+  other types, in particular for an expression that may evaluate
+  \begin{itemize}
+  \item to a function and also to some non-function value;
+  \item to an element of datatype \texttt{TC} and also to an element
+    of a different datatype \texttt{TC'} or an element of a
+    non-algebraic type.
+  \end{itemize}
+\end{itemize}
+The PGG system performs type inference for this system using
+Henglein's algorithm \cite{Henglein1991}.
+Due to the presence of recursive types, the result of the type
+inference is a graph where each node is annotated with a type constructor.
+
+\subsection{Binding-time analysis}
+\label{sec:binding-time-analysis}
+
+The binding-time analysis assigns a binding-time to each node in the
+type graph and ensures that the binding-time assignment is
+well-formed. Wellformedness of such a binding-time assignment $B$
+means that the annotation on a type node 
+is always less than or equal to the annotations on the direct
+descendants of that node. A node of type $\top$ is well-formed if it
+assumes the maximum possible binding time (it is kept dynamic
+throughout all stages of specialization). That means that potential
+type clashes are postponed to the last stage of running the
+program. 
+
+The binding-time analysis inserts
+a lift-expression on top of each expression of basic type that occurs
+as
+\begin{itemize}
+\item the argument of a primitive operations;
+\item the argument of a function;
+\item the ``then'' or ``else'' arm of a conditional; or
+\item the argument of a data constructor.
+\end{itemize}
+A lift-expression injects a value computed at specialization time into
+the residual program.
+
+
+\subsection{Primitive operations}
+\label{sec:primitive-operations}
+
+For primitive operations, the binding time analysis imposes a second
+set $S$ of binding-time annotations on the nodes of the type graph. The
+well-formedness criterium for them has two aspects. First, the $S$
+annotation is always greater than or equal to the $B$
+annotation. Second, the $S$ annotation of a node is greater than or
+equal to the $S$ annotations of each direct descendant node in the
+type graph. For each expression that performs a primitive operation,
+the specializer requires that all arguments are \emph{leveled}. That is,
+the binding time analysis enforces that the $S$ and $B$ annotations of
+all arguments are equal. In consequence, all argument computations
+take place at the \emph{same} binding time (see
+\cite{Thiemann1996-reflection}). 
+
+This restriction makes it safe to allow primitive operations to have
+functions as arguments. 
+
+\subsection{Representation analysis}
+\label{sec:representation-analysis}
+
+PGG performs a representation analysis that assigns to each node in
+the type graph yet another binding time $M$. The $M$ annotation of a
+type is wired in such a way that it reflects the maximum level $+1$ at which
+expressions of that type will be subject to memoization, $0$ if they
+are never memoized. For example,
+an expression of a type with an $M$ value of $0$ will never be 
+memoized. All those expressions will use the standard representation
+of values of that type. If the $B$ annotation is zero and the $M$
+value is greater than zero, the memoized representation will be used,
+which incurs a runtime overhead. The general condition is that
+expressions with $B<M$ use the memoized representation and the others
+use the standard representation.
+
+Unfortunately, there is a catch: if a type is memoized and at the same
+time required to be leveled then the type must assume the maximum
+binding time. This is, because primitive operations cannot deal with
+the memoized representation. The catch is that we now have a cyclic
+dependency: $B$ implies the placement of memoization points, which
+implies a setting of $M$, which implies a deteriorated setting of $B$,
+which implies the placement of more memoization points, and so on.
+
+\subsection{Memoization}
+\label{sec:memoization}
+
+PGG automatically inserts memoization points on top of dynamic
+conditionals and on top of dynamic lambdas. However, this only happens
+if the branches of the dynamic conditional or the body of the dynamic
+lambda contains a control transfer at specialization time, i.e., a
+static function call. Furthermore, if several of these are nested in
+an expression, only the outermost receives a memoization point. This
+is a slight refinement of the standard strategy
+\cite{BondorfDanvy1991,Bondorf1991}. 
+
+It is possible to turn this feature off for a given function by
+defining it using \texttt{define-without-memoization}
+(see~\ref{sec:define-without-memoization}). In any case, 
+memoization functions can be defined and inserted manually
+(see~\ref{sec:define-memo}). 
+
+
+
+\subsection{Special operators}
+\label{sec:special-operations}
+
+
+\subsubsection{eval}\dindextt{eval}
+
+The binding-time analysis and the specializer treat \texttt{eval}
+specially. The binding-time analysis enforces that the argument of
+\texttt{eval} is leveled. The result type is also leveled and it may
+have any binding time that is greater than or equal to the argument's
+binding time. 
+
+If the binding times are equal then the \texttt{eval} function is
+called at the specified level. If the binding times differ by one then
+the specializer simply drops the static argument value into the
+residual program. Otherwise, the specializer preserves the static
+argument for the next level and decrements the binding-time
+difference.
+
+
+\subsubsection{apply}\dindextt{apply}
+
+If a function is declared as the \texttt{apply} function
+(see~\ref{sec:define-primitive}) then the specializer uses a special
+postprocessor that transforms expressions of the form
+\begin{verbatim}
+(apply f (cons x1 (cons x2 (cons x3 ...))))
+\end{verbatim}
+into
+\begin{verbatim}
+(f x1 x2 x3 ...)
+\end{verbatim}
+To this end, it is necessary to declare \texttt{cons} as \texttt{pure}\indextt{pure}
+(see~\ref{sec:define-primitive}). 
+
+\subsection{Predefined operators}
+\label{sec:extra}
+
+These operators can be used in source programs.
+
+The module \texttt{cogen-boxops} exports the following operators that
+manipulate references (boxed values):
+\dindextt{make-cell}\dindextt{cell-ref}\dindextt{cell-set"!}
+\begin{verbatim}
+(make-cell exp)
+\end{verbatim}
+allocates a new mutable reference cell which initially contains the
+value of \texttt{exp}. Returns the reference to the new cell.
+\begin{verbatim}
+(cell-ref exp)
+\end{verbatim}
+returns the value stored in the referenced cell 
+if \texttt{exp} evaluates to a reference.
+\begin{verbatim}
+(cell-set! exp1 exp2)
+\end{verbatim}
+stores the value of \texttt{exp2} in the cell referenced by
+\texttt{exp1} provided this value is a reference. The return value is
+unspecified.  
+
+\subsection{Directives}
+\label{sec:directives}
+
+The directives are only allowed at the top-level of a source program.
+
+\subsubsection{define-without-memoization}
+\dindextt{define-without-memoization}
+\label{sec:define-without-memoization}
+
+\begin{verbatim}
+D ::= (define-without-memoization (P V*) D0* E*)
+    | (define-without-memoization P E)
+\end{verbatim}
+Define procedure \texttt{P}. The specializer does not to automatically
+insert memoization points in the body of \texttt{P}.
+
+
+\subsubsection{define-data}
+\dindextt{define-data}
+\label{sec:define-data}
+
+\begin{verbatim}
+D ::= (define-data TC (C Ci*)+)
+\end{verbatim}
+Define the algebraic datatype \texttt{TC} with constructors \texttt{C}
+and selectors \texttt{Ci}. In addition, constructor test operations \texttt{C?}
+are defined. The name \texttt{TC} is used during type checking to
+check for equality of types.
+
+For example, the declaration
+\begin{verbatim}
+(define-data list
+  (nil)
+  (cons car cdr))
+\end{verbatim}
+defines the constructors \texttt{nil} (nullary) and \texttt{cons}
+binary, the constructors tests \texttt{nil?} and \texttt{cons?}, and
+the selectors \texttt{car} and \texttt{cdr}.
+
+\index{partially static}
+The binding-time analysis considers algebraic datatypes as partially
+static, i.e., the arguments of a constructor can have a different
+(higher) binding time than the constructor itself. In such cases, the
+specializer performs arity raising when appropriate. The constructors,
+selectors, and test operations are binding-time polyvariant, i.e.,
+each use of such an operation may have a different binding-time
+pattern.  
+
+\subsubsection{define-type}
+\dindextt{define-type}
+\begin{verbatim}
+D ::= (define-type (P B*) B)
+\end{verbatim}
+Declares the arity of primitive operation \texttt{P}. The actual
+values of the \texttt{B}s are currently ignored.
+
+Example:
+\begin{verbatim}
+(define-type (cons * *) *)
+\end{verbatim}
+declares the operator \texttt{cons} of arity 2.
+
+A variable which is declared as an
+operator but does not occur at operator position in an expression
+is eta-expanded by the frontend according to its declaration.
+
+
+\subsubsection{define-primitive}
+\dindextt{define-primitive}
+\label{sec:define-primitive}
+
+\begin{verbatim}
+D ::= (define-primitive O T [dynamic|error|opaque|pure|apply])
+\end{verbatim}
+\dindextt{dynamic}\dindextt{error}\dindextt{opaque}\dindextt{pure}\dindextt{apply}
+Declares the operator \texttt{O}  of type \texttt{T} with an optional
+property. The type \texttt{T} is currently ignored. The properties
+\texttt{dynamic}, \texttt{error}, \texttt{opaque} are synonyms. Each
+of them forces the binding time of \texttt{O} to be dynamic. 
+
+The remaining properties advise the specializer what to do when it
+residualizes the operator.
+The \texttt{pure} property states that the operator does not have side
+effects. Instead of creating a let-binding for the expression
+\texttt{(O V*)}, the specializer will treat it as a value, potentially
+discarding or duplicating the expression.
+The \texttt{apply} property states that the operator \texttt{O} is the
+\texttt{apply} function as defined in the Scheme standard.
+
+
+\subsubsection{define-memo}
+\dindextt{define-memo}
+\label{sec:define-memo}
+
+\begin{verbatim}
+D ::= (define-memo M Number)
+\end{verbatim}
+Defines \texttt{M} as a unary operator indicating a memoization point at
+level \texttt{Number}. For two-level specialization this number is
+\texttt{1}. Useful in connection with
+\texttt{define-without-memoization}.\indextt{define-without-memoization} 
+
+Example: Similix defines the operator \texttt{\_sim-memoize} as an indicator
+for memoization points. To achieve the same 
+behavior in PGG requires the following declaration.
+\begin{verbatim}
+(define-memo _sim-memoize 1)
+\end{verbatim}
+
+
+\subsubsection{load}
+\dindextt{load}
+
+\begin{verbatim}
+D ::= (load Filename)
+\end{verbatim}
+includes the contents of the file named by the string
+\texttt{Filename} into the program. The included file may contain
+additional \texttt{load}s, without limit on the nesting level. The
+\texttt{Filename} argument is always interpreted relative to the
+current directory that Scheme48 is running in.
+
+
+\subsubsection{begin}
+\label{sec:begin}
+\dindextt{begin}
+
+\begin{verbatim}
+D ::= (begin D*)
+\end{verbatim}
+As in Scheme, top-level definitions may appear nested inside a
+\texttt{begin}. This is handy if a macro is to expand to more than one
+definition. 
+
+
+\subsection{Commands}
+\label{sec:top-level}
+
+
+\subsubsection{Creating a generating extension}
+\label{sec:cogen-driver}
+\dindextt{cogen-driver}
+
+The main entry point of the system is the function \texttt{cogen-driver}. It
+takes the following parameters
+\index{binding time!skeleton|textbf}
+\begin{verbatim}
+(cogen-driver InputSpec BindingTimeSkeleton)
+\end{verbatim}
+where
+\begin{itemize}
+\item \texttt{InputSpec} is either a single string specifying the name
+  of a ``jobfile'' that contains a list of filenames, or a list of
+  strings each of which specifies a filename: 
+  the source program is the content of all these files concatenated together.
+\item \texttt{BindingTimeSkeleton} is a list where the first element is a
+  symbol denoting the main function of the source program and the remaining 
+  elements are binding times for the parameters of the main
+  function. The main function must have exactly as many parameters as the
+  \texttt{BindingTimeSkeleton} indicates.
+\end{itemize}
+\index{binding time!specification of}
+A binding time is a non-negative integer, with \texttt{0}
+denoting static. The PGG system assumes that the binding time of the result of
+the main function is the maximum of \texttt{1} and the binding times of the
+function's parameters, i.e., the \texttt{BindingTimeSkeleton}.
+
+The result of calling \texttt{cogen-driver} is a generating extension, i.e., a
+list of Scheme definitions that can be loaded and run. 
+
+This function is defined in module \texttt{pgg}. If it is not accessible try
+\begin{verbatim}
+> ,open pgg
+\end{verbatim}
+at the top-level Scheme48 prompt.
+
+\subsubsection{Running a generating extension}
+\label{sec:specialize}
+\dindextt{specialize}
+
+The function \texttt{specialize} is the human interface to running a generating
+extension. It has two forms.
+\begin{verbatim}
+(specialize BindingTimeSkeleton ARGS)
+\end{verbatim}
+and
+\begin{verbatim}
+(specialize BindingTimeSkeleton ARGS NEW-GOAL)
+\end{verbatim}
+where
+\index{binding time!skeleton|textbf}
+\begin{itemize}
+\item \texttt{BindingTimeSkeleton}  is a list where the first element is a
+  symbol denoting the main function of the generating extension and the remaining 
+  elements are binding times its parameters. The list of binding times must be
+  identical to the one given to \texttt{cogen-driver} when creating this
+  generating extension.
+\item \texttt{ARGS} is the list of arguments to the generating extension. Its
+  length must be equal to the number of binding times supplied in the
+  \texttt{Binding\-Time\-Skeleton}. The 
+  positions corresponding to \texttt{0} entries in the skeleton contain the
+  currently static arguments. The positions corresponding to other entries in
+  the skeleton must contain symbols, they are used as stubs for generating
+  identifiers. 
+\item (optional argument) \texttt{NEW-GOAL} is the name of the entry point for
+  the specialized program. If it is not specified, PGG invents one for you, but 
+  admittedly not a very original one.
+\end{itemize}
+The result is a call template for the specialized function, a list
+consisting of the name of the function and of names of the
+arguments. The residual program is left in the variable
+\texttt{*residual-program*}\dindextt{*residual-program*}. It is a list
+of Scheme definitions. Furthermore, the variable
+\texttt{*support-code*}\dindextt{*support-code*} contains additional
+code, for example data 
+definitions that are necessary to run the specialized program.
+
+If the returned call template has the form
+\begin{verbatim}
+'(multi-memo Level 'Goal Goal Bts Args)
+\end{verbatim}
+then we have done one step of a \define{multi-level specialization}
+\cite{GlueckJoergensen1995-plilp}. It means that
+the residual program is again a generation extension where 
+\texttt{Level} is a number, \texttt{Goal} is the name of the 
+entry point, \texttt{Bts} are the binding times of the arguments, and
+\texttt{Args} is a list of symbols of the same length.
+It can be loaded as usual and specialized again with
+\texttt{specialize} by constructing the
+\texttt{BindingTimeSkeleton} from \texttt{Goal} and \texttt{Bts}.
+
+
+This function is defined in module \texttt{pgg-residual}. If it is not
+accessible try
+\begin{verbatim}
+> ,open pgg-residual
+\end{verbatim}
+at the top-level Scheme48 prompt.
+
+
+\subsection{Settable options}
+\label{sec:options}
+
+These options are accessible in module \texttt{cogen-globals}. Some of
+them only make sense for programmers who want to use the frontend
+separately. 
+
+\begin{itemize}
+\item \verb+(set-bta-display-level! n)+ Default: $1$.
+  \dindextt{set-bta-display-level"!}
+  
+  Display output from the
+  binding-time analysis, $0 \le \texttt{n} \le 4$.  $0$
+  means no output.
+\item \verb+(set-effect-display-level! n)+  Default: $1$.
+  \dindextt{set-effect-display-level"!}
+
+  Display output from the
+  effect analysis. $0$ means no output.
+\item \verb+(set-scheme->abssyn-let-insertion! v)+ Default:
+  \texttt{\#f}.
+  \dindextt{set-scheme->abssyn-let-insertion"!}
+
+  Instruct the
+  frontend to insert let expressions for the bound variables of
+  lambdas and definitions. 
+
+  Useful if the frontend is to be used in other projects.
+\item \verb+(set-memo-optimize! v)+ Default: \texttt{\#t}.
+  \dindextt{set-memo-optimize"!}
+
+  Optimize the representation of functions and algebraic
+  datatypes. Use expensive memoized representation only for data that
+  actually passes a memoization point.
+\item \verb+(set-abssyn-maybe-coerce! v)+ Default: \texttt{\#t}.
+  \dindextt{set-abssyn-maybe-coerce"!}
+
+  Instructs the frontend to insert provisional lift expressions at
+  certain places. The backend eliminates these later on if they are
+  useless. Can be turned of for using the frontend separately.
+\end{itemize}
+
+
+\subsection{Utilities}
+\label{sec:utilities}
+
+\dindextt{p}
+Pretty printing is available through function \texttt{p} in module
+\texttt{pretty-print}. The function takes one parameter, the
+expression that is to be pretty-printed.
+
+\dindextt{writelpp}
+The function \texttt{(writelpp LIST FILE)} writes the list
+\texttt{LIST} to file \texttt{FILE} applying the pretty printer to
+each element of the list. It is defined in module \texttt{auxiliary}.
+
+The contents of modules are generally available by typing
+\begin{small}
+\begin{verbatim}
+> ,open Modulename
+\end{verbatim}
+\end{small}
+to the top-level command line interpreter of Scheme48.
+
+\section{Differences to Scheme}
+\label{sec:differences}
+
+PGG assumes a declarative semantics: the order of a sequence of
+top-level definitions does not matter, even if they are spread over
+several files.
+
+PGG implements R5RS macros with the restriction that macros defined by
+\texttt{let-syntax} and \texttt{letrec-syntax} cannot expand to macro
+definitions.
+
+
+\section{Reading a generating extension}
+\label{sec:reading}
+
+For debugging purposes it is sometimes helpful to read the generating
+extension, because it is a representation of the binding-time
+annotated program. Besides standard Scheme constructs it contains the
+following kinds of expressions, most of which are implemented as
+macros in module \texttt{pgg-library}. The semantics of the ellipsis
+\texttt{...} is the same as in the \texttt{syntax-rules} patterns of
+Scheme \cite{KelseyClingerRees1998}, zero or more repetitions of the
+preceding item. The list is sorted alphabetically.
+
+\begin{itemize}
+\item \verb!(multi-memo level fname fct bts args)! denotes a
+  memoization point at level \texttt{level}, \texttt{fname} is a
+  symbol specifying the name of the generating function to run,
+  \texttt{fct} is the function itself, \texttt{bts} is a list of
+  binding times describing the arguments of the function,
+  \texttt{args} is the list of arguments (must have the same length as
+  \texttt{bts})
+\item \verb!(_app lv f a ...)! application of non-memoized function
+  \texttt{f} to arguments \texttt{a ...} at level \texttt{lv}
+\item \verb!(_app lv f a ...)! application of memoized function
+  \texttt{f} to arguments \texttt{a ...} at level \texttt{lv}
+\item \verb!(_begin lv bl e1 e2)! a \texttt{begin} at level
+  \texttt{lv}, \texttt{bl} is the binding time of \texttt{e1}
+\item \verb+(_cell-set!_memo lv ref arg)+ updates a memoized reference
+  cell \texttt{ref} at level \texttt{lv} with value \texttt{arg}
+\item \verb!(_cell-eq?_memo lv ref1 ref2)! tests two memoized
+  reference cells \texttt{ref1} and \texttt{ref2} for equality at
+  level \texttt{lv}
+\item \verb!(_ctor_memo lv (bt ...) ctor arg ...)! creates a memoized
+  object with constructor \texttt{ctor}, \texttt{lv} is the binding
+  time of the structure, \texttt{(bt ...)} are the binding times of
+  the arguments \texttt{arg ...}
+\item \verb!(_eval lv diff body)! the \texttt{body}  becomes available
+  at level \texttt{lv} then it is delayed for \texttt{diff} levels
+\item \verb!(_freevar lv arg)! a free variable \texttt{arg} at level
+  \texttt{lv}
+\item \verb!(_if lv bl e1 e2 e3)! the conditional at level
+  \texttt{lv}, \texttt{bl} is the binding time of the branches
+  \texttt{e2} and \texttt{e3}, \texttt{e1} is the condition
+\item \verb!(_lift0 lv val)! delay the value \texttt{val} to level
+  \texttt{lv}
+\item \verb!(_lift lv diff value)! the \texttt{value} becomes
+  available at level \texttt{lv}, then it is delayed for another
+  \texttt{diff} levels
+\item \verb!(_lambda lv v* e)! non-memoized lambda abstraction at
+  level \texttt{lv}, formals \texttt{v*}, body \texttt{e}
+\item \verb!(_lambda_memo lv arity label fvs bts f)! memoized lambda
+  abstraction at level \texttt{lv}, \texttt{arity} is a list of
+  symbols serving as stubs for variable names, \texttt{label} is the
+  unique label of the lambda, \texttt{fvs} is a list of  the (values
+  of the) free variables, \texttt{f} is a function that maps the
+  values of the free variables and the variable names generated from
+  \texttt{arity} to a new body
+\item \verb!(_make-cell_memo lv lab bt arg)! creates a memoized
+  reference cell at level \texttt{lv}, with unique label \texttt{lab},
+  \texttt{bt} is the binding time of the argument \texttt{arg}
+\item \verb!(_op lv op arg ...)! the operator \texttt{op} applied to
+  \texttt{arg ...} at level \texttt{lv}
+\item \verb!(_op_pure lv op arg ...)! the pure operator \texttt{op}
+  applied to \texttt{arg ...} at level \texttt{lv}
+\item \verb!(_s_t_memo lv sel v)! a selector or test for a memoized
+  datastructure at level \texttt{lv}, \texttt{sel} is the selector or
+  test function, \texttt{v} is the argument
+\item \verb!(_vlambda lv (fixed-var ...) var body)! same as
+  \verb!_lambda!, but for variable arity; the list of
+  \texttt{fixed-var} names the obligatory arguments and \texttt{var}
+  names the optional argument list
+\item \verb!(_vlambda_memo lv fixed-vars var label vvs bts f)! memoized lambda
+  abstraction with variable  arity functions, see
+  \verb!_lambda_memo! and \verb!_vlambda! for explanation
+\end{itemize}
+
+\section{Technical background}
+\label{sec:background}
+
+
+\subsection{Partial evaluation in general}
+\label{sec:partial-evaluation}
+
+
+Good starting points for the study of partial evaluation are
+Jones, Gomard, and Sestoft's textbook~\cite{JonesGomardSestoft1993},
+Consel and Danvy's tutorial notes~\cite{ConselDanvy1993}, Mogensen and
+Sestoft's encyclopedia chapter~\cite{MogensenSestoft1997},
+and Gallagher's tutorial notes on partial
+deduction~\cite{Gallagher1993}. Further material can be found in
+the proceedings of the Gammel Avern{\ae}s
+meeting (PEMC)~\cite{PEMC1988,PEMC1988-ngc}, in the
+proceedings of the ACM conferences and workshops on Partial Evaluation and
+Semantics-Based Program Manipulation
+(PEPM)~\cite{PEPM1991,PEPM1992,PEPM1993,PEPM1994,PEPM1995,PEPM1997,PEPM1999},
+and in special issues of various
+journals~\cite{jfpspecial1993,jlpspecial1993,lascspecial1995,tcsspecial1998}. A
+comprehensive volume on partial evaluation appeared in the Lecture
+Notes of Computer Science series~\cite{PE1996}.  Sestoft maintains
+an online bibliography~\cite{pebibliography}.
+
+The above paragraph is taken from the introduction to the 1998
+Symposium on Partial 
+Evaluation \cite{SOPE1998} which is a collection of concise
+articles characterizing the state of the art, stating challenging problems,
+and outlining promising directions for future work in partial evaluation.
+
+
+\subsection{Directly related publications}
+\label{sec:publications}
+
+The following publications explain various parts of the PGG system.
+\begin{itemize}
+\item Cogen in Six Lines \cite{Thiemann1996-icfp} explains how to
+  derive a handwritten multi-level cogen from a multi-level
+  specializer and applies this to the construction of a
+  continuation-based handwritten multi-level cogen. This is done in
+  continuation-passing style and in direct style with control
+  operators.
+\item\indextt{eval}\indextt{apply}
+  Towards Specialization of Full Scheme
+  \cite{Thiemann1996-reflection} explains the specialization of 
+  \texttt{eval}, \texttt{apply}, and \texttt{call/cc}. It relies on a
+  binding-time analysis that allows for higher-order primitive
+  operations.
+\item Implementing Memoization for Partial Evaluation
+  \cite{Thiemann1996-plilp} gives details about the implementation
+  strategy for partially static values in PGG.
+\item Correctness of a Region-Based Binding-Time Analysis
+  \cite{Thiemann1997-mfps} defines and proves correct a binding-time
+  analysis for a lambda calculus with side-effects.
+\item Sound Specialization in the Presence of Computational Effects
+  \cite{LawallThiemann1997} defines a specialization calculus based on
+  Moggi's computational lambda calculus and shows how to implement
+  it. This calculus is the basis of PGG's specialization algorithm.
+\end{itemize}
+
+
+\subsection{Structure of the implementation}
+\label{sec:structure}
+
+The frontend of PGG is similar to the frontend of a Scheme compiler.
+
+The first pass renames all variables, expands macros, expands
+backquotes, transforms named lets to letrecs, and collects mutable
+variables.
+\indextt{cell-set"!}\indextt{cell-ref}
+The second pass performs assignment conversion, eliminating all
+\texttt{(set! v e)} operations in favor of \texttt{(cell-set! v e')},
+replacing all uses of \texttt{v} by \texttt{(cell-ref v)}, and changing
+the definition of \texttt{v} accordingly.
+The third pass performs lambda lifting.
+The fourth pass transforms to abstract syntax and performs eta
+expansion.
+
+The next phase is binding-time analysis. It consists of type
+inference, effect analysis (if \texttt{cell-set!} and friends have
+been used), construction of the binding-time constraints, solution of
+the constraints, and the introduction of memoization points.
+
+Finally, the backend produces the generation extension.
+
+\section{Known problems}
+\label{sec:problems}
+
+\begin{itemize}
+\item Syntax errors are not dealt with gracefully.
+\item Do not use identifiers that end with
+  \verb!([-_][0-9]+)+! (interpreted as a regular expression for the
+  \texttt{regexp} library) for procedures and global variables.
+\end{itemize}
+
+
+
+\subsection*{Acknowledgments}
+
+Most parts of the system have been developed while the author was at
+Tübingen University.
+Special thanks to Michael Sperber for unwaveringly testing the system,
+pushing it to its limits, suggesting new features, finding many
+problems (as well as some 
+surprising features), and supplying some bug fixes. Thanks also to
+Simon Helsen and Frank Knoll who suffered through various versions of
+the system. 
+
+\bibliography{abbrevs,papers,collections,misc,books}
+\bibliographystyle{plain}
+\printindex
+\end{document}
