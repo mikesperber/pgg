@@ -130,12 +130,12 @@
 		(dynamic-eval denv cenv (cadddr expr)))
 	    ;; static evaluation of the condition fails, try dynamically
 	    (if (dynamic-eval denv cenv (cadr expr))
-		(dynamic-eval denv cenv (caddr expr))
-		(dynamic-eval denv cenv (cadddr expr))))))
+		(lazy-2eval prg denv cenv (caddr expr))
+		(lazy-2eval prg denv cenv (cadddr expr))))))
      ((binop-expr? expr)
       (ext (car expr)
-	   (dynamic-eval denv cenv (cadr expr))
-	   (dynamic-eval denv cenv (caddr expr))))
+	   (lazy-2eval prg denv cenv (cadr expr))
+	   (lazy-2eval prg denv cenv (caddr expr))))
      ((funcall-expr? expr)
       (let* ((f (car expr))
 	     (args (cdr expr))
@@ -146,7 +146,7 @@
 		   (args args)
 		   (new-denv (initial-denv)))
 	  (if (null? formals)
-	      (dynamic-eval new-denv cenv body)
+	      (lazy-2eval prg new-denv cenv body)
 	      (let ((name (car formals))
 		    (formals (cdr formals))
 		    (expr (car args))
@@ -159,8 +159,7 @@
 			 (const (constant->value expr)))
 			(else
 			 (dyn-susp (make-cell (nothing))
-				   (lambda () (dynamic-eval denv cenv
-							    expr)))))))
+				   (lambda () (lazy-2eval prg denv cenv expr)))))))
 		  (loop formals args (enter-denv name entry new-denv))))))))
      (else
       (static-error "syntax error: illegal expression"
