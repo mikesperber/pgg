@@ -1,7 +1,7 @@
 ; -*- Scheme -*-
 
 (define (match p d) ;;; Pat x Dat -> Ans
-  ((match-hook p d cons) '() '()))
+  ((match-hook p d (lambda (h t) (cons h t))) '() '()))
 
 (define (match-hook p d k)   ;;; Pat x Dat x Cont -> Cont
   (case (car p)
