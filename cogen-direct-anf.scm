@@ -91,6 +91,7 @@
     ;; (> lv 0)
     (_complete
      (make-residual-generator-vqqeqe
+      '_LAMBDA_MEMO
       (pred lv)
       arity
       (gensym 'cls)
@@ -165,6 +166,7 @@
     (let ((lv (- lv 1)))
       (_complete
        (make-residual-generator-vqqqeqe
+	'_VLAMBDA_MEMO
 	lv
 	arity
 	var
