@@ -50,14 +50,20 @@
        (else result1 result2 ...))
      (begin result1 result2 ...))
     ((case key
-       ((atoms ...) result1 result2 ...))
-     (if (memv key '(atoms ...))
+       ((atom ...) result1 result2 ...))
+     (if (case "compare" key (atom ...))
 	 (begin result1 result2 ...)))
     ((case key
-       ((atoms ...) result1 result2 ...) clause1 clause2 ...)
-     (if (memv key '(atoms ...))
+       ((atom ...) result1 result2 ...) clause1 clause2 ...)
+     (if (case "compare" key (atom ...))
 	 (begin result1 result2 ...)
-	 (case key clause1 clause2 ...)))))
+	 (case key clause1 clause2 ...)))
+    ((case "compare" key ())
+     #f)
+    ((case "compare" key (atom))
+     (eqv? key atom))
+    ((case "compare" key (atom ...))
+     (memv key '(atom ...)))))
 
 (define-syntax let*
   (syntax-rules ()
