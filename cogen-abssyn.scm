@@ -1,6 +1,6 @@
 ;;; cogen-abssyn.scm
 
-;;; copyright © 1996, 1997, 1998, 1999 by Peter Thiemann
+;;; copyright © 1996-2000 by Peter Thiemann
 ;;; non-commercial use is free as long as the original copright notice
 ;;; remains intact
 
@@ -196,8 +196,8 @@
 (define (annSetVLambdaBTVars! e btv)
   (annExprSetSubobject! e 4 btv))
 ;;; lambda
-(define (annMakeLambda label formals body)
-  (annMakeExpr 'LAMBDA (vector formals body label #f)))
+(define (annMakeLambda label formals body poly?)
+  (annMakeExpr 'LAMBDA (vector formals body label #f poly?)))
 (define (annIsLambda? e)
   (eq? 'LAMBDA (annExprFetchTag e)))
 (define (annFetchLambdaVars e)
@@ -212,6 +212,10 @@
   (annExprFetchSubobject e 3))
 (define (annSetLambdaBTVars! e btv)
   (annExprSetSubobject! e 3 btv))
+(define (annFetchLambdaPoly e)
+  (annExprFetchSubobject e 4))
+(define (annSetLambdaPoly! e poly?)
+  (annExprSetSubobject! e 4 poly?))
 ;;; application
 (define (annMakeApp rator rands)
   (annMakeExpr 'APPLY (vector rator rands)))

@@ -1,6 +1,6 @@
 ;;; cogen-terminate
 
-;;; copyright © 1996, 1997, 1998 by Peter Thiemann
+;;; copyright © 1996-2000 by Peter Thiemann
 ;;; non-commercial use is free as long as the original copright notice
 ;;; remains intact
 
@@ -595,7 +595,8 @@
      ((annIsLambda? e)
       (annMakeLambda (annFetchLambdaLabel e)
 		     (annFetchLambdaVars e)
-		     (loop (annFetchLambdaBody e))))
+		     (loop (annFetchLambdaBody e))
+		     (annFetchLambdaPoly e)))
      ((annIsApp? e)
       (annMakeApp (loop (annFetchAppRator e))
 		  (map loop (annFetchAppRands e))))

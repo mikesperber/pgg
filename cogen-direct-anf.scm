@@ -1,6 +1,6 @@
 ;;; cogen-direct-anf.scm
 
-;;; copyright © 1996, 1997, 1998, 1999, 2000 by Peter Thiemann
+;;; copyright © 1996-2000 by Peter Thiemann
 ;;; non-commercial use is free as long as the original copright notice
 ;;; remains intact
 
@@ -24,7 +24,7 @@
     ((_app 1 e ...)
      (_complete-serious (make-residual-call e ...)))
     ((_app lv e ...)
-     (_complete (make-residual-generator '_APP (pred lv) e ...)))))
+     (_complete (make-residual-generator-ve* '_APP (pred lv) e ...)))))
 
 (define-syntax _app-no-result
   (syntax-rules ()
@@ -33,14 +33,14 @@
     ((_app 1 e ...)
      (_complete-serious-no-result (make-residual-call e ...)))
     ((_app lv e ...)
-     (_complete-no-result (make-residual-generator '_APP (pred lv) e ...)))))
+     (_complete-no-result (make-residual-generator-ve* '_APP (pred lv) e ...)))))
 
 (define-syntax _app_memo
   (syntax-rules ()
     ((_app_memo 0 f arg ...)
      ((f 'VALUE) arg ...))
     ((_app_memo lv e ...)
-     (_complete (make-residual-generator '_APP_MEMO (pred lv) e ...)))))
+     (_complete (make-residual-generator-ve* '_APP_MEMO (pred lv) e ...)))))
 
 (define-syntax _lambda
   (syntax-rules ()
@@ -56,9 +56,9 @@
 	 (generate-lamdba
 	  (if (zero? l)
 	      (lambda ()
-		(make-residual-closed-lambda vars '() body))
+		(make-residual-closed-lambda vars 'FREE body))
 	      (lambda ()
-		`(_LAMBDA ,l ,vars ,body)))))
+		(make-residual-generator-vve '_LAMBDA l vars body)))))
     (if *lambda-is-pure*
 	(generate-lamdba)
 	(_complete			;don't duplicate, experimental
@@ -90,15 +90,30 @@
 	 (formal-fvs (map cdr clone-map)))
     ;; (> lv 0)
     (_complete
-     `(_LAMBDA_MEMO
-       ,(- lv 1)
-       ',arity
-       ',(gensym 'cls)
-       (LIST ,@actual-fvs)
-       ',new-bts
-       (LAMBDA ,formal-fvs
-	 (LAMBDA ,formals
-	   ,(reset (apply (apply f cloned-vvs) formals))))))))
+     (make-residual-generator-vqqeqe
+      (pred lv)
+      arity
+      (gensym 'cls)
+      (make-residual-call 'LIST actual-fvs)
+      new-bts
+      (make-residual-closed-lambda
+       formal-fvs
+       'FREE
+       (make-residual-closed-lambda
+	formals
+	'FREE
+	(reset (apply (apply f cloned-vvs) formals))))))))
+
+;;; formerly:
+;;;      `(_LAMBDA_MEMO
+;;;        ,(- lv 1)
+;;;        ',arity
+;;;        ',(gensym 'cls)
+;;;        (LIST ,@actual-fvs)
+;;;        ',new-bts
+;;;        (LAMBDA ,formal-fvs
+;;; 	 (LAMBDA ,formals
+;;; 	   ,(reset (apply (apply f cloned-vvs) formals)))))
 
 (define-syntax _vlambda
   (syntax-rules ()
@@ -119,7 +134,7 @@
     (_complete				;don't duplicate, experimental
      (if (zero? l)
 	 (make-residual-closed-lambda (append fixed-vars var) '() body)
-	 `(_VLAMBDA ,l ,fixed-vars ,var ,body)))))
+	 (make-residual-generator-vvve* '_VLAMBDA l fixed-vars var body)))))
 
 (define-syntax _vlambda_memo
   (syntax-rules ()
@@ -149,19 +164,51 @@
     ;; (> lv 0)
     (let ((lv (- lv 1)))
       (_complete
-       `(_VLAMBDA_MEMO
-	 ,lv
-	 ',arity
-	 ',var
-	 ',(gensym 'cls)
-	 (LIST ,@actual-fvs)
-	 ',new-bts
-	 (LAMBDA ,formal-fvs
-	   (LAMBDA ,(if (zero? lv)
-			(append fixed-formals formal)
-			(cons formal fixed-formals))
-	     ,(reset (apply (apply f cloned-vvs)
-			    (cons formal fixed-formals))))))))))
+       (make-residual-generator-vqqqeqe
+	lv
+	arity
+	var
+	(gensym 'cls)
+	(make-residual-call 'LIST actual-fvs)
+	new-bts
+	(make-residual-closed-lambda
+	 formal-fvs
+	 'FREE
+	 (make-residual-closed-lambda
+	  (if (zero? lv)
+	      (append fixed-formals formal)
+	      (cons formal fixed-formals))
+	  'FREE
+	  (reset (apply (apply f cloned-vvs) (cons formal fixed-formals))))))))))
+
+;;; was:
+;;;        `(_VLAMBDA_MEMO
+;;; 	 ,lv
+;;; 	 ',arity
+;;; 	 ',var
+;;; 	 ',(gensym 'cls)
+;;; 	 (LIST ,@actual-fvs)
+;;; 	 ',new-bts
+;;; 	 (LAMBDA ,formal-fvs
+;;; 	   (LAMBDA ,(if (zero? lv)
+;;; 			(append fixed-formals formal)
+;;; 			(cons formal fixed-formals))
+;;; 	     ,(reset (apply (apply f cloned-vvs)
+;;; 			    (cons formal fixed-formals))))))
+
+(define-syntax _lambda_poly
+  (syntax-rules ()
+    ((_lambda_poly 0 arity bts body-level label body)
+     (let ((the-residual-piece (list 'vector)))
+       (poly-constructor
+	label
+	'arity
+	bts body-level
+	(lambda arity body)
+	the-residual-piece
+	(_complete-serious the-residual-piece))))
+    ((_lambda_poly level arity bts body-level label body)
+     `(_lambda_poly ,(pred level) arity ',(map pred bts) ,(pred body-level) 'label ,body))))
 
 (define-syntax _begin
   (syntax-rules (multi-memo _app _op)
@@ -184,7 +231,7 @@
     ((_begin 1 bl e1 e2)
      (shift k (make-residual-begin e1 (reset (k e2)))))
     ((_begin lv bl e1 e2)
-     (shift k `(_BEGIN ,(pred lv) 0 ,e1 ,(reset (k e2)))))))
+     (shift k (make-residual-generator-vvee '_BEGIN (pred lv) 0 e1 (reset (k e2)))))))
 
 (define-syntax _ctor_memo
   (syntax-rules ()
@@ -193,42 +240,53 @@
     ((_ctor_memo 0 bts #t ctor arg ...)
      (hidden-constructor 'ctor ctor (list arg ...) 'bts))
     ((_ctor_memo lv (bt ...) hidden ctor arg ...)
-     (_complete `(_CTOR_MEMO ,(pred lv) (,(pred bt) ...) hidden ctor ,arg ...)))))
+     (_complete
+      (make-residual-generator-vvvve* '_CTOR_MEMO
+				      (pred lv)
+				      (list (pred bt) ...)
+				      hidden
+				      'ctor
+				      arg ...)))))
 
 (define-syntax _s_t_memo
   (syntax-rules ()
     ((_s_t_memo 0 sel v a ...)
      (sel (v 'VALUE) a ...))
     ((_s_t_memo lv sel v a ...)
-     (_complete `(_S_T_MEMO ,(pred lv) sel ,v ,a ...)))))
+     (_complete
+      (make-residual-generator-vve* '_S_T_MEMO (pred lv) 'sel v a ...)))))
 
 (define-syntax _make-cell_memo
   (syntax-rules ()
     ((_make-cell_memo 0 lab bt arg)
      (static-cell lab arg bt))
     ((_make-cell_memo lv lab bt arg)
-     (_complete `(_MAKE-CELL_MEMO ,(pred lv) lab ,(pred bt) ,arg)))))
+     (_complete
+      (make-residual-generator-vvve* '_MAKE-CELL_MEMO (pred lv) 'lab (pred bt) arg)))))
 
 (define-syntax _cell-eq?_memo
   (syntax-rules ()
     ((_cell-eq?_memo 0 ref1 ref2)
      (eq? (ref1 'VALUE) (ref2 'VALUE)))
     ((_cell-eq?_memo lv ref1 ref2)
-     (_complete `(_CELL-EQ?_MEMO ,(pred lv) ,ref1 ,ref2)))))
+     (_complete
+      (make-residual-generator-ve* '_CELL-EQ?_MEMO (pred lv) ref1 ref2)))))
 
 (define-syntax _make-vector_memo
   (syntax-rules ()
     ((_make-vector_memo 0 lab bt size arg)
      (static-vector lab size arg bt))
     ((_make-vector_memo lv lab bt size arg)
-     (_complete `(_MAKE-VECTOR_MEMO ,(pred lv) lab ,(pred bt) ,size ,arg)))))
+     (_complete
+      (make-residual-generator-vvve* '_MAKE-VECTOR_MEMO (pred lv) 'lab (pred bt) size arg)))))
 
 (define-syntax _message!_memo
   (syntax-rules ()
     ((_message!_memo 0 obj msg arg ...)
      ((obj 'msg) arg ...))
     ((_message!_memo lv obj msg arg ...)
-     (_complete `(_MESSAGE!_MEMO ,(pred lv) ,obj msg ,arg ...)))))
+     (_complete
+      (make-residual-generator-veve* '_MESSAGE!_MEMO (pred lv) obj 'msg arg ...)))))
 
 (define-syntax _if
   (syntax-rules ()
@@ -249,7 +307,7 @@
 		     (then-code (reset (k e2)))
 		     (xxxxxxxxx (install-static-store! the-store))
 		     (else-code (reset (k e3))))
-		(make-residual-generator
+		(make-residual-generator-ve*
 		 '_IF (pred lv) cond-code then-code else-code))))))
 
 (define-syntax _op
@@ -265,9 +323,9 @@
     ((_op 1 apply f arg)
      (_complete-serious (make-residual-apply f arg)))
     ((_op 1 op arg ...)
-     (_complete `(op ,arg ...)))
+     (_complete (make-residual-primop 'op arg ...)))
     ((_op lv op arg ...)
-     (_complete `(_OP ,(pred lv) op ,arg ...)))))
+     (_complete (make-residual-generator-vve* '_OP (pred lv) 'op arg ...)))))
 
 (define-syntax _op-no-result
   (syntax-rules (apply cons _define_data _define)
@@ -282,9 +340,10 @@
     ((_op 1 apply f arg)
      (_complete-serious-no-result (make-residual-apply f arg)))
     ((_op 1 op arg ...)
-     (_complete-no-result `(op ,arg ...)))
+     (_complete-no-result (make-residual-primop 'op arg ...)))
     ((_op lv op arg ...)
-     (_complete-no-result `(_OP ,(pred lv) op ,arg ...)))))
+     (_complete-no-result
+      (make-residual-generator-vve* '_OP (pred lv) 'op arg ...)))))
 
 (define-syntax _op_pure
   (syntax-rules (cons)
@@ -293,34 +352,35 @@
     ((_op_pure 1 cons e1 e2)
      (make-residual-cons e1 e2))
     ((_op_pure 1 op arg ...)
-     `(op ,arg ...))
+     (make-residual-primop 'op ,arg ...))
     ((_op_pure lv op arg ...)
-     (_complete `(_OP_PURE ,(pred lv) op ,arg ...)))))
+     (_complete
+      (make-residual-generator-vve* '_OP_PURE (pred lv) 'op arg ...)))))
 
 (define-syntax _freevar
   (syntax-rules ()
     ((_freevar 0 arg)
      arg)
-    ((_freevar 1 arg)
-     'arg)
+;;;    ((_freevar 1 arg)
+;;;     'arg)
     ((_freevar lv arg)
-     `(_FREEVAR ,(pred lv) arg))))
+     (make-residual-generator-vve* '_FREEVAR (pred lv) 'arg))))
 
 (define-syntax _lift0
   (syntax-rules ()
     ((_lift0 1 val)
      (make-residual-literal val))
     ((_lift0 lv val)
-     `(_LIFT0 ,(pred lv) ',val))))
+     (make-residual-generator-ve* '_LIFT0 (pred lv) val))))
 
 (define-syntax _lift
   (syntax-rules ()
     ((_lift 0 diff value)
      (_lift0 diff value))
     ((_lift 1 diff value)
-     `(_LIFT0 ,diff ,value))
+     (make-residual-generator-ve* '_LIFT0 'diff value))
     ((_lift lv diff value)
-     `(_LIFT ,(pred lv) ,diff ,value))))
+     (make-residual-generator-vve* '_LIFT (pred lv) 'diff value))))
 
 (define-syntax _eval
   (syntax-rules ()
@@ -329,10 +389,20 @@
     ((_eval 0 1 body)
      (_complete-maybe body))
     ((_eval 0 diff body)
-     (_complete `(_EVAL 0 ,(pred diff) ',body)))
+     (_complete (make-residual-generator-vve* '_EVAL 0 (pred diff) body)))
     ((_eval 1 0 body)
-     (_complete `(EVAL ,body (INTERACTION-ENVIRONMENT))))
+     (_complete
+      (make-residual-call 'EVAL body (make-residual-call 'INTERACTION-ENVIRONMENT))))
     ((_eval 1 1 body)
      body)				;;;?????????? _complete ??????????
     ((_eval lv diff body)
-     (_complete `(_EVAL ,(pred lv) ,diff ,body)))))
+     (_complete
+      (make-residual-generator-vve* '_EVAL (pred lv) 'diff body)))))
+
+(define-syntax _run
+  (syntax-rules ()
+    ((_run 0 body)
+     (eval (reset body) (interaction-environment)))
+    ((_run l body)
+     (_complete
+      (make-residual-generator-ve* '_RUN (pred l) (reset body))))))

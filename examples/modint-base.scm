@@ -5,7 +5,7 @@
   (my-pair fst snd))
 
 (define-memo _memo 1)
-(define-memo access 1 'deferred)
+(define-memo _access 1 'deferred)
 
 (define-primitive zero? - pure)	; (all t t); (all x (-> (* b x) b))
 (define-primitive null? - pure)
@@ -17,6 +17,20 @@
 (define-primitive dyn-error (-> b b) dynamic)
 
 ;;; auxiliary
+
+(define-syntax access
+  (syntax-rules ()
+    ((access modulename f)
+     (let ((modulename1 modulename))
+       (letrec ((jump (lambda-without-memoization ()
+                        (_access modulename1
+				 (lambda (mod-name mod-body)
+				   (if (null? mod-body)
+				       (dyn-error "invalid index")
+				       (if (eq? modulename1 mod-name)
+					   (f mod-name mod-body)
+					   (jump))))))))
+	 (jump))))))
 
 (define (split i xs)
   (let loop ((i i) (rxs (nil)) (xs xs))

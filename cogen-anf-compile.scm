@@ -14,67 +14,74 @@
 
 ;;; interface to create generating extensions
 ;;; syntax constructors
-(define (make-ge-var l v)
-  v)
-(define (make-ge-const c)
-  `',c)
-(define (make-ge-cond l lb c t e)
-  `(_IF ,l ,lb ,c ,t ,e))
-(define (make-ge-op l o args)
-  (if (trivial-operator? o)
-      `(_OP ,l ,o ,@args)
-      `(_OP_SERIOUS ,l ,o ,@args)))
-(define (make-ge-call f bts args)
-  `(,f ,@args))
-(define (make-ge-let hl unf? bl v e body)
-  `(LET ((,v ,e)) ,body))
-(define (make-ge-begin hl prop? e1 e2)
-  `(_BEGIN ,hl ,prop? ,e1 ,e2))
-(define (make-ge-lambda-memo l vars btv label fvars bts body)
-  `(_LAMBDA_MEMO ,l ',vars ',label (LIST ,@fvars) ',bts
-		 (LAMBDA ,fvars (LAMBDA ,vars ,body))))
-(define (make-ge-vlambda-memo l fixed-vars var btv label fvars bts body)
-  `(_VLAMBDA_MEMO ,l ',fixed-vars ',var ',label (LIST ,@fvars) ',bts
-		 (LAMBDA ,fvars (LAMBDA (,@fixed-vars . ,var) ,body))))
-(define (make-ge-app-memo l f btv args)
-  `(_APP_MEMO ,l ,f ,@args))
-(define (make-ge-lambda l vars btv body)
-  `(_LAMBDA ,l ,vars ,body))
-(define (make-ge-app l f btv args)
-  `(_APP ,l ,f ,@args))
-(define (make-ge-ctor-memo l bts ctor args)
-  `(_CTOR_MEMO ,l ,bts ,ctor ,@args))
-(define (make-ge-sel-memo l sel a)
-  `(_S_T_MEMO ,l ,sel ,a))
-(define (make-ge-test-memo l tst a)
-  `(_S_T_MEMO ,l ,tst ,a))
-(define (make-ge-ctor l ctor args)
-  `(_OP ,l ,ctor ,@args))
-(define (make-ge-sel l sel a)
-  `(_OP ,l ,sel ,a))
-(define (make-ge-test l tst a)
-  `(_OP ,l ,tst ,a))
-(define (make-ge-lift l diff a)
-  `(_LIFT ,l ,diff ,a))
-(define (make-ge-eval l diff a)
-  `(_EVAL ,l ,diff ,a))
+;;; (now in cogen-construct-genext.scm)
+;;; (define (make-ge-var l v)
+;;;   v)
+;;; (define (make-ge-const c)
+;;;   `',c)
+;;; (define (make-ge-cond l lb c t e)
+;;;   `(_IF ,l ,lb ,c ,t ,e))
+;;;PJT: trivial-operator? undefined
+;;; (define (make-ge-op l o args)
+;;;   (if (trivial-operator? o)
+;;;       `(_OP ,l ,o ,@args)
+;;;       `(_OP_SERIOUS ,l ,o ,@args)))
+;;; (define (make-ge-call f bts args)
+;;;   `(,f ,@args))
+;;; (define (make-ge-let hl unf? bl v e body)
+;;;   `(LET ((,v ,e)) ,body))
+;;; (define (make-ge-begin hl prop? e1 e2)
+;;;   `(_BEGIN ,hl ,prop? ,e1 ,e2))
+;;;PJT: new version references _LAMBDA_POLY
+;;; (define (make-ge-lambda-memo l vars btv label fvars bts body)
+;;;   `(_LAMBDA_MEMO ,l ',vars ',label (LIST ,@fvars) ',bts
+;;; 		 (LAMBDA ,fvars (LAMBDA ,vars ,body))))
+;;; (define (make-ge-vlambda-memo l fixed-vars var btv label fvars bts body)
+;;;   `(_VLAMBDA_MEMO ,l ',fixed-vars ',var ',label (LIST ,@fvars) ',bts
+;;; 		 (LAMBDA ,fvars (LAMBDA (,@fixed-vars . ,var) ,body))))
+;;; (define (make-ge-app-memo l f btv args)
+;;;   `(_APP_MEMO ,l ,f ,@args))
+;;; (define (make-ge-lambda l vars btv body)
+;;;   `(_LAMBDA ,l ,vars ,body))
+;;; (define (make-ge-app l f btv args)
+;;;   `(_APP ,l ,f ,@args))
+;;;PJT: _CTOR_MEMO take `hidden´ argument
+;;; (define (make-ge-ctor-memo l bts ctor args)
+;;;   `(_CTOR_MEMO ,l ,bts ,ctor ,@args))
+;;; (define (make-ge-sel-memo l sel a)
+;;;   `(_S_T_MEMO ,l ,sel ,a))
+;;; (define (make-ge-test-memo l tst a)
+;;;   `(_S_T_MEMO ,l ,tst ,a))
+;;; (define (make-ge-ctor l ctor args)
+;;;   `(_OP ,l ,ctor ,@args))
+;;; (define (make-ge-sel l sel a)
+;;;   `(_OP ,l ,sel ,a))
+;;; (define (make-ge-test l tst a)
+;;;   `(_OP ,l ,tst ,a))
+;;; (define (make-ge-lift l diff a)
+;;;   `(_LIFT ,l ,diff ,a))
+;;; (define (make-ge-eval l diff a)
+;;;   `(_EVAL ,l ,diff ,a))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; now in cogen-completer.scm
+
+;;; (define-syntax _complete
+;;;   (syntax-rules ()
+;;;     ((_ body)
+;;;      (let ((var (gensym-local 'mlet)))
+;;;        (shift k (make-residual-let-trivial
+;;; 		 var body (list (k var))))))))
+
+;;; (define-syntax _complete-serious
+;;;   (syntax-rules ()
+;;;     ((_ body)
+;;;      (let ((var (gensym-local 'mlet)))
+;;;        (shift k (make-residual-let-serious
+;;; 		 var body (list (k var))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; an implementation using macros
-
-(define-syntax _complete
-  (syntax-rules ()
-    ((_ body)
-     (let ((var (gensym-local 'mlet)))
-       (shift k (make-residual-let-trivial
-		 var body (list (k var))))))))
-
-(define-syntax _complete-serious
-  (syntax-rules ()
-    ((_ body)
-     (let ((var (gensym-local 'mlet)))
-       (shift k (make-residual-let-serious
-		 var body (list (k var))))))))
 
 (define-syntax _app
   (syntax-rules ()
@@ -89,6 +96,7 @@
   (syntax-rules ()
     ((_app_memo 0 f arg ...)
      ((f 'VALUE) arg ...))
+    ;; this is wrong
     ((_app_memo 1 e ...)
      (_complete-serious (make-residual-call e ...)))))
 
@@ -103,7 +111,7 @@
   (let* ((vars (map gensym-local arity))
 	 (body (reset (apply f vars))))
     (if (= lv 1)
-	(make-residual-closed-lambda vars 'FREE (list body))
+	(make-residual-closed-lambda vars 'FREE body)
 	(make-ge-lambda (pred lv) vars #f body))))
 
 (define-syntax _lambda_memo
@@ -129,9 +137,10 @@
 	 (new-bts (binding-times compressed-dynamics))
 	 (formal-fvs (map cdr clone-map)))
     ;; this only works in the two-level case for (= lv 1)
+    ;; pjt: this is wrong
     (make-residual-closed-lambda formals
 				 actual-fvs
-				 (list (reset (apply (apply f vvs) formals))))))
+				 (reset (apply (apply f vvs) formals)))))
 
 
 (define (_vlambda lv arity var f)

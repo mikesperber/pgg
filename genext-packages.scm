@@ -1,3 +1,9 @@
+;;; genext-packages.sc
+
+;;; copyright © 1996-2000 by Peter Thiemann
+;;; non-commercial use is free as long as the original copright notice
+;;; remains intact
+
 (define-interface cogen-cps-genext-interface
   (export _app
 	  _app_memo
@@ -59,6 +65,7 @@
 	    _app_memo
 	    _lambda
 	    _lambda_memo
+	    _lambda_poly
 	    _vlambda
 	    _vlambda_memo
 	    _begin
@@ -71,6 +78,7 @@
 	    _lift0
 	    _lift
 	    _eval
+	    _run
 	    _MAKE-CELL_MEMO
 	    _CELL-EQ?_MEMO
 	    _MAKE-VECTOR_MEMO
@@ -148,9 +156,18 @@
 	  make-residual-define-mutable
 	  make-residual-if
 	  make-residual-call
+	  make-residual-primop
 	  make-residual-closed-lambda
 	  make-residual-literal
-	  make-residual-generator
+	  make-residual-generator-ve*
+	  make-residual-generator-vve*
+	  make-residual-generator-vve
+	  make-residual-generator-vvve*
+	  make-residual-generator-veve*
+	  make-residual-generator-vvvve
+	  make-residual-generator-vvee
+	  make-residual-generator-vqqeqe
+	  make-residual-generator-vqqqeqe
 	  make-residual-definition!))
 
 (define-interface shift-reset-interface
@@ -163,6 +180,8 @@
 (define-interface cogen-library-interface
   (export static-constructor
 	  hidden-constructor
+	  poly-constructor
+	  poly-registry-reset!
 	  top-project-static
 	  top-project-dynamic
 	  top-clone-dynamic
@@ -244,6 +263,8 @@
 	  gensym-local-reset!
 	  gensym-local-push!
 	  gensym-local-pop!
+	  gensym-local-hold
+	  gensym-local-push-old!
 	  gensym-local
 	  gensym-local-trimmed
 	  gensym-ignore-name-stubs!
@@ -276,14 +297,15 @@
   (open scheme)
   (files cogen-globals))
 
-(define-structure cogen-library cogen-library-interface
-  (open scheme signals auxiliary cogen-specialize cogen-gensym cogen-boxops)
-  (files cogen-library))
-
 (define-structure shift-reset
   shift-reset-interface
   (open scheme signals escapes)
   (files shift-reset))
+
+(define-structure cogen-library cogen-library-interface
+  (open scheme signals auxiliary shift-reset
+	cogen-completers cogen-specialize cogen-gensym cogen-boxops)
+  (files cogen-library))
 
 (define-structure cogen-residual
   cogen-residual-interface
@@ -306,7 +328,7 @@
 
 (define-structure cogen-memo-standard
   cogen-memo-interface
-  (open scheme auxiliary shift-reset
+  (open scheme auxiliary signals shift-reset
 	cogen-specialize cogen-globals cogen-record cogen-gensym
 	cogen-library cogen-completers cogen-residual)
   (files cogen-memo-standard))

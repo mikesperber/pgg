@@ -64,8 +64,34 @@
 	  `(CONS ,exp1 ,exp2))))
       `(CONS ,exp1 ,exp2)))
 
-(define (make-residual-generator name lv . args)
+(define (make-residual-generator-ve* name lv . args)
   `(,name ,lv ,@args))
+
+(define (make-residual-generator-vve* name lv x1 . args)
+  `(,name ,lv ,x1 ,@args))
+
+(define (make-residual-generator-vve name v1 v2 e1)
+  `(,name ,v1 ,v2 ,e1))
+
+(define (make-residual-generator-vvve* name lv v1 v2 v3 . e1*)
+  `(,name ,lv ,v1 ,v2 ,v3 ,@e1*))
+
+(define (make-residual-generator-veve* name lv v1 e1 v2 . e2*)
+  `(,name ,lv ,v1 ,e1 ,v2 ,@e2*))
+
+(define (make-residual-generator-vvvve name lv v1 v2 v3 v4 e1)
+  `(,name ,lv ,v1 ,v2 ,v3 ,v4 ,e1))
+
+(define (make-residual-generator-vvee name lv v1 v2 e1 e2)
+  `(,name ,lv ,v1 ,v2 ,e1 ,e2))
+
+(define (make-residual-generator-vqqeqe name v1 q1 q2 e1 q3 e2)
+  `(,name ,v1 ',q1 ',q2 ,e1 ',q3 ,e2))
+
+(define (make-residual-generator-vqqqeqe name lv q1 q2 q3 x4 q5 x6)
+  `(,name ,lv ',q1 ',q2 ',q3 ,x4 ',q5 ,x6))
+
+
 
 (define (make-residual-define-data lv arg)
   (add-to-support-code! `(define-data ,@arg))
@@ -190,7 +216,10 @@
     `(CASE ,exp ,@collapsed-branches)))
 
 (define (make-residual-call f . args)
-  `(,f ,@args))
+  (cons f args))
+
+(define (make-residual-primop op . args)
+  (cons op args))
 
 (define (make-lambda-body-list body)
   (if (and (pair? body) (eq? (car body) 'BEGIN))

@@ -1,6 +1,6 @@
 ;;; cogen-construct-genext.scm
 
-;;; copyright © 1996, 1997, 1998, 1999 by Peter Thiemann
+;;; copyright © 1996-2000 by Peter Thiemann
 ;;; non-commercial use is free as long as the original copright notice
 ;;; remains intact
 
@@ -25,23 +25,27 @@
       (cons o args)
       `(_OP_PURE ,l ,o ,@args)))
 (define (make-ge-call f bts args)
-  `(,f ,@args))
+  (apply make-residual-call f args))
 (define (make-ge-let hl unf? bl v e body)
   (make-residual-let v e body))
 (define (make-ge-begin hl prop? e1 e2)
   (if (zero? hl)
       (make-residual-begin e1 e2)
       `(_BEGIN ,hl ,prop? ,e1 ,e2)))
-(define (make-ge-lambda-memo l vars btv label fvars bts body)
-  (if *lambda-is-toplevel*
-      (let ((name (string->symbol (string-append "lambda-" (number->string label)))))
-	(set-generating-extension!
-	 (cons `(DEFINE ,name (LAMBDA ,fvars (LAMBDA ,vars ,body)))
-	       *generating-extension*))
-	`(_LAMBDA_MEMO ,l ',vars ',name (LIST ,@fvars) ',bts
-		       ,name))
-      `(_LAMBDA_MEMO ,l ',vars ',label (LIST ,@fvars) ',bts
-		     (LAMBDA ,fvars (LAMBDA ,vars ,body)))))
+(define (make-ge-lambda-memo l poly? vars btv body-level label fvars bts body)
+  (cond
+   (poly?
+    `(_LAMBDA_POLY ,l ,vars ',btv ,body-level ',label ,body))
+   (*lambda-is-toplevel*
+    (let ((name (string->symbol (string-append "lambda-" (number->string label)))))
+      (set-generating-extension!
+       (cons `(DEFINE ,name (LAMBDA ,fvars (LAMBDA ,vars ,body)))
+	     *generating-extension*))
+      `(_LAMBDA_MEMO ,l ',vars ',name (LIST ,@fvars) ',bts
+		     ,name)))
+   (else
+    `(_LAMBDA_MEMO ,l ',vars ',label (LIST ,@fvars) ',bts
+		   (LAMBDA ,fvars (LAMBDA ,vars ,body))))))
 (define (make-ge-vlambda-memo l fixed-vars var btv label fvars bts body)
   `(_VLAMBDA_MEMO ,l ',fixed-vars ',var ',label (LIST ,@fvars) ',bts
 		  (LAMBDA ,fvars
@@ -59,7 +63,9 @@
       (make-residual-closed-lambda (append fixed-vars var) '() body)
       `(_VLAMBDA ,l ,fixed-vars ,var ,body)))
 (define (make-ge-app l f btv args)
-  `(_APP ,l ,f ,@args))
+  (if (zero? l)
+      (apply make-residual-call f args)
+      `(_APP ,l ,f ,@args)))
 (define (make-ge-ctor-memo l bts hidden ctor args)
   `(_CTOR_MEMO ,l ,bts ,hidden ,ctor ,@args))
 (define (make-ge-sel-memo l sel a)
@@ -76,6 +82,8 @@
   `(_LIFT ,l ,diff ,a))
 (define (make-ge-eval l diff a)
   `(_EVAL ,l ,diff ,a))
+(define (make-ge-run l a)
+  `(_RUN ,l ,a))
 (define (make-ge-make-cell-memo l label bt a)
   `(_MAKE-CELL_MEMO ,l ,label ,bt ,a))
 (define (make-ge-cell-ref-memo l a)

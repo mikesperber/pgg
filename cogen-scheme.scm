@@ -1,6 +1,6 @@
 ;;; cogen-scheme
 
-;;; copyright © 1996, 1997, 1998, 1999 by Peter Thiemann
+;;; copyright © 1996-2000 by Peter Thiemann
 ;;; non-commercial use is free as long as the original copright notice
 ;;; remains intact
 
@@ -187,13 +187,13 @@
 	    (cond
 	     ((eq? tag 'QUOTE)
 	      (annMakeConst (car args)))
-	     ((equal? tag 'IF)
+	     ((eq? tag 'IF)
 	      (let* ((opt-else-branch (cddr args))
 		     (else-branch (if (null? opt-else-branch) `'IF-2 (car opt-else-branch))))
 		(annMakeCond (loop (car args))
 			     (ann-maybe-coerce (loop (cadr args)))
 			     (ann-maybe-coerce (loop else-branch)))))
-	     ((equal? tag 'LET)
+	     ((eq? tag 'LET)
 	      (let ((headers (car args))
 		    (body (cadr args)))
 		(cond
@@ -221,7 +221,7 @@
 			     ,@(map f2 newvars headers))
 			,body)))))))
 	     ;; the LET* case is dead
-	     ((equal? tag 'LET*)
+	     ((eq? tag 'LET*)
 	      (let ((headers (car args))
 		    (body (cadr args)))
 		(cond
@@ -236,7 +236,7 @@
 			       (cons (list (caaar args) scheme-make-var-app -1)
 				     symtab)))))))
 	     ;; BEGIN has gotten its own identity
-	     ((equal? tag 'BEGIN)
+	     ((eq? tag 'BEGIN)
 	      (if (null? args)
 		  (annMakeConst 'begin-0)
 		  (let loop ((args args) (l (- (length args) 1)))
@@ -246,7 +246,7 @@
 			 (scheme->abssyn-e (car args) symtab)
 			 (loop (cdr args) (- l 1)))))))
 	     ;;
-	     ((and (equal? tag 'LAMBDA)
+	     ((and (or (eq? tag 'LAMBDA) (eq? tag 'LAMBDA-POLY))
 		   (list? (car args)))
 	      (let* ((formals (car args))
 		     (symtab (append
@@ -260,9 +260,10 @@
 		  formals
 		  (ann-maybe-coerce
 		   (scheme->abssyn-e (cadr args)
-				     symtab))))))
+				     symtab)))
+		 (eq? tag 'LAMBDA-POLY))))
 	     ;;
-	     ((equal? tag 'LAMBDA)
+	     ((eq? tag 'LAMBDA)
 	      (let loop ((fixed-formals '())
 			 (rest (car args)))
 		(if (pair? rest)
@@ -588,7 +589,8 @@
 					      ,final-body)))))))))))
 	 ;;
 	 ((or (syntax-eq-symbol? 'LAMBDA tag symtab*)
-	      (syntax-eq-symbol? 'LAMBDA-WITHOUT-MEMOIZATION tag symtab*))
+	      (syntax-eq-symbol? 'LAMBDA-WITHOUT-MEMOIZATION tag symtab*)
+	      (syntax-eq-symbol? 'LAMBDA-POLY tag symtab*))
 	  (let* ((formals (syntax-car args))
 		 (new-formals (let loop ((formals formals))
 				(cond
@@ -716,13 +718,14 @@
 				     ,@(syntax-map (lambda (x) x) body-list))))
 		    (def->letrec-clause
 		      (lambda (def)
-			(let ((template (syntax-car (syntax-cdr def)))
-			      (inner-body-list (syntax-cdr (syntax-cdr
-							    def)))
-			      (abstract (if (syntax-eq-symbol?
-					     'DEFINE (syntax-car def) symtab*)
-					    'LAMBDA
-					    'LAMBDA-WITHOUT-MEMOIZATION)))
+			(let ((template
+			       (syntax-car (syntax-cdr def)))
+			      (inner-body-list
+			       (syntax-cdr (syntax-cdr def)))
+			      (abstract
+			       (if (syntax-eq-symbol? 'DEFINE (syntax-car def) symtab*)
+				   'LAMBDA
+				   'LAMBDA-WITHOUT-MEMOIZATION)))
 			  (if (syntax-pair? template)
 			      `(,(syntax-car template)
 				(,(wrapper abstract)
@@ -872,7 +875,8 @@
 	       ,(scheme-wrap-e body))))
 	 ;;
 	 ((or (eq? tag 'LAMBDA)
-	      (eq? tag 'LAMBDA-WITHOUT-MEMOIZATION))
+	      (eq? tag 'LAMBDA-WITHOUT-MEMOIZATION)
+	      (eq? tag 'LAMBDA-POLY))
 	  (let* ((bound-vars (car args))
 		 (wrapped-body (scheme-wrap-e (cadr args))))
 	    (scheme-wrap-binding bound-vars
@@ -974,7 +978,8 @@
 	     definer)))
 	 ;;
 	 ((or (eq? tag 'LAMBDA)
-	      (eq? tag 'LAMBDA-WITHOUT-MEMOIZATION))
+	      (eq? tag 'LAMBDA-WITHOUT-MEMOIZATION)
+	      (eq? tag 'LAMBDA-POLY))
 	  (let* ((bound-vars (car args))
 		 (vars (append (scheme-formals->vars bound-vars) vars))
 		 (body (cadr args)))
@@ -1098,7 +1103,8 @@
 			 headers)))
 	    bound-vars)))
 	 ((or (eq? tag 'LAMBDA)
-	      (eq? tag 'LAMBDA-WITHOUT-MEMOIZATION))
+	      (eq? tag 'LAMBDA-WITHOUT-MEMOIZATION)
+	      (eq? tag 'LAMBDA-POLY))
 	  (let* ((bound-vars (scheme-formals->vars (car args)))
 		 (vars (append bound-vars vars))
 		 (body (cadr args))) 

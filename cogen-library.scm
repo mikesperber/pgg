@@ -1,6 +1,6 @@
 ;;; cogen-library.scm
 
-;;; copyright © 1996, 1997, 1998, 1999 by Peter Thiemann
+;;; copyright © 1996-2000 by Peter Thiemann
 ;;; non-commercial use is free as long as the original copright notice
 ;;; remains intact
 
@@ -63,6 +63,121 @@
 				    ',bts)))
 	(else
 	 (v what))))))
+
+(define *poly-registry* 'undefined-poly-registry)
+(define (poly-registry-reset!)
+  (set! *poly-registry* '()))
+;; an entry of the *poly-registry*
+;; (ctor index-map spec-procs)
+;; ctor: unique label of the lambda-poly
+;; spec-procs: list of procedures that perform the actual specialization
+;; index-map: list of (statics pp index-value body-statics value-template)
+(define (poly-constructor ctor arity bts body-level proc the-residual-piece dyn)
+  (let* ((boxed-gensym-counter (gensym-local-hold))
+	 (ctor (gensym 'poly))		;not always correct
+	 (spec-proc
+	  (lambda (pp old-body-statics-boxed value-template-boxed)
+	    (let* ((** (gensym-local-push-old! boxed-gensym-counter))
+		   (cloned (clone-dynamic pp bts))
+		   (dynamics (map car (project-dynamic cloned bts 'dynamic))))
+	      (set-cdr! the-residual-piece (list '***))
+	      (set! the-residual-piece (cdr the-residual-piece))
+	      (let ((my-residual-piece the-residual-piece))
+		(set-car!
+		 my-residual-piece
+		 `(LAMBDA
+		   ,dynamics
+		   ,(reset
+		     (let ((v (apply proc (cdr cloned))))
+		       (if (not (zero? body-level))
+			   v
+			   (let* ((rv `(RETURN ,v))
+				  (body-statics
+				   (top-project-static rv (list body-level)))
+				  (body-dynamics
+				   (top-project-dynamic rv (list body-level)))
+				  (body-actuals
+				   (map car body-dynamics))
+				  (old-body-statics
+				   (car old-body-statics-boxed)))
+			     (if old-body-statics
+				 (if (not (equal? body-statics old-body-statics))
+				     (error "return type mismatch in lambda-poly"))
+				 (begin
+				   (set-car! old-body-statics-boxed body-statics)
+				   (set-car! value-template-boxed rv)))
+			     (if (= 1 (length body-actuals))
+				 (car body-actuals)
+				 `(VALUES ,@body-actuals)))))))))
+	      (gensym-local-pop!))))
+	 (ctor-entry
+	  (or (assoc ctor *poly-registry*)
+	      (let* ((ctor-entry (list ctor '() '())))
+		(set! *poly-registry* (cons ctor-entry *poly-registry*))
+		ctor-entry)))
+	 (index-map (cadr ctor-entry))
+	 (spec-procs (caddr ctor-entry)))
+    (set-car! (cddr ctor-entry) (cons spec-proc spec-procs))
+    (for-each (lambda (index-entry)
+		(let ((pp (cadr index-entry))
+		      (old-body-statics-boxed (cdddr index-entry))
+		      (value-template-boxed (cddddr index-entry)))
+		  (spec-proc pp old-body-statics-boxed value-template-boxed)))
+	      index-map)
+    (poly-constructor-internal ctor arity bts body-level dyn ctor-entry)))
+
+(define poly-constructor-internal
+  (lambda (ctor arity bts body-level dyn registry-entry)
+    (lambda (what)
+      (case what
+	((value)
+	 (lambda args
+	   (let* ((pp (cons ctor args))
+		  (index (project-static pp bts))
+		  (the-index-map (cadr registry-entry))
+		  (spec-procs (caddr registry-entry))
+		  (found
+		   (or (assoc index the-index-map)
+		       (let* ((len (length the-index-map))
+			      (entry (list index pp len #f #f))
+			      (old-body-statics-boxed (cdddr entry))
+			      (value-template-boxed (cddddr entry)))
+			 (set-car! (cdr registry-entry)
+				   (cons entry the-index-map))
+			 (for-each
+			  (lambda (proc)
+			    (proc pp old-body-statics-boxed value-template-boxed))
+			  spec-procs)
+			 entry)))
+		  (actuals (map car (project-dynamic pp bts 'dynamic))))
+	     (let* ((cloned-return-v (top-clone-dynamic (car (cddddr found)) (list body-level)))
+		    (dynamics (top-project-dynamic cloned-return-v (list body-level)))
+		    (formals (map car dynamics)))
+	       (if (= 1 (length formals))
+		   (shift k
+			  `(LET ((,(car formals) ((vector-ref ,dyn ,(caddr found)) ,@actuals)))
+				,(k (cadr cloned-return-v))))
+		   (shift k
+			  `(CALL-WITH-VALUES
+			    (LAMBDA () ((vector-ref ,dyn ,(caddr found)) ,@actuals))
+			    (LAMBDA ,formals ,(k (cadr cloned-return-v))))))))))
+	((static)  (list ctor))
+	((dynamic dynamic-ref) (list (cons dyn 1)))
+	((clone)
+	 (poly-constructor-internal ctor
+				    arity
+				    bts body-level
+				    (clone-one-dynamic dyn 1)
+				    registry-entry))
+	((clone-with)
+	 (lambda (clone-map)
+	   (poly-constructor-internal ctor
+				      arity
+				      bts body-level
+				      (clone-with-one dyn 1 clone-map)
+				      registry-entry)))
+	(else
+	 (error (string-append "poly-constructor: bad argument " (symbol->string what))))))))
 
 (define (serialize-one val bt)
   (if (procedure? val)

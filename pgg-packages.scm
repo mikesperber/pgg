@@ -1,6 +1,6 @@
 ;;; pgg-packages.scm
 
-;;; copyright © 1996, 1997, 1998, 1999, 2000 by Peter Thiemann
+;;; copyright © 1996-2000 by Peter Thiemann
 ;;; non-commercial use is free as long as the original copright notice
 ;;; remains intact
 
@@ -91,6 +91,8 @@
 	  annFetchLambdaLabel
 	  annFetchLambdaBTVars
 	  annSetLambdaBTVars!
+	  annFetchLambdaPoly
+	  annSetLambdaPoly!
 	  annMakeApp
 	  annIsApp?
 	  annFetchAppRator
@@ -205,6 +207,7 @@
 	  make-ge-test
 	  make-ge-lift
 	  make-ge-eval
+	  make-ge-run
 	  make-ge-make-vector-memo
 	  make-ge-vector-ref-memo
 	  make-ge-vector-length-memo

@@ -1,6 +1,6 @@
 ;;; cogen-gensym.scm
 
-;;; copyright © 1996, 1997, 1998, 1999 by Peter Thiemann
+;;; copyright © 1996-2000 by Peter Thiemann
 ;;; non-commercial use is free as long as the original copright notice
 ;;; remains intact
 
@@ -24,9 +24,21 @@
     (gensym 'f)))
 (define gensym-trimmed gensym-global-trimmed)
 (define *gensym-local* (list 0))
-(define gensym-local-reset! (lambda () (set! *gensym-local* (list 0))))
-(define gensym-local-push! (lambda () (set! *gensym-local* (cons 0 *gensym-local*))))
-(define gensym-local-pop! (lambda () (set! *gensym-local* (cdr *gensym-local*))))
+(define gensym-local-reset!
+  (lambda ()
+    (set! *gensym-local* (list 0))))
+(define gensym-local-push!
+  (lambda ()
+    (set! *gensym-local* (cons 0 *gensym-local*))))
+(define gensym-local-pop!
+  (lambda ()
+    (set! *gensym-local* (cdr *gensym-local*))))
+(define gensym-local-hold
+  (lambda ()
+    *gensym-local*))
+(define gensym-local-push-old!
+  (lambda (old)
+    (set! *gensym-local* (cons (car old) *gensym-local*))))
 (define gensym-local-use-stub
   (lambda (sym)
     (set-car! *gensym-local* (+ (car *gensym-local*) 1))

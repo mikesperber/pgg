@@ -47,6 +47,7 @@
   (gensym-local-reset!)
   (gensym-reset!)
   (creation-log-initialize!)
+  (poly-registry-reset!)
   (let* ((initial-scope (gensym-local-push!))
 	 (initial-static-store (initialize-static-store!))
 	 (result (reset (multi-memo level level fname fct #f bts args)))
@@ -196,7 +197,8 @@
     (gensym-local-push!)
     (creation-log-push!)
     (let* ((cloned-pp (top-clone-dynamic full-pp bts))
-	   (new-formals (map car (top-project-dynamic cloned-pp bts))))
+	   (new-formals (map car (top-project-dynamic cloned-pp bts)))
+	   (old-body-statics #f))
 
       (let ((body
 	     (reset
@@ -205,15 +207,21 @@
 		(if (not (zero? bt))
 		    v
 		    (let* ((return-v (list 'return v))
+			   (body-statics
+			    (top-project-static return-v (list bt)))
 			   (body-dynamics
 			    (top-project-dynamic return-v (list bt)))
 			   (body-actuals
 			    (map car body-dynamics)))
+		      (if old-body-statics
+			  (if (not (equal? body-statics old-body-statics))
+			      (error "return type mismatch"))
+			  (set! old-body-statics body-statics))
 		      (memolist-entry->value!
 		       entry
 		       (top-clone-dynamic return-v))
 		      (memolist-entry->bt! entry bt)
-		      `(VALUES ,@body-actuals)))))))
+		      (apply make-residual-primop 'VALUES body-actuals)))))))
 	(make-residual-definition!
 	 (memolist-entry->name entry)
 	 new-formals
@@ -276,25 +284,32 @@
 	       (apply make-residual-call res-name actuals)
 	       (make-residual-call 'MULTI-MEMO
 				   (- level 1)
-				   ( - bt 1)
+				   (- bt 1)
 				   `',res-name
 				   res-name
 				   (and maybe-special
-					`(LIST ,(- (car maybe-special) 1)
-					       ,(cadr maybe-special)))
+					(make-residual-primop 'LIST
+							      (- (car maybe-special) 1)
+							      (cadr maybe-special)))
 				   `',(map pred dyn-bts)
-				   `(LIST ,@actuals)))))
+				   (apply make-residual-primop 'LIST actuals)))))
       (if result-needed
 	  (if (zero? bt)
-	      (let* ((cloned-return-v (top-clone-dynamic (memolist-entry->value found)))
-		     (dynamics (top-project-dynamic cloned-return-v))
+	      (let* ((cloned-return-v (top-clone-dynamic (memolist-entry->value found) (list bt)))
+		     (dynamics (top-project-dynamic cloned-return-v (list bt)))
 		     (formals (map car dynamics)))
 		(shift
 		 k
-		 `(CALL-WITH-VALUES
-		   (LAMBDA ()
-		     ,call-expr)
-		   (LAMBDA ,formals
-		     ,(k (cadr cloned-return-v))))))
+		 (make-residual-primop
+		  'CALL-WITH-VALUES
+		  (make-residual-closed-lambda '() 'FREE call-expr)
+		  (make-residual-closed-lambda formals 'FREE (k (cadr cloned-return-v))))))
 	      (_complete-serious call-expr))
 	  (_complete-serious-no-result call-expr)))))
+
+;;;was:
+;;; 		 `(CALL-WITH-VALUES
+;;; 		   (LAMBDA ()
+;;; 		     ,call-expr)
+;;; 		   (LAMBDA ,formals
+;;; 		     ,(k (cadr cloned-return-v))))

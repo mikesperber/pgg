@@ -236,6 +236,10 @@
   (lambda (type)
     (equal? (type-fetch-ctor type) ctor-function)))
 
+(define type-product?
+  (lambda (type)
+    (equal? (type-fetch-ctor type) ctor-product)))
+
 (define node-fetch-type
   (lambda (node)
     (info-fetch-type (node-fetch-info (full-ecr node)))))
@@ -322,6 +326,26 @@
 		(arg-node (car arg-nodes)))
 	    (full-add-leq tv-arglist ctor-product (list arg-node tv-rest))
 	    (loop tv-rest (cdr arg-nodes)))))))
+
+(define (function-argument-types node)
+  (let ((type (node-fetch-type node)))
+    (if (type-function? type)
+	(let* ((args (type-fetch-args type)))
+	  (let loop ((argument-type (node-fetch-type (car args)))
+		     (rev-result '()))
+	    (if (type-product? argument-type)
+		(let ((args (type-fetch-args argument-type)))
+		  (loop (node-fetch-type (cadr args))
+			(cons (car args) rev-result)))
+		(reverse rev-result))))
+	'())))
+
+(define (function-result-type node)
+  (let ((type (node-fetch-type node)))
+    (if (type-function? type)
+	(let* ((args (type-fetch-args type)))
+	  (cadr args))
+	#f)))
 
 ;;; add constraint < arg-nodes . final-arg-node -> res-node > \preceq node
 (define (full-add-vfunction node arg-nodes final-arg-node res-node)
@@ -740,6 +764,8 @@
 	  (cond
 	   ((procedure? op-property)
 	    (op-property type op-arg-types))
+	   ((number? op-property)
+	    (wft-number-property op-property type op-arg-types))
 	   ((eq? op-name INTERNAL-IDENTITY)
 	    (let* ((arg-type (car op-arg-types))
 		   (arg-btann (type-fetch-btann arg-type))
@@ -893,7 +919,23 @@
 (define wft-error-property
   (lambda (type type*)
     (bta-debug-level 3 (display "wft-error-property") (newline))
-    (bta-note-dynamic! (type-fetch-btann type))))
+    (let ((btann (type-fetch-btann type))
+	  (stann (type-fetch-stann type)))
+      ;; (ann+>dlist! btann stann)		; sigma <= beta
+      (for-each
+       (lambda (arg-type)
+	 (let ((arg-btann (type-fetch-btann arg-type))
+	       (arg-stann (type-fetch-stann arg-type)))
+	   (ann+>dlist! arg-btann arg-stann) ; sigma_i <= beta_i
+	   (ann+>dlist! btann arg-btann) ; beta_i <= beta
+	   (ann+>dlist! arg-btann btann) ; beta <= beta_i
+	   ))
+       type*))))
+
+(define wft-number-property
+  (lambda (level type type*)
+    (bta-debug-level 3 (display "wft-number-property") (newline))
+    (bta-note-level! level (type-fetch-btann type))))
 
 (define wft-define-data-property
   (lambda (type type*)
@@ -935,7 +977,7 @@
 (define wft-property-table
   `((apply   . ,wft-apply-property)
     (dynamic . ,wft-dynamic-property)
-    (error   . ,wft-dynamic-property)
+    (error   . ,wft-error-property)
     (opaque  . ,wft-dynamic-property)))
 
 ;;; propagate binding-time constraints
@@ -987,7 +1029,7 @@
 		       (fvs (filter (make-variable-filter *bta-mutable-defines*)
 				    (annFreeVars body))))
 		  (annIntroduceMemo1 e bt level fvs body #f)
-		  (for-each (bta-memo-var level) fvs))
+		  (for-each (bta-memo-expr level) fvs))
 		(let* ((var (car args))
 		       (body (cadr args))
 		       (fvs (filter (make-variable-filter *bta-mutable-defines*)
@@ -997,7 +1039,7 @@
 		  (if (annIsLift? body)
 		      (set! body (annFetchLiftBody body)))
 		  (annIntroduceMemo1 e bt level fvs body var)
-		  (for-each (bta-memo-var level) fvs)))
+		  (for-each (bta-memo-expr level) fvs)))
 	    #f)
 	  (let ((arg (car (annFetchOpArgs e))))
 	    (ann-replace e arg))))))
@@ -1108,7 +1150,7 @@
 		  (let ((fvs (filter (make-variable-filter *bta-mutable-defines*)
 				     (annFreeVars e))))
 		    (annIntroduceMemo e bt level fvs)
-		    (for-each (bta-memo-var level) fvs)))
+		    (for-each (bta-memo-expr level) fvs)))
 	      #f)
 	     (else
 	      #f))))
@@ -1133,12 +1175,19 @@
 	    (or header body)))
 	 ((annIsLambda? e)
 	  (let* ((dyn-lambda (< 0 bt))
-		 (body (new-loop (annFetchLambdaBody e) bt)))
+		 (e-body (annFetchLambdaBody e))
+		 (body (new-loop e-body bt)))
+	    (if (annFetchLambdaPoly e)
+		(let ((memo-bt (+ bt 1)))
+		  ((bta-memo-expr memo-bt) e)
+		  (for-each (bta-memo-node memo-bt)
+			    (function-argument-types (annExprFetchType e)))
+		  ((bta-memo-expr memo-bt) e-body)))
 	    (if (and dyn-lambda body auto-memo)
 		(let ((fvs  (filter (make-variable-filter *bta-mutable-defines*)
 				    (annFreeVars e))))
 		  (annIntroduceMemo e bt bt fvs)
-		  (for-each (bta-memo-var bt) fvs))))
+		  (for-each (bta-memo-expr bt) fvs))))
 	  #f)
 	 ((annIsVLambda? e)
 	  (let* ((dyn-lambda (< 0 bt))
@@ -1147,7 +1196,7 @@
 		(let ((fvs  (filter (make-variable-filter *bta-mutable-defines*)
 				    (annFreeVars e))))
 		  (annIntroduceMemo e bt bt fvs)
-		  (for-each (bta-memo-var bt) fvs))))
+		  (for-each (bta-memo-expr bt) fvs))))
 	  #f)
 	 ((annIsApp? e)
 	  (let* ((rator (annFetchAppRator e))
@@ -1202,26 +1251,23 @@
 	(if (> bt lv)
 	    (annIntroduceLift e lv (- bt lv)))))))
 
-(define bta-memo-var
-  (lambda (level)
-    (letrec
-	((bta-memo-var
-	  (lambda (var)
-	    (bta-memo-node (annExprFetchType var))))
-	 (bta-memo-node
-	  (lambda (node)
-	    (let* ((info (node-fetch-info (full-ecr node)))
-		   (type (info-fetch-type info)))
-	      (let* ((memo (type->memo type))
-		     (memo-time (ann->bt memo)))
-		(if (<= level memo-time)
-		    'nothing-to-do
-		    (begin
-		      (ann->bt! memo level)
-		      (if (type-function? type)
-			  (map bta-memo-var (info-fetch-fvs info))
-			  (map bta-memo-node (type-fetch-args type))))))))))
-      bta-memo-var)))
+(define (bta-memo-expr level)
+  (lambda (var)
+    ((bta-memo-node level) (annExprFetchType var))))
+
+(define (bta-memo-node level)
+  (lambda (node)
+    (let* ((info (node-fetch-info (full-ecr node)))
+	   (type (info-fetch-type info)))
+      (let* ((memo (type->memo type))
+	     (memo-time (ann->bt memo)))
+	(if (<= level memo-time)
+	    'nothing-to-do
+	    (begin
+	      (ann->bt! memo level)
+	      (if (type-function? type)
+		  (map (bta-memo-expr level) (info-fetch-fvs info))
+		  (map (bta-memo-node level) (type-fetch-args type)))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; 

@@ -1,7 +1,7 @@
 SHELL = /bin/sh
 BATCH_IMAGE = batch.image
 INTERACTIVE_IMAGE = pgg.image
-COGEN_VERSION = 1.1
+COGEN_VERSION = 1.2
 DISTRIBUTION = pgg-$(COGEN_VERSION).tar.gz
 GENEXT_DISTRIBUTION = genext-$(COGEN_VERSION).tar.gz
 prefix = /usr/local
@@ -17,10 +17,17 @@ INTERACTIVE_HEAPSIZE = 10000000
 BATCH_HEAPSIZE = 6000000
 BATCH_ENTRYPOINT = cogen-main
 
+HTTPDIR = /home/proglang/www/software/pgg
+FTPDIR = /usr/local/ftp/iif/thiemann/pgg
+
 all: $(INTERACTIVE_IMAGE)
 
 distribution: $(DISTRIBUTION)
 genext-distribution: $(GENEXT_DISTRIBUTION)
+
+export: $(DISTRIBUTION)
+	$(INSTALL) -m 644 $(DISTRIBUTION) $(HTTPDIR)
+	$(INSTALL) -m 644 $(DISTRIBUTION) $(FTPDIR)
 
 install: $(INTERACTIVE_IMAGE) $(EXECUTABLE)
 	mkdir -p $(LIBDIR) $(BINDIR) $(EXAMPLEDIR)

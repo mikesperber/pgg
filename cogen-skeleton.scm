@@ -181,9 +181,6 @@
 		       resid-header
 		       resid-body)))
      ((annIsLambda? e)
-;;;      `(_LAMBDA ,(annExprFetchLevel e)
-;;;		(LAMBDA ,(annFetchLambdaVars e)
-;;;		  ,(loop (annFetchLambdaBody e))))
       (let* ((fvar-exprs (annFreeVars e))
 	     (fvars (map annFetchVar fvar-exprs))
 	     (bts (map annExprFetchLevel fvar-exprs))
@@ -192,6 +189,7 @@
 	     ;; temporary
 	     (level (annExprFetchLevel e))
 	     (body (annFetchLambdaBody e))
+	     (body-level (annExprFetchLevel body))
 	     (memo-level
 	      (ann->bt
 	       (type->memo (node-fetch-type (annExprFetchType e))))))
@@ -199,12 +197,13 @@
 	    (make-ge-lambda level
 			    vars btv
 			    (loop body))
-	    (make-ge-lambda-memo level
-				 vars btv
-				 (annFetchLambdaLabel e)
-				 fvars
-				 bts
-				 (loop body)))))
+	    (let ((poly? (annFetchLambdaPoly e)))
+	      (make-ge-lambda-memo level poly?
+				   vars btv body-level
+				   (annFetchLambdaLabel e)
+				   fvars
+				   bts
+				   (loop body))))))
      ((annIsVLambda? e)
       (let* ((fvar-exprs (annFreeVars e))
 	     (fvars (map annFetchVar fvar-exprs))

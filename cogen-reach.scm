@@ -1,3 +1,9 @@
+;;; cogen-reach
+
+;;; copyright © 2000 by Peter Thiemann
+;;; non-commercial use is free as long as the original copright notice
+;;; remains intact
+
 ;;; reaching definitions analysis
 
 ;;; !!!! does not respect cell-eq? everywhere !!!!!
@@ -888,7 +894,8 @@
      ((annIsLambda? e)
       (annMakeLambda (annFetchLambdaLabel e)
 		     (annFetchLambdaVars e)
-		     (loop (annFetchLambdaBody e))))
+		     (loop (annFetchLambdaBody e))
+		     (annFetchLambdaPoly e)))
      ((annIsApp? e)
       (let ((rator (loop (annFetchAppRator e)))
 	    (rands (map loop (annFetchAppRands e))))
