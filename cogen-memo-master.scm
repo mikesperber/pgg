@@ -28,6 +28,7 @@
 	   (set! *master-pending* (cons (cons key entry) *master-pending*)))))
       (let ((placeholder (car *master-pending-placeholders*)))
 	(set! *master-pending-placeholders* (cdr *master-pending-placeholders*))
+	(set! *n-unemployed-servers* (- *n-unemployed-servers* 1))
 	(release-lock (proxy-local-ref *master-pending-placeholders-lock*))
 	(placeholder-set! placeholder entry))))
 
@@ -39,11 +40,13 @@
 	entry)))
 
 (define (master-pending-sign-up! placeholder)
-  (with-lock
-   (proxy-local-ref *master-pending-placeholders-lock*)
-   (lambda ()
-     (set! *master-pending-placeholders*
-	   (cons placeholder *master-pending-placeholders*)))))
+  (obtain-lock (proxy-local-ref *master-pending-placeholders-lock*))
+  (set! *master-pending-placeholders*
+	(cons placeholder *master-pending-placeholders*))
+  (set! *n-unemployed-servers* (+ 1 *n-unemployed-servers*))
+  (release-lock (proxy-local-ref *master-pending-placeholders-lock*))
+  (if (= *n-unemployed-servers* *n-servers*)
+      (placeholder-set! *finished-placeholder* #t)))
 
 ;;; the cache
 
@@ -234,30 +237,18 @@
 			     (pending-entry->fct entry)))
 	      ;; Don't call us, we'll call you.  Next, please!
 	      (loop))
-	  (let ((n-unemployed
-		 (with-lock
-		  (proxy-local-ref *n-unemployed-servers-lock*)
-		  (lambda ()
-		    (set! *n-unemployed-servers* (+ 1 *n-unemployed-servers*))
-		    *n-unemployed-servers*))))
-	    (if (= n-unemployed *n-servers*)
-		(placeholder-set! *finished-placeholder* #t)
-		(let ((entry-placeholder (make-placeholder)))
-		  (master-pending-sign-up! entry-placeholder)
-		  (let ((entry (placeholder-value entry-placeholder)))
-		    (remote-run! (uid->aspace (pending-entry->server-uid entry))
-				 server-kill-local-id!
-				 (pending-entry->local-id entry))
-		    (with-lock
-		     (proxy-local-ref *n-unemployed-servers-lock*)
-		     (lambda ()
-		       (set! *n-unemployed-servers* (- *n-unemployed-servers* 1))))
-		    (remote-run! (uid->aspace uid)
-				 server-specialize ;-async
-				 (pending-entry->name entry) 
-				 (pending-entry->program-point entry)
-				 (pending-entry->bts entry)
-				 (pending-entry->fct entry))))))))))
+	  (let ((entry-placeholder (make-placeholder)))
+	    (master-pending-sign-up! entry-placeholder)
+	    (let ((entry (placeholder-value entry-placeholder)))
+	      (remote-run! (uid->aspace (pending-entry->server-uid entry))
+			   server-kill-local-id!
+			   (pending-entry->local-id entry))
+	      (remote-run! (uid->aspace uid)
+			   server-specialize ;-async
+			   (pending-entry->name entry) 
+			   (pending-entry->program-point entry)
+			   (pending-entry->bts entry)
+			   (pending-entry->fct entry))))))))
 
 ;; Specialization driver
 
