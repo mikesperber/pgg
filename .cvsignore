@@ -1,1 +1,3 @@
 batch.image
+cogen-load-gambit.scm
+cogen-load-s48.scm
