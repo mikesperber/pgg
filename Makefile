@@ -1,7 +1,7 @@
 SHELL = /bin/sh
 BATCH_IMAGE = batch.image
 INTERACTIVE_IMAGE = pgg.image
-COGEN_VERSION = 1.2
+COGEN_VERSION = 1.3
 DISTRIBUTION = pgg-$(COGEN_VERSION).tar.gz
 GENEXT_DISTRIBUTION = genext-$(COGEN_VERSION).tar.gz
 prefix = /usr/local
@@ -17,6 +17,12 @@ INTERACTIVE_HEAPSIZE = 10000000
 BATCH_HEAPSIZE = 6000000
 BATCH_ENTRYPOINT = cogen-main
 
+TARGETHOST= nakalele.informatik.uni-freiburg.de
+TARGETDIR= /home/proglang/www/events/kps2004
+TARGET= $(TARGETHOST):$(TARGETDIR)
+TARGETGROUP= proglang
+TARGETPERM= 664
+
 HTTPDIR = /home/proglang/www/software/pgg
 FTPDIR = /usr/local/ftp/iif/thiemann/pgg
 
@@ -26,8 +32,14 @@ distribution: $(DISTRIBUTION)
 genext-distribution: $(GENEXT_DISTRIBUTION)
 
 export: $(DISTRIBUTION)
-	$(INSTALL) -m 644 $(DISTRIBUTION) $(HTTPDIR)
-	$(INSTALL) -m 644 $(DISTRIBUTION) $(FTPDIR)
+	ssh $(TARGETHOST) rm -f $(HTTPDIR)/$<
+	scp -q $< $(TARGETHOST):$(HTTPDIR)
+	ssh $(TARGETHOST) chgrp $(TARGETGROUP) $(HTTPDIR)/$<
+	ssh $(TARGETHOST) chmod $(TARGETPERM) $(HTTPDIR)/$<
+	ssh $(TARGETHOST) rm -f $(FTPDIR)/$<
+	scp -q $< $(TARGETHOST):$(FTPDIR)
+	ssh $(TARGETHOST) chgrp $(TARGETGROUP) $(FTPDIR)/$<
+	ssh $(TARGETHOST) chmod $(TARGETPERM) $(FTPDIR)/$<
 
 install: $(INTERACTIVE_IMAGE) $(EXECUTABLE)
 	mkdir -p $(LIBDIR) $(BINDIR) $(EXAMPLEDIR)
