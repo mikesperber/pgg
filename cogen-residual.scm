@@ -150,12 +150,14 @@
 	       (constants (cdr stuff)))
 	   (if (and (pair? e) (eq? 'CASE (car e))
 		    (equal? (cadr e) exp))
-	       `(CASE ,exp
-		  ,(make-branch `(,constants ,t))
-		  ,@(cddr e))
-	       `(CASE ,exp
-		  ,(make-branch `(,constants ,t))
-		  (else ,e))))))
+	       (make-residual-case
+		exp
+		(cons (make-branch `(,constants ,t))
+		      (cddr e)))
+	       (make-residual-case
+		exp
+		(cons (make-branch `(,constants ,t))
+		      `((else ,e))))))))
    ((and (pair? e) (eq? 'IF (car e)))
     `(COND
       ,(make-branch `(,c ,t))
@@ -167,6 +169,26 @@
        ,@(cdr e)))
    (else
     `(IF ,c ,t ,e))))
+
+;; assumption: (not (null? branches))
+(define (make-residual-case exp branches)
+  (let ((collapsed-branches
+	 (let loop ((current-branch (car branches))
+		    (branches (cdr branches))
+		    (new-branches '()))
+	   (if (not (null? branches))
+	       (let ((new-branch (car branches)))
+		 (if (and (not (eq? 'else (car new-branch)))
+			  (equal? (cdr new-branch) (cdr current-branch)))
+		     (loop (cons (append (car new-branch) (car current-branch))
+				 (cdr current-branch))
+			   (cdr branches)
+			   new-branches)
+		     (loop new-branch
+			   (cdr branches)
+			   (cons current-branch new-branches))))
+	       (reverse (cons current-branch new-branches))))))
+    `(CASE ,exp ,@collapsed-branches)))
 
 (define (make-residual-call f . args)
   `(,f ,@args))
