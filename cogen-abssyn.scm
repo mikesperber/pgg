@@ -92,7 +92,7 @@
 (define (annFetchCondElse e)
   (annExprFetchSubobject e 2))
 ;;; primitive operations
-(define INTERNAL-IDENTITY (list '***internal-identity***))
+(define INTERNAL-IDENTITY (list '???lift))
 (define (annMakeOp op args)
   (annMakeExpr 'OP (vector op args #t #f #f #f)))
 (define (annMakeOpaqueOp op args)
@@ -310,7 +310,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define (ann-maybe-coerce e)
-  (annMakeOp INTERNAL-IDENTITY (list e)))
+  (if *abssyn-maybe-coerce*
+      (annMakeOp INTERNAL-IDENTITY (list e))
+      e))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define (annFreeVars e)

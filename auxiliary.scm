@@ -12,21 +12,26 @@
   (set! *gensym-counter* 0))
 (define gensym (lambda (sym)
 		 (set! *gensym-counter* (+ *gensym-counter* 1))
-		 (string->symbol (string-append
-				  (symbol->string sym)
-				  "-"
-				  (number->string *gensym-counter*)))))
+		 (any->symbol sym "-" *gensym-counter*)))
 (define *gensym-local* '())
 (define gensym-local-reset! (lambda () (set! *gensym-local* '())))
 (define gensym-local-push! (lambda () (set! *gensym-local* (cons 0 *gensym-local*))))
 (define gensym-local-pop! (lambda () (set! *gensym-local* (cdr *gensym-local*))))
 (define gensym-local (lambda (sym)
 		       (set-car! *gensym-local* (+ (car *gensym-local*) 1))
-		       (string->symbol (string-append
-					(symbol->string sym)
-					"-"
-					(number->string (car *gensym-local*))))))
+		       (any->symbol sym "-" (car *gensym-local*))))
 (define gencont (lambda () (gensym 'c)))
+
+(define any->symbol
+  (lambda args
+    (string->symbol
+     (apply string-append
+	    (map (lambda (arg)
+		   (cond
+		    ((symbol? arg) (symbol->string arg))
+		    ((string? arg) arg)
+		    ((number? arg) (number->string arg))))
+		 args)))))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; auxiliary

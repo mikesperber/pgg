@@ -6,7 +6,7 @@
 ;;; hence performs full context propagation
 ;;;
 
-(set-scheme->abssyn-let-insertion! #f)
+(set-scheme->abssyn-let-insertion! #t)
 (set-memo-optimize! #f)
 
 ;;; this is vital in order to guarantee that every lambda carries
@@ -27,7 +27,8 @@
 (define (make-ge-call f bts args)
   `(,f ,@args))
 (define (make-ge-let hl unf? bl v e body)
-  `(LET ((,v ,e)) ,body))
+  ;;`(LET ((,v ,e)) ,body)
+  `(_LET ,hl ,unf? ,bl ((,v ,e)) ,body))
 (define (make-ge-begin hl prop? e1 e2)
   `(_BEGIN ,hl ,prop? ,e1 ,e2))
 (define (make-ge-lambda-memo l vars btv label fvars bts body)
@@ -142,6 +143,7 @@
 				 actual-fvs
 				 (list (reset (apply (apply f vvs) formals))))))
 
+
 (define (_vlambda lv arity var f)
   (let* ((vars (map gensym-local arity))
 	 (vvar (gensym-local var))
@@ -150,6 +152,17 @@
     (if (= lv 1)
 	fun
 	`(_VLAMBDA ,(pred lv) ',arity ',var ,fun))))
+
+(define-syntax _let
+  (syntax-rules ()
+    ((_ 0 u? bl ((?v e)) body)
+     (let ((?v e)) body))
+    ((_ 1 u? bl ((?v e)) body)
+     (_let-internal-1 u? bl '?v (reset e) (lambda (?v) body)))))
+
+(define (_let-internal-1 unf? bl orig-var e f)
+  (let ((var (gensym-local orig-var)))
+    (shift k (make-residual-let-trivial var e (list (reset (k (f var))))))))
 
 (define-syntax _begin
   (syntax-rules ()

@@ -6,6 +6,7 @@
 (define *scheme->abssyn-static-references* #f)
 (define *scheme->abssyn-label-counter* 0)
 
+(define *abssyn-maybe-coerce* #t)
 (define *scheme->abssyn-let-insertion* #t)
 (define *memo-optimize* #t)		;use representation analysis
 (define *generating-extension* '())
@@ -29,3 +30,5 @@
 (define (set-generating-extension! v)
   (set! *generating-extension* v))
 
+(define (set-abssyn-maybe-coerce! v)
+  (set! *abssyn-maybe-coerce* v))

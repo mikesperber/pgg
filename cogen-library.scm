@@ -125,7 +125,7 @@
 		(let ((value (car values)))
 		(if (= 0 (car bts))
 		    (if (procedure? value)
-			(cons ((value 'CLONE) clone-map) skeleton)
+			(cons ((value 'CLONE-WITH) clone-map) skeleton)
 			(cons value skeleton))
 		    (cons (cdr (assoc value clone-map)) skeleton))))))))
 

@@ -1,5 +1,6 @@
 - extend the top-level such that arbitrary scheme programs (including
-  non-functional definitions) are allowed
+  non-functional definitions) are allowed; use the proposed macro
+  mechanism of R4RS to implement non-primitive forms
 - automatically insert representation coercions for (partially) static
   top-level arguments (from the standard representation to the memoized one)
 - revise symbol handling to pairs of (symbol, version number)

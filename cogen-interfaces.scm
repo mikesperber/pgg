@@ -237,6 +237,7 @@
 	    _app_memo
 	    _lambda
 	    _lambda_memo
+	    _let
 	    _begin
 	    _ctor_memo
 	    _s_t_memo
@@ -359,7 +360,7 @@
 	  make-residual-definition!))
 
 (define-interface cogen-typesig-interface
-  (export parse-type desc-type desc-np desc-nc desc-nt))
+  (export parse-type desc-type desc-ctor desc-np desc-nc desc-nt))
 
 (define-structure cogen-typesig cogen-typesig-interface
   (open scheme cogen-record cogen-env)
@@ -382,6 +383,7 @@
 	  *scheme->abssyn-label-counter*
 	  *scheme->abssyn-static-references*
 	  *scheme->abssyn-let-insertion*
+	  *abssyn-maybe-coerce*
 	  *memo-optimize*
 	  *generating-extension*
 	  set-bta-diplay-level!
@@ -391,6 +393,7 @@
 	  set-scheme->abssyn-let-insertion!
 	  set-memo-optimize!
 	  set-generating-extension!
+	  set-abssyn-maybe-coerce!
 	  ))
 
 (define-structure cogen-globals cogen-globals-interface
@@ -421,6 +424,7 @@
 	  labset-union*
 	  labset-subtract
 	  labset-subset?
+	  labset-elem?
 	  labset-equal?
 	  labset-for-each
 	  set-labset-size!))
@@ -436,13 +440,14 @@
 	  gensym gensym-reset!
 	  gensym-local gensym-local-reset! gensym-local-push!
 	  gensym-local-pop!
+	  any->symbol
 	  *memolist* *residual-program* *support-code*
 	  add-to-memolist! clear-memolist!
 	  set-residual-program! add-to-residual-program! clear-residual-program!
 	  add-to-support-code! clear-support-code!
 	  nlist
 	  set-union set-subtract set-difference set-union* set-equal?
-	  and-map and-map2 strict-and-map strict-or-map
+	  and-map and-map2 strict-and-map strict-or-map thread-map
 	  generic-sort
 	  filter
 	  remove-duplicates
@@ -461,7 +466,7 @@
   (begin (define p pretty-print)))
 
 (define-structure cogen-abssyn cogen-abssyn-interface
-  (open scheme signals auxiliary)
+  (open scheme signals auxiliary cogen-globals)
   (files cogen-abssyn))
 
 (define-structure cogen-labset cogen-labset-interface
@@ -491,6 +496,14 @@
   (open scheme escapes pgg-library)
   (files cogen-boxops
 	 cogen-ctors))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define-structure reaching-definitions pgg-interface
+  (open scheme signals auxiliary pretty-print
+	cogen-abssyn cogen-env cogen-globals cogen-labset cogen-record
+	cogen-typesig 
+	cogen-scheme)
+  (files cogen-reach))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
