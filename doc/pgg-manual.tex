@@ -207,7 +207,7 @@ provided as part of the generating extension.
 \begin{verbatim}
 > (specialize-$goal 0)
 '(power-2 x1)
-> *residual-program*
+> (get-residual-program)
 '((define (power-2 x-3) 1))
 > 
 \end{verbatim}
@@ -216,8 +216,9 @@ The specializer responds with the call template for the residual
 program, \texttt{'(power-2 x1)}, indicating that \texttt{power-2}
 is the entry point of the residual program and that it takes one
 parameter. 
-The specializer puts the residual program in variable
-\indextt{*residual-program*}\texttt{*residual-program*}, for further
+The specializer puts the residual program in a variable
+whose contents can be retrieved with the
+\indextt{get-residual-program}\texttt{get-residual-program} procedure, for further
 examination, compilation, or to save it to a file.
 
 Here is a more interesting run, specializing \texttt{power} for
@@ -226,7 +227,7 @@ Here is a more interesting run, specializing \texttt{power} for
 \begin{verbatim}
 > (specialize-$goal 4)
 '(power-2 x1)
-> (p *residual-program*)
+> (p (get-residual-program))
 ((define (power-2 x-3)
    (let* ((mlet-11 (* x-3 1))
           (mlet-9 (* x-3 mlet-11))
@@ -401,11 +402,11 @@ To load this generating extension, we need to load the
 > (load-program genext)
 > (specialize-$goal 5 '())
 '(main-2 x3)
-> (p *residual-program*)
+> (p (get-residual-program))
 ((define (main-2 x-3) 5))
 > (specialize-$goal '(+ x y) '(x y))
 '(main-2 x3)
-> (p *residual-program*)
+> (p (get-residual-program))
 ((define (main-2 x-3)
    (let* ((mlet-5 (cdr x-3))
           (mlet-7 (car x-3))
@@ -414,7 +415,7 @@ To load this generating extension, we need to load the
      (+ mlet-7 mlet-11))))
 > (specialize-$goal '(lambda (x) (+ x y)) '(y))
 '(main-2 x3)
-> (p *residual-program*)
+> (p (get-residual-program))
 ((define (main-2 x-3)
    (define (loop-4 mlet-3)
      (lambda (y_1-5)
@@ -550,7 +551,7 @@ Newly accessible in user: (define-data)
 > (load-program genext)
 > (specialize-$goal)
 '(main-2 x1)
-> (p *residual-program*)
+> (p (get-residual-program))
 ((define (main-2 x-3)
    (define (zip-4 x-3)
      (let ((mlet-5 (null? x-3)))
@@ -633,7 +634,7 @@ It contains the example programs \texttt{lazy1} and \texttt{lazy2}.
   further. Let's have a look
   \begin{small}
 \begin{verbatim}
-> (p *residual-program*)
+> (p (get-residual-program))
 ((define (dotprod-2 x-7 x-5 x-3)
    (let* ((mlet-15 (car x-7))
           (mlet-17 (_op 1 car x-5))
@@ -660,13 +661,13 @@ It contains the example programs \texttt{lazy1} and \texttt{lazy2}.
   us the name \texttt{dotprod-2} of the entry point.
   \begin{small}
 \begin{verbatim}
-> (load-program *residual-program*)
+> (load-program (get-residual-program))
 > (specialize dotprod-2 '(dotprod-2-1 0 1 2) '((111 222) v2 v3))
 '(multi-memo 1 1 'dotprod-2-1 dotprod-2-1 #f '(0 1) (list v2 v3))
-> (load-program *residual-program*)
+> (load-program (get-residual-program))
 > (specialize dotprod-2-1 '(dotprod-2-1-1 0 1) '((333 444) v3))
 '(dotprod-2-1-1 v3)
-> (p *residual-program*)
+> (p (get-residual-program))
 ((define (dotprod-2-1-1 v-3)
    (let* ((mlet-5 (car v-3))
           (mlet-7 (* 36963 mlet-5))
@@ -771,7 +772,7 @@ Finally, we can specialize in the same way as before.
 \begin{verbatim}
 > (specialize $goal '($goal 1 0) '(x 0))
 '($goal-1 x)
-> *residual-program*
+> (get-residual-program)
 '((define ($goal-1 x-1) 1))
 > 
 \end{verbatim}
@@ -842,7 +843,7 @@ bta-solve done
 Specialization stops right before loading the first module. So far, it
 generated code for transferring the input list into the registers:
 \begin{verbatim}
-> (p *residual-program*)
+> (p (get-residual-program))
 ((define (main-1 x-2 x-1)
    (let* ((mlet-3 (car x-1))
           (mlet-4 (cdr x-1))
@@ -899,7 +900,7 @@ bta-solve done
 \end{verbatim}
 Here is the startup code for the compiled program:
 \begin{verbatim}
-> (p *residual-program*)
+> (p (get-residual-program))
 ((define (main-1 x-2 x-1)
    (let* ((mlet-3 (car x-1))
           (mlet-4 (cdr x-1))
@@ -916,7 +917,7 @@ Here is the startup code for the compiled program:
 Here is the code for the first module:
 \begin{verbatim}
 > (continue 'mod1 module1)
-> (p *residual-program*)
+> (p (get-residual-program))
 ((define (jump-2 mlet-3 mlet-2 mlet-1)
    (if (zero? mlet-2)
        (jump-4 mlet-3 mlet-2 mlet-1)
@@ -927,7 +928,7 @@ Here is the code for the first module:
 Here is the code for the second module:
 \begin{verbatim}
 > (continue 'mod2 module2)
-> (p *residual-program*)
+> (p (get-residual-program))
 ((define (jump-5 mlet-3 mlet-2 mlet-1)
    (if (zero? mlet-2)
        (jump-3 mlet-3 mlet-2 mlet-1)
@@ -1455,8 +1456,8 @@ where
 \end{itemize}
 The result is a call template for the specialized function, a list
 consisting of the name of the function and of names of the
-arguments. The residual program is left in the variable
-\texttt{*residual-program*}\dindextt{*residual-program*}. It is a list
+arguments. The residual program can be retrieved via
+\texttt{(get-residual-program)}\dindextt{get-residual-program}. It is a list
 of Scheme definitions. Furthermore, the variable
 \texttt{*support-code*}\dindextt{*support-code*} contains additional
 code, for example data 
