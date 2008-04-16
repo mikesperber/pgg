@@ -7,17 +7,29 @@
 ; - the nonterminals come before the terminals
 ; - the start production is first
 
-(define-record-type grammar
-  (nonterminals
-   terminals
-   number-of-nonterminals
-   number-of-symbols
-   error start
-   productions
-   productions-by-lhs
-   symbol->name-procedure
-   terminal-attribution)
-  ((properties '())))
+(define-record-type grammar :grammar
+  (really-make-grammar nonterminals
+		       terminals
+		       number-of-nonterminals
+		       number-of-symbols
+		       error start
+		       productions
+		       productions-by-lhs
+		       symbol->name-procedure
+		       terminal-attribution
+		       properties)
+  grammar?
+  (nonterminals grammar-nonterminals)
+  (terminals grammar-terminals)
+  (number-of-nonterminals grammar-number-of-nonterminals)
+  (number-of-symbols grammar-number-of-symbols)
+  (error grammar-error)
+  (start grammar-start)
+  (productions grammar-productions)
+  (productions-by-lhs grammar-productions-by-lhs)
+  (symbol->name-procedure grammar-symbol->name-procedure)
+  (terminal-attribution grammar-terminal-attribution)
+  (properties grammar-properties set-grammar-properties!))
 
 (define (make-grammar nonterminals terminals
 		      error start
@@ -34,14 +46,15 @@
 		    (really-productions-with-lhs lhs productions)))
      nonterminals)
 		    
-    (grammar-maker nonterminals terminals
-		   number-of-nonterminals
-		   (+ number-of-nonterminals number-of-terminals)
-		   error start
-		   productions
-		   productions-by-lhs
-		   symbol->name-procedure
-		   terminal-attribution)))
+    (really-make-grammar nonterminals terminals
+			 number-of-nonterminals
+			 (+ number-of-nonterminals number-of-terminals)
+			 error start
+			 productions
+			 productions-by-lhs
+			 symbol->name-procedure
+			 terminal-attribution
+			 '())))
 
 (define (really-productions-with-lhs lhs productions)
   (filter (lambda (production)

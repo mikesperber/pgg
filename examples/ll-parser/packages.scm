@@ -24,12 +24,12 @@
   (export parse))
 
 (define-interface toy-grammars-interface
-  (export g10 (g10-symbol :syntax) i10-1 i10-2 i10-3))
+  (export g10 (g10-symbol :syntax)))
 
 ; Structures
 
 (define-structure grammar grammar-interface
-  (open scheme big-util defrecord enumerated scc-union)
+  (open scheme big-util define-record-types enumerated scc-union)
   (files grammar))
 
 (define-structure scc-union scc-union-interface
