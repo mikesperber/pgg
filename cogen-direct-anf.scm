@@ -308,26 +308,26 @@
   (syntax-rules ()
     ((_if 0 e1 e2 e3)
      (if e1 e2 e3))
-    ((_if 1 e1 e2 e3)
-     (shift k
-	    (let* ((r1 e1)
-		   (p2 (make-placeholder))
-		   (p3 (make-placeholder))
-		   (t2 (spawn
-			(preserving-gensym-local
-			 (lambda ()
-			   (placeholder-set! p2
-					     (with-fresh-meta-continuation
-					      (lambda ()
-						(reset (k e2)))))))))
-		   (t3 (spawn
-			(preserving-gensym-local
-			 (lambda ()
-			   (placeholder-set! p3
-					     (with-fresh-meta-continuation
-					      (lambda ()
-						(reset (k e3))))))))))
-	      (make-residual-if r1 (placeholder-value p2) (placeholder-value p3)))))
+;     ((_if 1 e1 e2 e3)
+;      (shift k
+; 	    (let* ((r1 e1)
+; 		   (p2 (make-placeholder))
+; 		   (p3 (make-placeholder))
+; 		   (t2 (spawn
+; 			(preserving-gensym-local
+; 			 (lambda ()
+; 			   (placeholder-set! p2
+; 					     (with-fresh-meta-continuation
+; 					      (lambda ()
+; 						(reset (k e2)))))))))
+; 		   (t3 (spawn
+; 			(preserving-gensym-local
+; 			 (lambda ()
+; 			   (placeholder-set! p3
+; 					     (with-fresh-meta-continuation
+; 					      (lambda ()
+; 						(reset (k e3))))))))))
+; 	      (make-residual-if r1 (placeholder-value p2) (placeholder-value p3)))))
     ((_if 1 e1 e2 e3)
      (shift k (make-residual-if e1 (reset (k e2)) (reset (k e3)))))
     ((_if 1 e1 e2 e3)
