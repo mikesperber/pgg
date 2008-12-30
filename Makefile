@@ -1,7 +1,7 @@
 SHELL = /bin/sh
 BATCH_IMAGE = batch.image
 INTERACTIVE_IMAGE = pgg.image
-COGEN_VERSION = 1.3
+COGEN_VERSION = 1.4
 DISTRIBUTION = pgg-$(COGEN_VERSION).tar.gz
 GENEXT_DISTRIBUTION = genext-$(COGEN_VERSION).tar.gz
 prefix = /usr/local

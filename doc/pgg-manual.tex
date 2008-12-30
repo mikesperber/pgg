@@ -15,7 +15,7 @@
 %%% makeindex -s pgg-manual.ist pgg-manual.idx
 \begin{document}
 \title{The PGG System---User Manual}
-\author{Peter Thiemann\thanks{Copyright \copyright~Peter Thiemann, 1998-2000}\\
+\author{Peter Thiemann\thanks{Copyright \copyright~Peter Thiemann, 1998-2008}\\
   Universität Freiburg\\
   thiemann@informatik.uni-freiburg.de}
 \maketitle
@@ -59,22 +59,22 @@ pointers to relevant literature.
 \label{sec:installation}
 
 To use the system, you first have to install the Scheme48 system
-\cite{KelseyRees1995}, which is available from Richard Kelsey's homepage
-\url{http://www.s48.org/}. The current version 0.57 is required to run PGG.
+\cite{KelseyRees1995}, which is available from 
+\url{http://www.s48.org/}. The current version 1.8 is required to run PGG.
 
 Once you have installed Scheme48, unpack the distribution file by 
 \begin{alltt}
-kailua> mkdir pgg-1.3
-kailua> cd pgg-1.3 
-kailua> zcat \meta{path-where-you-downloaded}/pgg-1.3.tar.gz | tar xvf -
+kailua> mkdir pgg-1.4
+kailua> cd pgg-1.4 
+kailua> zcat \meta{path-where-you-downloaded}/pgg-1.4.tar.gz | tar xvf -
 \end{alltt}
 (with \verb+kailua>+ being the shell's prompt)
-This creates the directory \texttt{pgg-1.3} in the current directory.
+This creates the directory \texttt{pgg-1.4} in the current directory.
 
 Next, you should build yourself an image file of the system, to speed
 up loading later on. To do this type:
 \begin{verbatim}
-kailua> cd pgg-1.3
+kailua> cd pgg-1.4
 kailua> make
 (echo ",bench on"; \
  echo ",config,load genext-packages.scm pgg-packages.scm"; \
@@ -87,9 +87,9 @@ kailua> make
  echo ",dump pgg.image \"(PGG-1.2 made by $LOGNAME `date`)\""; \
  echo ",exit" ) \
 | scheme48 -h 10000000
-Welcome to Scheme 48 0.57 (made by thiemann on Fri Aug  8 16:50:56 CEST 2003).
-Copyright (c) 1993-2001 by Richard Kelsey and Jonathan Rees.
-Please report bugs to scheme-48-bugs@martigny.ai.mit.edu.
+Welcome to Scheme 48 1.8 (made by thiemann on Fri Aug  8 16:50:56 CEST 2008).
+Copyright (c) 1993-2008 by Richard Kelsey and Jonathan Rees.
+Please report bugs to scheme-48-bugs@s48.org.
 Type ,? (comma question-mark) for help.
 > will compile some calls in line
 > > > > > > Before: 2527559 words free in semispace
