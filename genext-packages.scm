@@ -165,7 +165,8 @@
 	  file->list writelpp writel count-cells
 	  display-line display-return display-list spaces
 	  strip-path-prefix
-	  strip-path-suffix))
+	  strip-path-suffix
+	  equal?-hash))
 
 (define-interface cogen-gensym-interface
   (export gensym-reset!
@@ -188,12 +189,14 @@
   (files cogen-gensym))
 
 (define-structure auxiliary auxiliary-interface
-  (open scheme pp)
+  (open scheme pp tables)
   (files auxiliary))
 
 (define-structure cogen-specialize cogen-specialize-interface
   (open scheme
 	cells proposals
+	auxiliary
+	tables
 	cogen-globals)
   (files cogen-specialize))
 

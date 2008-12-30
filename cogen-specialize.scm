@@ -5,7 +5,7 @@
 ;;; remains intact
 
 
-(define *memolist* '())
+(define *memolist* #f)
 (define *residual-program* (make-cell '()))
 (define *support-code* '())
 (define *deferred-list* '())
@@ -19,51 +19,21 @@
 ;;	(else #f)))
 ;; there is a problem if one key is a proper prefix of the other
 ;; within the number of stages
+
+(define make-memo-table (make-table-maker equal? equal?-hash))
+
 (define (clear-memolist!)
-  (set! *memolist* (list '*memolist*)))
+  (set! *memolist* (make-memo-table)))
+
 (define (add-to-memolist! key value)
-  (let loop ((key key) (n *memolist-stages*) (memolist *memolist*))
-    (if (zero? n)
-	(let ((saved-cdr (cdr memolist)))
-	  (set-cdr! memolist (cons (cons key value) saved-cdr)))
-	(cond ((assoc (car key) (cdr memolist))
-	       => (lambda (entry)
-		    (loop (cdr key) (- n 1) (cdr entry))))
-	      ((null? (cdr key))
-	       (let ((saved-cdr (cdr memolist)))
-		 (set-cdr! memolist
-			   (cons (cons (car key) value) saved-cdr))))
-	      (else
-	       (let ((saved-cdr (cdr memolist))
-		     (nested-memolist (list '***)))
-		 (set-cdr! memolist
-			   (cons (cons (car key) nested-memolist) saved-cdr))
-		 (loop (cdr key) (- n 1) nested-memolist)))))))
+  (table-set! *memolist* key value))
+
 (define (lookup-memolist key)
-  (let loop ((key key) (n *memolist-stages*) (memolist (cdr *memolist*)))
-    (if (zero? n)
-	(cond ((assoc key memolist) => cdr)
-	      (else #f))
-	(cond ((assoc (car key) memolist)
-	       => (lambda (entry)
-		    (let ((cdr-key (cdr key)))
-		      (if (null? cdr-key)
-			  memolist
-			  (loop cdr-key (- n 1) (cddr entry))))))
-	      (else #f)))))
+  (table-ref *memolist* key))
+
 (define (for-each-memolist proc)
-  (let loop ((n *memolist-stages*) (prefix '()) (memolist *memolist*))
-    (if (zero? n)
-	(for-each (lambda (k-v)
-		    (proc (append prefix (car k-v)) (cdr k-v)))
-		  (cdr memolist))
-	(for-each (lambda (k-m)
-		    (let ((key (car k-m))
-			  (rest (cdr k-m)))
-		      (if (eq? (car rest) '***)
-			  (proc (append prefix (list key)) rest)
-			  (loop (- n 1) (append prefix (list key)) rest))))
-		  (cdr memolist)))))
+  (table-walk proc *memolist*))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define (get-residual-program)
   (cell-ref *residual-program*))
