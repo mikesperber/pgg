@@ -174,8 +174,8 @@ $(INTERACTIVE_IMAGE) : $(cogen_files) $(config_files)
 	 echo ",exit" ) \
 	| $(SCHEME48) -h $(INTERACTIVE_HEAPSIZE)
 
-$(DISTRIBUTION): $(cogen_files) $(config_files) $(cogen_examples) $(additional_files)
-	tar cvhzf $(DISTRIBUTION) $(cogen_files) $(config_files) $(cogen_examples) $(additional_files)
+$(DISTRIBUTION): $(cogen_files) $(config_files) $(cogen_examples) $(additional_files) LICENSE
+	tar cvhzf $(DISTRIBUTION) $(cogen_files) $(config_files) $(cogen_examples) $(additional_files) LICENSE
 
-$(GENEXT_DISTRIBUTION): $(genext_files) $(genext_config_files)
-	tar cvhzf $(GENEXT_DISTRIBUTION) $(genext_files) $(genext_config_files)
+$(GENEXT_DISTRIBUTION): $(genext_files) $(genext_config_files) LICENSE
+	tar cvhzf $(GENEXT_DISTRIBUTION) $(genext_files) $(genext_config_files) LICENSE
